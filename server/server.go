@@ -54,7 +54,7 @@ func (s *Server) AddUser(user User) uuid.UUID {
 	return id
 }
 
-// RemoveHost removes host with given uuid from the map. If such host does not exist does nothing
+// RemoveHost removes host with given uuid from the map. If such host does not exist it does nothing
 func (s *Server) RemoveHost(id uuid.UUID) {
 	s.hostSharedLock.Lock()
 	defer s.hostSharedLock.Unlock()
@@ -62,7 +62,7 @@ func (s *Server) RemoveHost(id uuid.UUID) {
 	delete(s.hosts, id)
 }
 
-// RemoveUser removes user with given uuid from the map. If such user does not exist does nothing
+// RemoveUser removes user with given uuid from the map. If such user does not exist it does nothing
 func (s *Server) RemoveUser(id uuid.UUID) {
 	s.userSharedLock.Lock()
 	defer s.userSharedLock.Unlock()

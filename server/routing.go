@@ -1,12 +1,21 @@
 package main
 
-import "net/http"
+import (
+	"github.com/Basileus1990/EasyFileTransfer.git/server/controllers"
+	"net/http"
+)
 
-func getRoutes() *http.ServeMux {
+func getRoutes() http.Handler {
 	mux := http.NewServeMux()
 
 	// websocket endpoints
-	mux.Handle("/host")
+	//mux.Handle("/host")
 
-	return mux
+	// http endpoints
+	mux.HandleFunc("/ping", controllers.Ping)
+	return withMiddlewares(mux)
+}
+
+func withMiddlewares(handler http.Handler) http.Handler {
+	return handler
 }
