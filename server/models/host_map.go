@@ -1,4 +1,4 @@
-package main
+package models
 
 import (
 	"sync"
@@ -49,7 +49,4 @@ func (h *HostMap) Get(id uuid.UUID) (Host, bool) {
 
 	host, ok := h.hosts[id]
 	return host, ok
-}
-
-type Host struct {
 }

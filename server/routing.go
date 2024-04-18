@@ -13,9 +13,5 @@ func getRoutes() http.Handler {
 
 	// http endpoints
 	mux.HandleFunc("/ping", controllers.Ping)
-	return withMiddlewares(mux)
-}
-
-func withMiddlewares(handler http.Handler) http.Handler {
-	return handler
+	return mux
 }

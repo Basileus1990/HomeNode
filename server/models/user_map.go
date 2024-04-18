@@ -1,4 +1,4 @@
-package main
+package models
 
 import (
 	"sync"
@@ -43,13 +43,10 @@ func (u *UserMap) Remove(id uuid.UUID) {
 }
 
 // Get returns the user with given uuid. Returns a boolean which indicates if the action was a success
-func (h *UserMap) Get(id uuid.UUID) (User, bool) {
-	h.hostSharedLock.RLock()
-	defer h.hostSharedLock.RUnlock()
+func (u *UserMap) Get(id uuid.UUID) (User, bool) {
+	u.hostSharedLock.RLock()
+	defer u.hostSharedLock.RUnlock()
 
-	host, ok := h.hosts[id]
+	host, ok := u.hosts[id]
 	return host, ok
-}
-
-type User struct {
 }
