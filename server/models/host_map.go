@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// HostMap - struct for thread safe storage for all hosts
 type HostMap struct {
 	hosts          map[uuid.UUID]Host
 	hostSharedLock sync.RWMutex
@@ -17,7 +18,7 @@ func NewHostMap() *HostMap {
 	}
 }
 
-// Add adds the host to the server and returns its uuid
+// Add - adds the host to the server and returns its uuid
 func (h *HostMap) Add(host Host) uuid.UUID {
 	var id uuid.UUID
 	h.hostSharedLock.Lock()
@@ -34,7 +35,7 @@ func (h *HostMap) Add(host Host) uuid.UUID {
 	return id
 }
 
-// Remove removes host with given uuid from the map. If such host does not exist it does nothing
+// Remove - removes host with given uuid from the map. If such host does not exist it does nothing
 func (h *HostMap) Remove(id uuid.UUID) {
 	h.hostSharedLock.Lock()
 	defer h.hostSharedLock.Unlock()
@@ -42,7 +43,7 @@ func (h *HostMap) Remove(id uuid.UUID) {
 	delete(h.hosts, id)
 }
 
-// Get returns the host with given uuid. Returns a boolean if the action was a success
+// Get - returns the host with given uuid. Returns a boolean if the action was a success
 func (h *HostMap) Get(id uuid.UUID) (Host, bool) {
 	h.hostSharedLock.RLock()
 	defer h.hostSharedLock.RUnlock()

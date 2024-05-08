@@ -16,8 +16,8 @@ func main() {
 
 	mux := getRoutes()
 	mux = middlewares.NewDependencyInjector(mux, map[string]any{
-		globalctx.USER_MAP: models.NewUserMap(),
-		globalctx.HOST_MAP: models.NewHostMap(),
+		globalctx.UserMapKey: models.NewUserMap(),
+		globalctx.HostMapKey: models.NewHostMap(),
 	})
 
 	server := http.Server{

@@ -21,7 +21,8 @@ func (di *DependencyInjector) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	di.handler.ServeHTTP(w, r)
 }
 
-// NewDependencyInjector creates new dependency injector middleware to inject the dependencies
+// NewDependencyInjector creates new dependency injector middleware to inject the dependencies.
+// Key of the dependencies map is taken from globatctx package
 func NewDependencyInjector(toBeWrapped http.Handler, dependencies map[string]any) *DependencyInjector {
 	return &DependencyInjector{
 		handler:      toBeWrapped,
