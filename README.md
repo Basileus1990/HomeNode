@@ -9,3 +9,7 @@ It will be possible to host a folder/file and share it either by a link or an ac
   - Package has to be able to send messages
   - Package has to be able to receive messages
   - Has to be behind an interface for the ease of testing
+- [ ] Create communication protocol
+  - Getting the list of files from host (josn)
+  - sending files
+- [ ] Create CLI client and host for tasting purposes
