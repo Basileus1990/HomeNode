@@ -9,8 +9,6 @@ import (
 	"net/http"
 )
 
-// TODO Global
-
 func main() {
 	fmt.Println("Starting the server ...")
 
