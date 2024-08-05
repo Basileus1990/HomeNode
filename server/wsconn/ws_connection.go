@@ -2,6 +2,7 @@
 
 package wsconn
 
+// WSConnection is a wrapper on a websocket connection with methods for retrieving and sending messages
 type WSConnection interface {
 }
 
