@@ -27,7 +27,7 @@ func main() {
 	})
 
 	server := http.Server{
-		Addr:    "localhost:3000",
+		Addr:    fmt.Sprintf("localhost:%d", config.Get().Server.Port),
 		Handler: mux,
 	}
 

@@ -13,11 +13,8 @@ const envTag = "env"
 
 type Config struct {
 	Server struct {
-		Port  int     `env:"PORT"`
-		Test1 float32 `env:"test1"`
-		Test2 string  `env:"test2"`
+		Port int `env:"PORT"`
 	}
-	Test3 bool `env:"test3"`
 }
 
 var cfg *Config
