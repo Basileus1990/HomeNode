@@ -13,3 +13,4 @@ It will be possible to host a folder/file and share it either by a link or an ac
   - Getting the list of files from host (josn)
   - sending files
 - [ ] Create CLI client and host for tasting purposes
+- [ ] Add config
