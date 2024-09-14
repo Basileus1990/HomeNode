@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/Basileus1990/EasyFileTransfer.git/server/config"
 	"github.com/Basileus1990/EasyFileTransfer.git/server/globalctx"
 	"github.com/Basileus1990/EasyFileTransfer.git/server/middlewares"
 	"github.com/Basileus1990/EasyFileTransfer.git/server/models"
@@ -12,6 +13,11 @@ import (
 
 func main() {
 	fmt.Println("Starting the server ...")
+
+	cfgErr := config.LoadConfig()
+	if cfgErr != nil {
+		panic(cfgErr)
+	}
 
 	mux := getRoutes()
 	mux = middlewares.NewDependencyInjector(mux, map[string]any{
