@@ -5,6 +5,9 @@ import (
 	"net/http"
 )
 
+// DEPRECATED
+// left here only as an example for future middlewares
+
 // DependencyInjector is a middleware which inserts the dependencies into the request context
 type DependencyInjector struct {
 	handler      http.Handler
