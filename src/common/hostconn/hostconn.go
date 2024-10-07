@@ -1,7 +1,9 @@
 package hostconn
 
 import (
+	"context"
 	"encoding/binary"
+	"errors"
 	"github.com/gorilla/websocket"
 	"math/rand"
 	"sync"
@@ -11,53 +13,54 @@ import (
 // - Comments
 // - handling connection closeup
 // - returning errors and create error types for example not found etc
-// - write/read using binary not text
 // - make it possible to close the connection: break the listen and send methods
+// - Add close handler for removing from the server
 
-// Message types. Each type indicates the format of the Message. Used for further parsing
-// Not using itoa so it is easier to change in future
-const (
-	MessageTypeFromHost     = 0
-	MessageTypeError        = 1
-	MessageTypePingSend     = 2
-	MessageTypePingResponse = 3
-)
-
-// Message binary params sizes
 const (
 	sizeOfQueryIdInBytes = 4
-	sizeOfTypeInBytes    = 4
 )
+
+// Errors
+var ConnectionClosedErr = errors.New("host connection has been closed")
 
 // TODO: proper comments
 type Conn interface {
-	Query(query Message) (Message, error)
+	Query(query []byte) ([]byte, error)
+	Close() error
 }
 
-// Message represent the data which will be sent to and from the websocket.
-// Content's format can be determined from the Type.
-type Message struct {
-	Content []byte
-	Type    uint32
+type message struct {
+	msg     []byte
 	queryId uint32
+	err     error
 }
 
 type DefaultConn struct {
 	wsConn *websocket.Conn
+	closed bool
 
-	queryCh            chan Message
-	responseChannels   map[uint32]chan Message
-	responseChannelsMx sync.Mutex
+	ctx        context.Context
+	cancelFunc context.CancelFunc
+	cancelErr  error
+	closeMu    sync.Mutex
+
+	queryCh            chan message
+	responseChannels   map[uint32]chan message
+	responseChannelsMu sync.Mutex
 }
 
 var _ Conn = (*DefaultConn)(nil)
 
 // NewDefaultConnection returns an initialized connection to the host and start the listen and send goroutines
 func NewDefaultConnection(wsConn *websocket.Conn) Conn {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	conn := DefaultConn{
 		wsConn:           wsConn,
-		responseChannels: make(map[uint32]chan Message),
-		queryCh:          make(chan Message),
+		ctx:              ctx,
+		cancelFunc:       cancel,
+		responseChannels: make(map[uint32]chan message),
+		queryCh:          make(chan message),
 	}
 
 	go conn.listen()
@@ -66,16 +69,61 @@ func NewDefaultConnection(wsConn *websocket.Conn) Conn {
 	return &conn
 }
 
-func (conn *DefaultConn) Query(query Message) (Message, error) {
+func (conn *DefaultConn) Query(query []byte) ([]byte, error) {
 	queryId, responseCh := conn.createNewResponseChannel()
-	query.queryId = queryId
+	msg := message{
+		msg:     query,
+		queryId: queryId,
+	}
 
-	conn.queryCh <- query
-	return <-responseCh, nil
+	select {
+	case <-conn.ctx.Done():
+		return nil, conn.cancelErr
+	case conn.queryCh <- msg:
+	}
+
+	select {
+	case <-conn.ctx.Done():
+		return nil, conn.cancelErr
+	case resp := <-responseCh:
+		return resp.msg, resp.err
+	}
+}
+
+// TODO:
+func (conn *DefaultConn) Close() error {
+	conn.closeMu.Lock()
+	defer conn.closeMu.Unlock()
+	if conn.closed {
+		return nil
+	}
+	conn.closed = true
+
+	conn.cancelFunc()
+	return conn.wsConn.Close()
+}
+
+func (conn *DefaultConn) closeWithError(err error) error {
+	closeErr := conn.Close()
+	if closeErr != nil {
+		return closeErr
+	}
+
+	if conn.cancelErr == nil {
+		conn.cancelErr = err
+	}
+	return nil
 }
 
 func (conn *DefaultConn) send() {
-	for query := range conn.queryCh {
+	for !conn.closed {
+		var query message
+		select {
+		case <-conn.ctx.Done():
+			return
+		case query = <-conn.queryCh:
+		}
+
 		msg, err := getBinaryDataFromQuery(query)
 		if err != nil {
 			panic(err)
@@ -83,34 +131,41 @@ func (conn *DefaultConn) send() {
 
 		err = conn.wsConn.WriteMessage(websocket.BinaryMessage, msg)
 		if err != nil {
-			panic(err)
+			_ = conn.closeWithError(err)
+			return
 		}
 	}
 }
 
 func (conn *DefaultConn) listen() {
-	for {
-		_, message, err := conn.wsConn.ReadMessage()
+	for !conn.closed {
+		_, msg, err := conn.wsConn.ReadMessage()
 		if err != nil {
-			panic(err)
+			_ = conn.closeWithError(err)
+			return
 		}
 
-		result := getMessageFromBinaryData(message)
-		conn.responseChannelsMx.Lock()
-		conn.responseChannels[result.queryId] <- result
+		result := getMessageFromBinaryData(msg)
+		conn.responseChannelsMu.Lock()
+
+		select {
+		case <-conn.ctx.Done():
+			return
+		case conn.responseChannels[result.queryId] <- result:
+		}
 		delete(conn.responseChannels, result.queryId)
-		conn.responseChannelsMx.Unlock()
+		conn.responseChannelsMu.Unlock()
 	}
 }
 
-func (conn *DefaultConn) createNewResponseChannel() (uint32, <-chan Message) {
-	conn.responseChannelsMx.Lock()
-	defer conn.responseChannelsMx.Unlock()
+func (conn *DefaultConn) createNewResponseChannel() (uint32, <-chan message) {
+	conn.responseChannelsMu.Lock()
+	defer conn.responseChannelsMu.Unlock()
 
 	for {
 		newQueryId := rand.Uint32()
 		if _, ok := conn.responseChannels[newQueryId]; !ok {
-			responseChannel := make(chan Message)
+			responseChannel := make(chan message)
 			conn.responseChannels[newQueryId] = responseChannel
 
 			return newQueryId, responseChannel
@@ -118,20 +173,15 @@ func (conn *DefaultConn) createNewResponseChannel() (uint32, <-chan Message) {
 	}
 }
 
-func getBinaryDataFromQuery(query Message) ([]byte, error) {
-	msg := make([]byte, 0, len(query.Content)+sizeOfQueryIdInBytes+sizeOfTypeInBytes)
+func getBinaryDataFromQuery(query message) ([]byte, error) {
+	msg := make([]byte, 0, len(query.msg)+sizeOfQueryIdInBytes)
 
 	msg, err := binary.Append(msg, binary.BigEndian, query.queryId)
 	if err != nil {
 		panic(err)
 	}
 
-	msg, err = binary.Append(msg, binary.BigEndian, query.Type)
-	if err != nil {
-		panic(err)
-	}
-
-	msg, err = binary.Append(msg, binary.BigEndian, query.Content)
+	msg, err = binary.Append(msg, binary.BigEndian, query.msg)
 	if err != nil {
 		panic(err)
 	}
@@ -139,17 +189,15 @@ func getBinaryDataFromQuery(query Message) ([]byte, error) {
 	return msg, err
 }
 
-func getMessageFromBinaryData(data []byte) Message {
+func getMessageFromBinaryData(data []byte) message {
 	i := 0
 	queryId := binary.BigEndian.Uint32(data[i:sizeOfQueryIdInBytes])
 	i += sizeOfQueryIdInBytes
-	messageType := binary.BigEndian.Uint32(data[i : i+sizeOfQueryIdInBytes])
-	i += sizeOfQueryIdInBytes
+
 	msg := data[i:]
 
-	return Message{
-		Content: msg,
-		Type:    messageType,
+	return message{
+		msg:     msg,
 		queryId: queryId,
 	}
 }
