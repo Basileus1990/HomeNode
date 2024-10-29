@@ -51,8 +51,8 @@ type DefaultConn struct {
 
 var _ Conn = (*DefaultConn)(nil)
 
-// NewDefaultConnection returns an initialized connection to the host and start the listen and send goroutines
-func NewDefaultConnection(wsConn *websocket.Conn) Conn {
+// NewHostConnection returns an initialized connection to the host and start the listen and send goroutines
+func NewHostConnection(wsConn *websocket.Conn) Conn {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	conn := DefaultConn{

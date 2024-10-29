@@ -18,5 +18,5 @@ func TestWS(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	GlobalConn = hostconn.NewDefaultConnection(conn)
+	GlobalConn = hostconn.NewHostConnection(conn)
 }
