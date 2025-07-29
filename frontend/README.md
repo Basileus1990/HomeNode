@@ -24,6 +24,12 @@ Install the dependencies:
 npm install
 ```
 
+Generate types for TypeScript:
+
+```bash
+npx react-router typegen
+```
+
 ### Development
 
 Start the development server with HMR:

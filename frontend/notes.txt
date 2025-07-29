@@ -1,6 +1,0 @@
-npx react-router typegen
-
-record-filesystem ma wszystkie funkcje z opfs poza getAllRecords => wymaga przebudowania listy rekordów
-
-dropzone pozwala wybierać pliki LUB foldery, ale nie jedno i drugie
-po wybraniu folderu trzeba z .path odtworzyć drzewko
