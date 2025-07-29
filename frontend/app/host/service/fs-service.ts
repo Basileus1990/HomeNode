@@ -1,5 +1,5 @@
-import { type RecordMetadata, RecordKind, InvalidRecordError, NotFileRecordError } from "../fs/types";
-import { RecordHandle, FileRecordHandle, DirectoryRecordHandle } from "../fs/records-filesystem";
+import { Errors, type RecordMetadata, RecordKind, type Items } from "~/common/fs/types";
+import { RecordHandle, FileRecordHandle, DirectoryRecordHandle, FILE_RECORD_PREFIX, DIR_RECORD_PREFIX } from "~/common/fs/records-filesystem";
 
 export namespace FSService {
     export async function getRootRecord() {
@@ -67,7 +67,7 @@ export namespace FSService {
         } else if (kind === RecordKind.directory) {
             return DirectoryRecordHandle.createDirectoryRecordAsync(name, root, metadata);
         } else {
-            throw new InvalidRecordError({
+            throw new Errors.InvalidRecordError({
                 name: "INVALID_RECORD_ERROR",
                 message: `Unsupported record kind: ${kind}`,
             });
@@ -90,7 +90,7 @@ export namespace FSService {
         } else if (kind === RecordKind.directory) {
             return DirectoryRecordHandle.createDirectoryRecordAsync(name, root, metadata);
         } else {
-            throw new InvalidRecordError({
+            throw new Errors.InvalidRecordError({
                 name: "INVALID_RECORD_ERROR",
                 message: `Unsupported record kind: ${kind}`,
             });
@@ -124,6 +124,58 @@ export namespace FSService {
             return true;
         }
         return false;
+    }
+
+    export async function prepareData(record: RecordHandle | null): Promise<Items.RecordItem[]> {
+        async function readFileRecord(handle: FileRecordHandle): Promise<Items.FileRecordItem> {
+            const file = await handle.getHandle().then((h) => h.getFile());
+            const metadata = await handle.getMetadata();
+            return {
+                recordName: handle.getName().replace(FILE_RECORD_PREFIX, ""),
+                contentName: metadata.contentName,
+                kind: RecordKind.file,
+                lastModified: file.lastModified,
+                size: file.size,
+                dateShared: metadata.dateShared,
+            } as Items.FileRecordItem;
+        }
+
+        async function readDirectoryRecord(handle: DirectoryRecordHandle): Promise<Items.DirectoryRecordItem> {
+            const metadata = await handle.getMetadata();
+            return {
+                    recordName: handle.getName().replace(DIR_RECORD_PREFIX, ""),
+                    contentName: metadata.contentName,
+                    dateShared: metadata.dateShared,
+                    kind: RecordKind.directory,
+                    entriesNo: 0, //TODO: Placeholder for entries count
+            } as Items.DirectoryRecordItem;
+        }
+
+
+        if (!record) {
+            console.log("No record found for the given ID.");
+            return [];
+        }
+
+        const recordInfos: Items.RecordItem[] = [];
+        if (record.getKind() === RecordKind.directory) {
+            const dir = record as DirectoryRecordHandle;
+            for await (const [key, handle] of dir.entries()) {
+                const rec = await handle as RecordHandle;
+                const kind = rec.getKind();
+                if (kind === RecordKind.file) {
+                    recordInfos.push(await readFileRecord(rec as FileRecordHandle));
+                } else if (kind === RecordKind.directory) {
+                    recordInfos.push(await readDirectoryRecord(rec as DirectoryRecordHandle));
+                }
+            }
+        } else if (record.getKind() === RecordKind.file) {
+            console.log("Got file record:", record);
+            recordInfos.push(await readFileRecord(record as FileRecordHandle));
+        }
+        
+        console.log("Prepared record infos:", recordInfos);
+        return recordInfos;
     }
 }
 

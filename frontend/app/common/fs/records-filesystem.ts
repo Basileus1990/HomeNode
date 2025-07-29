@@ -1,9 +1,9 @@
 import type { RecordMetadata } from "./types";
-import { RecordKind, InvalidRecordError, NotFileRecordError } from "./types";
+import { Errors, RecordKind } from "./types";
 
-const META_FILE = "meta.json"
-const FILE_RECORD_PREFIX = "file_"
-const DIR_RECORD_PREFIX = "dir_"
+export const META_FILE = "meta.json"
+export const FILE_RECORD_PREFIX = "file_"
+export const DIR_RECORD_PREFIX = "dir_"
 
 export class RecordHandle {
     protected _recordHandle: FileSystemDirectoryHandle;
@@ -21,7 +21,7 @@ export class RecordHandle {
     private async readMetadata() {
         const metadataFile = await this._recordHandle.getFileHandle(META_FILE);
         if (!metadataFile) {
-            throw new InvalidRecordError({
+            throw new Errors.InvalidRecordError({
                 name: "INVALID_RECORD_ERROR",
                 message: "Metadata file not found",
             });
@@ -54,7 +54,7 @@ export class RecordHandle {
         if (kind)
             return kind
         else
-            throw new InvalidRecordError({
+            throw new Errors.InvalidRecordError({
                 name: "INVALID_RECORD_ERROR",
                 message: "Cannot identify record type from handle.name",
             });
@@ -76,7 +76,7 @@ export class RecordHandle {
         } else if (recordKind === RecordKind.file) {
             return new FileRecordHandle(handle).init();
         } else {
-            throw new InvalidRecordError({
+            throw new Errors.InvalidRecordError({
                 name: "INVALID_RECORD_ERROR",
                 message: "Cannot identify record type from handle.name",
             });
@@ -107,7 +107,7 @@ export class FileRecordHandle extends RecordHandle {
                 return this;
             }
         }
-        throw new NotFileRecordError({
+        throw new Errors.NotFileRecordError({
             name: "NOT_FILE_RECORD_ERROR",
             message: "No file handle found",
         });

@@ -1,4 +1,4 @@
-import { OPFS } from "../../fs/opfs";
+import { OPFS } from "../../../common/fs/opfs";
 
 let socket: WebSocket | null = null;
 let counter = 0;

@@ -10,11 +10,10 @@ export default function RecordsList({records}: {records: Items.RecordItem[]}) {
             return FileRecordListItem({rec: record as Items.FileRecordItem});
         } else if (record.kind === RecordKind.directory) {
             return DirectoryRecordListItem({rec: record as Items.DirectoryRecordItem, children:
-                <Link to={`/host/shared/${(record as Items.DirectoryRecordItem).recordName}`}>View</Link>
+                <Link to='#'>View</Link>
             });
         }
     };
-
 
     return (
         <div>

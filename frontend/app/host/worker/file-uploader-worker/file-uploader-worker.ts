@@ -2,8 +2,8 @@ import type { FileWithPath } from "react-dropzone";
 
 import { FSService } from "../../service/fs-service";
 import { prepareFilesForUpload, type RecordTreeNode } from "~/host/service/prepare-files";
-import { RecordKind } from "~/host/fs/types";
-import type { DirectoryRecordHandle } from "~/host/fs/records-filesystem";
+import { RecordKind } from "~/common/fs/types";
+import type { DirectoryRecordHandle } from "~/common/fs/records-filesystem";
 import type { FileUploaderWorkerFilePayload } from "./file-uploader-worker-types";
 
 
@@ -12,7 +12,6 @@ self.onmessage = async (event) => {
 
     if (type === "upload") {
         const files = rebuildPayload(payload);
-        console.log("Received files for upload:", files);
         const tree = await prepareFilesForUpload(files);
         const rootRecord = await FSService.getRootRecord();
         try {
@@ -39,8 +38,7 @@ function rebuildPayload(payload: FileUploaderWorkerFilePayload[]): FileWithPath[
 async function createRecordsFromTree(tree: RecordTreeNode, dir: DirectoryRecordHandle): Promise<void> {
     for (const child of tree.children!) {
         if (child.metadata.kind === RecordKind.file) {
-            //await dir.createFileRecord(child.recordName, child.file!, child.metadata);
-            const dir2 = await FSService.createDirectoryRecord(child.recordName, dir.getUnderlayingHandle(), child.metadata);
+            await dir.createFileRecord(child.recordName, child.file!, child.metadata);
         } else if (child.metadata.kind === RecordKind.directory) {
             const newDir = await dir.createDirectoryRecord(child.recordName, child.metadata);
             await createRecordsFromTree(child, newDir);

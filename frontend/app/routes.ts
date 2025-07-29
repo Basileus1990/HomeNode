@@ -14,7 +14,7 @@ export default [
         layout("./host/pages/layout.tsx", [
             index("./host/pages/main/main.tsx"),  // default view - share new item or view shared items
             route("share", "./host/pages/share-new/share.tsx"), // share new item
-            route("shared/:id?", "./host/pages/shared-list/shared-list.tsx"),  // view shared items
+            route("shared/:item_id?", "./host/pages/shared-list/shared-list.tsx"),  // view shared items
         ]),
     ]),
 
@@ -22,6 +22,6 @@ export default [
     // client routes
     ...prefix("client", [
         index("./client/pages/main/main.tsx"),    // default route, will be empty or redirect to some list view
-        route(":id", "./client/pages/view-item/view-item.tsx"), // dynamic route to view a specific item
+        route(":host_id/:item_id", "./client/pages/view-item/view-item.tsx"), // dynamic route to view a specific item
     ])
 ] satisfies RouteConfig;

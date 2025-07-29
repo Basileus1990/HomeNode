@@ -1,6 +1,6 @@
-import type { DirectoryRecordInfo } from "../../host/fs/types";
+import type { Items } from "../fs/types";
 
-export default function DirectoryRecordListItem({rec, children}: {rec: DirectoryRecordInfo, children?: React.ReactNode}) {
+export default function DirectoryRecordListItem({rec, children}: {rec: Items.DirectoryRecordItem, children?: React.ReactNode}) {
     return (
         <li key={rec.recordName}>
             <strong>{rec.contentName}</strong>
