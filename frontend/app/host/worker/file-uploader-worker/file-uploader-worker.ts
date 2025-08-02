@@ -27,18 +27,14 @@ self.onmessage = async (event) => {
 
 function rebuildPayload(payload: FileUploaderWorkerFilePayload[]): FileWithPath[] {
     return payload.map(item => {
-        return {
-            ...(item.file),
-            relativePath: item.relativePath,
-            path: item.path
-        }}
-    );
+        return Object.assign(item.file, { path: item.path, relativePath: item.relativePath }) as FileWithPath;
+    });
 }
 
 async function createRecordsFromTree(tree: RecordTreeNode, dir: DirectoryRecordHandle): Promise<void> {
     for (const child of tree.children!) {
         if (child.metadata.kind === RecordKind.file) {
-            await dir.createFileRecord(child.recordName, child.file!, child.metadata);
+            await dir.createFileRecord(child.recordName, child.file!, child.metadata, true);    // Using FileSystemSyncAccessHandle to write file for compatility with Safari
         } else if (child.metadata.kind === RecordKind.directory) {
             const newDir = await dir.createDirectoryRecord(child.recordName, child.metadata);
             await createRecordsFromTree(child, newDir);

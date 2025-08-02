@@ -138,7 +138,8 @@ export class FileRecordHandle extends RecordHandle {
             await writable.close();
         } else {
             const accessHandle = await fileHandle.createSyncAccessHandle();
-            accessHandle.write(await file.arrayBuffer());
+            const arrayBuffer = await file.arrayBuffer();
+            accessHandle.write(arrayBuffer);
             accessHandle.flush();
             accessHandle.close();
         }
@@ -159,7 +160,7 @@ export class DirectoryRecordHandle extends RecordHandle {
         return this;
     }
 
-    public async *entries() {
+    public async *entries(): AsyncGenerator<[string, Promise<RecordHandle>]> {
         for await (const [key, value] of this._recordHandle.entries()) {
             if (value.kind === "directory") {
                 yield [key, RecordHandle.readFromHandleAsync(value as FileSystemDirectoryHandle)];
