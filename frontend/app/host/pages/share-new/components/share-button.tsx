@@ -1,14 +1,14 @@
 import { useNavigate } from "react-router";
 import type { FileWithPath } from "react-dropzone";
 
-import useUploaderWorker from "../../../worker/file-uploader-worker/useUploaderWorker";
+import useUploaderWorker from "~/host/worker/file-uploader-worker/useUploaderWorker";
 
 export default function ShareButton({selectedFiles, setError}: 
     {selectedFiles: FileWithPath[], setError: React.Dispatch<React.SetStateAction<string | null>>}) {
     const navigate = useNavigate();
     const { uploadFiles, isUploading } = useUploaderWorker({ onUpload: async () => {
         console.log("Callback after upload");
-        //navigate("/host/shared");
+        navigate("/host/shared");
     }, onError: (error: string) => {
         setError(error);
     } });

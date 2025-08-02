@@ -1,8 +1,8 @@
-import { Errors, type RecordMetadata, RecordKind, type Items } from "~/common/fs/types";
-import { RecordHandle, FileRecordHandle, DirectoryRecordHandle, FILE_RECORD_PREFIX, DIR_RECORD_PREFIX } from "~/common/fs/records-filesystem";
+import { Errors, type RecordMetadata, RecordKind, type Items } from "./types";
+import { RecordHandle, FileRecordHandle, DirectoryRecordHandle, FILE_RECORD_PREFIX, DIR_RECORD_PREFIX } from "./records-filesystem";
 
 export namespace FSService {
-    export async function getRootRecord() {
+    export async function getRootRecord(): Promise<DirectoryRecordHandle> {
         const root = await navigator.storage.getDirectory();
         return await createDirectoryRecord("root", root, {
             contentName: "root",
@@ -101,15 +101,15 @@ export namespace FSService {
     * Delete record region *
     ***********************/
 
-    export async function deleteRecord(recordName: string, dir?: FileSystemDirectoryHandle): Promise<boolean> {
+    export async function deleteRecordByName(recordName: string, dir?: FileSystemDirectoryHandle, recursive: boolean = false): Promise<boolean> {
         const root = dir || (await getRootRecord()).getUnderlayingHandle();
         
-        const findItemToDelete = async (name: string, dir: FileSystemDirectoryHandle): Promise<FileSystemDirectoryHandle | null> => {
-            for await (const [key, value] of dir.entries()) {
-                if (key.includes(name)) {
-                    return dir;
-                } else if (value.kind === "directory") {
-                    const res = await findItemToDelete(name, value as FileSystemDirectoryHandle);
+        const _findItemToDelete = async (dir: FileSystemDirectoryHandle): Promise<[FileSystemHandle, FileSystemDirectoryHandle] | null> => {
+            for await (const [key, handle] of dir.entries()) {
+                if (key.includes(recordName)) {
+                    return [handle, dir];
+                } else if (handle.kind === "directory" && recursive) {
+                    const res = await _findItemToDelete(handle as FileSystemDirectoryHandle);
                     if (res) {
                         return res;
                     }
@@ -118,15 +118,50 @@ export namespace FSService {
             return null;
         };
 
-        const dirWithRecordToDelete = await findItemToDelete(recordName, root);
-        if (dirWithRecordToDelete) {
-            await dirWithRecordToDelete.removeEntry(recordName, { recursive: true });
+        const res = await _findItemToDelete(root);
+        if (res) {
+            const [itemToDelete, dirWithItemToDelete] = res;
+            await dirWithItemToDelete.removeEntry(itemToDelete.name, { recursive: true });
             return true;
         }
         return false;
     }
 
-    export async function prepareData(record: RecordHandle | null): Promise<Items.RecordItem[]> {
+    export async function deleteAnyRecord(
+        validatorFunc: (record: RecordHandle) => boolean, 
+        dir?: FileSystemDirectoryHandle,
+        recursive: boolean = false): Promise<boolean> {
+        const root = dir || (await getRootRecord()).getUnderlayingHandle();
+        
+        const findItemToDelete = async (dir: FileSystemDirectoryHandle): Promise<[FileSystemHandle, FileSystemDirectoryHandle] | null> => {
+            for await (const [key, handle] of dir.entries()) {
+                const record = new RecordHandle(handle as FileSystemDirectoryHandle);
+                if (validatorFunc(record)) {
+                    return [handle, dir];
+                } else if (handle.kind === "directory" && recursive) {
+                    const res = await findItemToDelete(handle as FileSystemDirectoryHandle);
+                    if (res) {
+                        return res;
+                    }
+                }
+            }
+            return null;
+        };
+
+        const res = await findItemToDelete(root);
+        if (res) {
+            const [itemToDelete, dirWithItemToDelete] = res;
+            await dirWithItemToDelete.removeEntry(itemToDelete.name, { recursive: true });
+            return true;
+        }
+        return false;
+    }
+
+    /***********************
+    * Read record region *
+    ***********************/
+
+    export async function readRecordIntoItem(record: RecordHandle | null): Promise<Items.RecordItem[]> {
         async function readFileRecord(handle: FileRecordHandle): Promise<Items.FileRecordItem> {
             const file = await handle.getHandle().then((h) => h.getFile());
             const metadata = await handle.getMetadata();
@@ -157,25 +192,75 @@ export namespace FSService {
             return [];
         }
 
-        const recordInfos: Items.RecordItem[] = [];
+        const items: Items.RecordItem[] = [];
         if (record.getKind() === RecordKind.directory) {
             const dir = record as DirectoryRecordHandle;
+            console.log(dir);
             for await (const [key, handle] of dir.entries()) {
-                const rec = await handle as RecordHandle;
+                const rec = await handle;
                 const kind = rec.getKind();
                 if (kind === RecordKind.file) {
-                    recordInfos.push(await readFileRecord(rec as FileRecordHandle));
+                    items.push(await readFileRecord(rec as FileRecordHandle));
                 } else if (kind === RecordKind.directory) {
-                    recordInfos.push(await readDirectoryRecord(rec as DirectoryRecordHandle));
+                    items.push(await readDirectoryRecord(rec as DirectoryRecordHandle));
                 }
             }
         } else if (record.getKind() === RecordKind.file) {
-            console.log("Got file record:", record);
-            recordInfos.push(await readFileRecord(record as FileRecordHandle));
+            items.push(await readFileRecord(record as FileRecordHandle));
         }
         
-        console.log("Prepared record infos:", recordInfos);
-        return recordInfos;
+        console.log(items);
+        return items;
+    }
+
+    /***********************
+    * Find record region *
+    ***********************/
+
+    export async function findRecordByName(recordName: string, dir?: FileSystemDirectoryHandle, recursive: boolean = false): Promise<RecordHandle | null> {
+        const root = dir || (await getRootRecord()).getUnderlayingHandle();
+        
+        const _findRecord = async (dir: FileSystemDirectoryHandle): Promise<RecordHandle | null> => {
+            for await (const [key, handle] of dir.entries()) {
+                if (handle.name.includes(recordName)) {
+                    return RecordHandle.readFromHandleAsync(handle as FileSystemDirectoryHandle);
+                } else if (handle.kind === "directory" && recursive) {
+                    const res = await _findRecord(handle as FileSystemDirectoryHandle);
+                    if (res) {
+                        return res;
+                    }
+                }
+            }
+            return null;
+        };
+
+        return await _findRecord(root);
+    }
+
+    export async function findAnyRecord(
+        validatorFunc: (record: RecordHandle) => boolean, 
+        dir?: FileSystemDirectoryHandle,
+        recursive: boolean = false): Promise<RecordHandle | null> {
+        const root = dir || (await getRootRecord()).getUnderlayingHandle();
+        
+        const _findRecord = async (dir: FileSystemDirectoryHandle): Promise<RecordHandle | null> => {
+            for await (const [key, handle] of dir.entries()) {
+                if (handle.kind === "directory") {
+                    const record = new RecordHandle(handle as FileSystemDirectoryHandle);
+                    if (validatorFunc(record)) {
+                        return (await RecordHandle.readFromHandleAsync(handle as FileSystemDirectoryHandle)).init();
+                    } else if (recursive === true && RecordHandle.checkKind(handle.name) === RecordKind.directory) {
+                        const res = await _findRecord(handle as FileSystemDirectoryHandle);
+                        if (res) {
+                            return res;
+                        }
+                    }
+                }
+            }
+            return null;
+        };
+
+        return await _findRecord(root);
     }
 }
 
