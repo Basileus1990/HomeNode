@@ -18,7 +18,7 @@ func NewHostMap() *HostMap {
 	}
 }
 
-// Add - adds the host to the server and returns its uuid
+// Add - adds the host to the app and returns its uuid
 func (h *HostMap) Add(host Host) uuid.UUID {
 	var id uuid.UUID
 	h.hostSharedLock.Lock()
