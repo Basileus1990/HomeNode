@@ -151,7 +151,7 @@ func TestQueryZeroTimeout(t *testing.T) {
 
 	conn := createTestConnection(t, server)
 	defer conn.Close()
-	
+
 	_, err := conn.QueryWithTimeout([]byte("timeout"), 0)
 	assert.ErrorIs(t, err, ErrQueryTimeout)
 }
@@ -226,7 +226,7 @@ func TestHostCloseConnection(t *testing.T) {
 	conn := createTestConnection(t, server)
 	defer conn.Close()
 
-	// Send a message that causes server to close connection
+	// Send a message that causes app to close connection
 	_, err := conn.QueryWithTimeout([]byte("close"), 1*time.Second)
 
 	// Should get either a connection closed error or timeout
@@ -254,7 +254,7 @@ func TestLargeMessage(t *testing.T) {
 }
 
 func TestInvalidResponse(t *testing.T) {
-	// This test requires a custom server that sends invalid responses
+	// This test requires a custom app that sends invalid responses
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}

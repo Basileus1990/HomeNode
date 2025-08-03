@@ -14,7 +14,7 @@ export default function useServerCommunicatorWorker() {
 
     useEffect(() => {
         // Initialize the worker only once on component mount
-        workerRef.current = new Worker(new URL("./server-com-worker.ts", import.meta.url), {
+        workerRef.current = new Worker(new URL("./app-com-worker.ts", import.meta.url), {
             type: "module",});
 
         workerRef.current.onmessage = (event) => {
