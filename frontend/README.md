@@ -57,7 +57,7 @@ To build and run using Docker:
 ```bash
 docker build -t my-app .
 
-# Run the cont
+# Run the container
 docker run -p 3000:3000 my-app
 ```
 
