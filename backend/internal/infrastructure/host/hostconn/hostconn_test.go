@@ -17,6 +17,8 @@ import (
 type testServer struct {
 	server   *httptest.Server
 	upgrader websocket.Upgrader
+
+	closeHandlerCalled bool
 }
 
 func newTestServer() *testServer {
@@ -97,7 +99,9 @@ func createTestConnection(t *testing.T, server *testServer) Conn {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	hostConn := NewHostConnection(ctx, conn)
+	hostConn := (&DefaultHostConnectionFactory{}).NewHostConn(ctx, conn, func() {
+		server.closeHandlerCalled = true
+	})
 
 	return hostConn
 }
@@ -110,7 +114,9 @@ func createBenchmarkTestConnection(t testing.TB, server *testServer) Conn {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	hostConn := NewHostConnection(ctx, conn)
+	hostConn := (&DefaultHostConnectionFactory{}).NewHostConn(ctx, conn, func() {
+		server.closeHandlerCalled = true
+	})
 
 	return hostConn
 }
@@ -217,6 +223,7 @@ func TestConnectionClose(t *testing.T) {
 	// Subsequent queries should fail
 	_, err = conn.Query([]byte("ping"))
 	assert.ErrorIs(t, err, ErrConnectionClosed)
+	assert.True(t, server.closeHandlerCalled)
 }
 
 func TestHostCloseConnection(t *testing.T) {
@@ -229,8 +236,12 @@ func TestHostCloseConnection(t *testing.T) {
 	// Send a message that causes app to close connection
 	_, err := conn.QueryWithTimeout([]byte("close"), 1*time.Second)
 
+	// Give some time for the cancellation to propagate
+	time.Sleep(100 * time.Millisecond)
+
 	// Should get either a connection closed error or timeout
 	assert.ErrorIs(t, err, ErrConnectionClosed)
+	assert.True(t, server.closeHandlerCalled)
 }
 
 func TestLargeMessage(t *testing.T) {
@@ -277,10 +288,10 @@ func TestInvalidResponse(t *testing.T) {
 	defer server.Close()
 
 	url := "ws" + strings.TrimPrefix(server.URL, "http")
-	wsConn, _, err := websocket.DefaultDialer.Dial(url, nil)
+	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	require.NoError(t, err)
 
-	hostConn := NewHostConnection(context.Background(), wsConn)
+	hostConn := (&DefaultHostConnectionFactory{}).NewHostConn(context.Background(), conn, func() {})
 	defer hostConn.Close()
 
 	// This should eventually cause the connection to close due to invalid response
@@ -302,6 +313,7 @@ func TestMultipleCloses(t *testing.T) {
 	assert.NoError(t, err1)
 	assert.NoError(t, err2)
 	assert.NoError(t, err3)
+	assert.True(t, server.closeHandlerCalled)
 }
 
 func TestQueryAfterContextCancel(t *testing.T) {
@@ -311,10 +323,12 @@ func TestQueryAfterContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	dialer := websocket.DefaultDialer
-	wsConn, _, err := dialer.Dial(server.url(), nil)
+	conn, _, err := dialer.Dial(server.url(), nil)
 	require.NoError(t, err)
 
-	hostConn := NewHostConnection(ctx, wsConn)
+	hostConn := (&DefaultHostConnectionFactory{}).NewHostConn(ctx, conn, func() {
+		server.closeHandlerCalled = true
+	})
 	defer hostConn.Close()
 
 	// First query should work
@@ -329,6 +343,7 @@ func TestQueryAfterContextCancel(t *testing.T) {
 
 	_, err = hostConn.Query([]byte("ping"))
 	assert.ErrorIs(t, err, ErrConnectionClosed)
+	assert.True(t, server.closeHandlerCalled)
 }
 
 func BenchmarkQuery(b *testing.B) {

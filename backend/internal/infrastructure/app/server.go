@@ -1,21 +1,25 @@
 package app
 
 import (
+	"context"
 	"fmt"
-	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers"
-	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/app/cont"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/hostconnect"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/ping"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/app/appcontainer"
 	"github.com/gin-gonic/gin"
 )
 
 type Server struct {
-	container cont.Container
+	container *appcontainer.Container
 	engine    *gin.Engine
 }
 
 func NewServer() (*Server, error) {
 	var server Server
 
-	container, err := cont.NewContainer()
+	ctx := context.Background()
+
+	container, err := appcontainer.NewContainer(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -37,8 +41,14 @@ func (s *Server) setUpRoutes() *gin.Engine {
 
 	v1 := api.Group("v1")
 
-	pingController := controllers.PingController{}
+	pingController := ping.Controller{}
 	pingController.SetUpRoutes(v1)
+
+	host := v1.Group("host")
+	hostConnectController := hostconnect.Controller{
+		HostMap: s.container.HostMap,
+	}
+	hostConnectController.SetUpRoutes(host)
 
 	return router
 }
