@@ -45,6 +45,7 @@ type Conn interface {
 	// The query parameter will be sent as the payload portion of the message, with a unique query ID automatically prepended.
 	//
 	// Returns the response payload (without the query ID) or an error if the operation fails or times out.
+	// On any error other than timeout error the connection is closed, so there is no need to close it again
 	Query(query []byte) ([]byte, error)
 
 	// QueryWithTimeout sends a query and waits for a response within the specified timeout.
@@ -55,6 +56,7 @@ type Conn interface {
 	// If the timeout is exceeded, ErrQueryTimeout is returned.
 	//
 	// Returns the response payload or an error if the operation fails or times out.
+	// On any error other than timeout error the connection is closed, so there is no need to close it again
 	QueryWithTimeout(query []byte, timeout time.Duration) ([]byte, error)
 
 	// Close terminates the connection and cleans up all associated resources.
@@ -83,37 +85,13 @@ type DefaultConn struct {
 	responseChannels   map[uint32]chan []byte
 	responseChannelsMu sync.Mutex
 
-	closeOnce sync.Once
-	closeErr  error
-	closeMu   sync.RWMutex
+	closeOnce    sync.Once
+	closeErr     error
+	closeMu      sync.RWMutex
+	closeHandler func()
 }
 
 var _ Conn = (*DefaultConn)(nil)
-
-// NewHostConnection creates and initializes a new connection wrapper around the provided WebSocket connection.
-// It starts the necessary background goroutines for handling message sending and receiving.
-//
-// The provided context controls the connection lifetime. When the context
-// is cancelled, the connection will be closed and all pending operations
-// will be terminated.
-//
-// The WebSocket connection should be established and ready for communication.
-func NewHostConnection(ctx context.Context, wsConn *websocket.Conn) Conn {
-	ctx, cancel := context.WithCancel(ctx)
-
-	conn := DefaultConn{
-		wsConn:           wsConn,
-		ctx:              ctx,
-		cancelFunc:       cancel,
-		responseChannels: make(map[uint32]chan []byte),
-		queryCh:          make(chan []byte),
-	}
-
-	go conn.listen()
-	go conn.send()
-
-	return &conn
-}
 
 func (conn *DefaultConn) Query(query []byte) ([]byte, error) {
 	return conn.QueryWithTimeout(query, defaultQueryTimeout)
@@ -162,6 +140,7 @@ func (conn *DefaultConn) Close() error {
 		conn.cancelFunc()
 		err = conn.wsConn.Close()
 		conn.setCloseError(ErrConnectionClosed)
+		conn.closeHandler()
 	})
 	return err
 }
@@ -171,6 +150,7 @@ func (conn *DefaultConn) closeWithError(err error) {
 		conn.setCloseError(err)
 		conn.cancelFunc()
 		_ = conn.wsConn.Close()
+		conn.closeHandler()
 	})
 }
 

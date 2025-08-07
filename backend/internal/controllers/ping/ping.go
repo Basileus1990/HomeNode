@@ -1,4 +1,4 @@
-package controllers
+package ping
 
 import (
 	"github.com/gin-gonic/gin"
@@ -9,12 +9,12 @@ type pingResponse struct {
 	Message string `json:"message"`
 }
 
-type PingController struct{}
+type Controller struct{}
 
-func (p *PingController) SetUpRoutes(group *gin.RouterGroup) {
+func (p *Controller) SetUpRoutes(group *gin.RouterGroup) {
 	group.Handle(http.MethodGet, "ping", p.Ping)
 }
 
-func (p *PingController) Ping(c *gin.Context) {
+func (p *Controller) Ping(c *gin.Context) {
 	c.JSON(http.StatusOK, pingResponse{Message: "Pong :)"})
 }
