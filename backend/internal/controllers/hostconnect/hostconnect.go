@@ -1,8 +1,10 @@
 package hostconnect
 
 import (
+	"fmt"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostmap"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
@@ -38,29 +40,32 @@ func (c *Controller) HostConnect(ctx *gin.Context) {
 	}
 
 	hostId := c.HostMap.Add(conn)
-	hostConn, ok := c.HostMap.Get(hostId)
-	if !ok {
-		log.Printf("Newly created host not found with id: %v\n", hostId)
-	}
 
-	response, err := hostConn.Query(hostId[:])
+	err = c.sendIdAndVerifyResponse(hostId)
 	if err != nil {
-		log.Printf("Error on quering newly connected host: %v", err)
+		log.Printf("Error on sendIdAndVerifyResponse: %v\n", err)
 
 		err = conn.Close()
 		if err != nil {
-			log.Printf("Error on closing newly connected host: %v", err)
+			log.Printf("Error on closing newly connected host: %v\n", err)
 		}
-		return
+	}
+}
+
+func (c *Controller) sendIdAndVerifyResponse(id uuid.UUID) error {
+	hostConn, ok := c.HostMap.Get(id)
+	if !ok {
+		return fmt.Errorf("newly created host not found with id: %v", id)
+	}
+
+	response, err := hostConn.Query(id[:])
+	if err != nil {
+		return fmt.Errorf("error on quering newly connected host: %v", err)
 	}
 
 	if string(response) != expectedHostFirstResponse {
-		log.Printf("Unexpeded first response from host: %s", string(response))
-		err = hostConn.Close()
-		if err != nil {
-			log.Printf("Error on closing newly connected host: %v", err)
-		}
-
-		return
+		return fmt.Errorf("unexpeded first response from host: %s", string(response))
 	}
+
+	return nil
 }
