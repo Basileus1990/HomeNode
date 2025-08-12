@@ -9,6 +9,9 @@ export interface RecordMetadata {
     kind: RecordKind;
 }
 
+/**
+ * essentialty view for frontend
+ */
 export namespace Items {
     export interface RecordItem {
         recordName: string;

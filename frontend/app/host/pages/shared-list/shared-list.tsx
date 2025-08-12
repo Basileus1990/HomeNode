@@ -24,7 +24,7 @@ export async function clientAction({ request }: Route.ActionArgs) {
 
     if (itemName) {
         try {
-            // Attempt to delete the record}
+            // Attempt to delete the record
             const res = await FSService.deleteRecordByName(itemName, undefined, true);
             console.log("Delete result:", res);
         } catch (error) {

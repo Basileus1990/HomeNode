@@ -2,19 +2,40 @@ import { Errors, type RecordMetadata, RecordKind, type Items } from "./types";
 import { RecordHandle, FileRecordHandle, DirectoryRecordHandle, FILE_RECORD_PREFIX, DIR_RECORD_PREFIX } from "./records-filesystem";
 
 export namespace FSService {
+    /**
+     * get root DirectoryRecord at the root of this origin OPFS
+     * create if not present
+     */
     export async function getRootRecord(): Promise<DirectoryRecordHandle> {
         const root = await navigator.storage.getDirectory();
-        return await createDirectoryRecord("root", root, {
-            contentName: "root",
-            dateShared: Date.now(),
-            kind: RecordKind.directory,
-        });
+
+        try {
+            const rootRecordHandle = await root.getDirectoryHandle("root");
+            return DirectoryRecordHandle.readFromHandleAsync(rootRecordHandle) as Promise<DirectoryRecordHandle>;
+        } catch (error) {
+            if (error instanceof DOMException && error.name === "NotFoundError") {
+                return await createDirectoryRecord("root", root, {
+                    contentName: "root",
+                    dateShared: Date.now(),
+                    kind: RecordKind.directory,
+                });
+            } else {
+                throw error;
+            }
+
+        }
     }
 
+    /**
+     * get root of OPFS
+     */
     export async function getStorageRoot(): Promise<FileSystemDirectoryHandle> {
         return await navigator.storage.getDirectory();
     }
 
+    /**
+     * clear entire OPFS
+     */
     export async function purgeStorage() {
         const root = await navigator.storage.getDirectory();
             for await (const key of root.keys()) {
@@ -26,6 +47,9 @@ export namespace FSService {
     * Create record region *
     ***********************/
 
+    /**
+     * usable outsiede and inside WebWorker, but not usable in Safari
+     */
     export async function createFileRecord(
         name: string,
         dir: FileSystemDirectoryHandle,
@@ -35,6 +59,9 @@ export namespace FSService {
         return FileRecordHandle.createFileRecordAsync(name, dir, file, metadata);
     }
 
+    /**
+     * uses sync write - only usable inside WebWorker, but usable on Safari
+     */
     export async function createFileRecordWithSyncWrite(
         name: string,
         dir: FileSystemDirectoryHandle,
@@ -161,6 +188,9 @@ export namespace FSService {
     * Read record region *
     ***********************/
 
+    /**
+     * read record into object inteded for displaying in frontend
+     */
     export async function readRecordIntoItem(record: RecordHandle | null): Promise<Items.RecordItem[]> {
         async function readFileRecord(handle: FileRecordHandle): Promise<Items.FileRecordItem> {
             const file = await handle.getHandle().then((h) => h.getFile());

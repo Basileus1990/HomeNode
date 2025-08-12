@@ -1,6 +1,6 @@
 import type { FileWithPath } from "react-dropzone";
 
-import { getRecordId } from "./server-communication";
+import { getNewUUID } from "./id";
 import { RecordKind, type RecordMetadata } from "~/common/fs/types";
 
 export async function prepareFilesForUpload(files: FileWithPath[]) {
@@ -40,7 +40,7 @@ export async function rebuildTree(files: FileWithPath[]): Promise<RecordTreeNode
             if (isFile) {
                 // Add file node
                 current.children!.push({
-                    recordName: await getRecordId(),
+                    recordName: getNewUUID(),
                     metadata: {
                         contentName: part,
                         dateShared: dateNow,
@@ -55,7 +55,7 @@ export async function rebuildTree(files: FileWithPath[]): Promise<RecordTreeNode
                 );
                 if (!dir) {
                     dir = {
-                        recordName: await getRecordId(),
+                        recordName: getNewUUID(),
                         metadata: {
                             contentName: part,
                             dateShared: dateNow,
