@@ -9,6 +9,8 @@ import (
 	"strconv"
 )
 
+// TODO: Refactor this so it doesn't use global value
+
 const envTag = "env"
 
 type Config struct {
@@ -32,7 +34,7 @@ func LoadConfig() error {
 		return nil
 	}
 
-	err := godotenv.Load(".env")
+	err := godotenv.Load()
 	if err != nil {
 		return err
 	}
