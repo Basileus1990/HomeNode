@@ -1,21 +1,21 @@
+import { get } from "http";
 import type { Route } from "./+types/view-item.js";
 
-export async function clientLoader({ params }: Route.LoaderArgs) {
+import RecordsList from "./components/records-list.js";
+import { getItem } from "~/client/service/server-communication.js";
 
-    // Simulate a data fetch for the item with the given ID
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-    return {
-        id: params.id,
-        name: `Item ${params.id}`,
-    };
+export async function clientLoader({ params }: Route.LoaderArgs) {
+    if (!params.host_id || !params.item_id) {
+        throw new Error("Missing host_id or item_id in route parameters");
+    }
+    return getItem(params.host_id, params.item_id);
 }
 
 export default function ViewItem({ loaderData, params }: Route.ComponentProps) {
     return (
         <div>
-            <h1>View Item</h1>
-            <p>Item ID: {params.id}</p>
-            <p>{JSON.stringify(loaderData)}</p>
+            <h1>Viewing item #{params.item_id} from host#{params.host_id}</h1>
+            <RecordsList records={loaderData} />
         </div>
     );
 }

@@ -1,6 +1,6 @@
-import type { FileRecordInfo } from "../../host/fs/types";
+import type { Items } from "../fs/types";
 
-export default function FileRecordListItem({rec, children}: {rec: FileRecordInfo, children?: React.ReactNode}) {
+export default function FileRecordListItem({rec, children}: {rec: Items.FileRecordItem, children?: React.ReactNode}) {
     return (
         <li key={rec.recordName}>
             <strong>{rec.contentName}</strong>  ({rec.size}) bytes
