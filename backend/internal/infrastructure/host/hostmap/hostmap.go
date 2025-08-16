@@ -3,7 +3,6 @@ package hostmap
 import (
 	"context"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostconn"
-	"log"
 	"sync"
 
 	"github.com/google/uuid"
@@ -16,8 +15,8 @@ type HostMap interface {
 	Get(id uuid.UUID) (hostconn.Conn, bool)
 }
 
-// DefaultHostMap provides thread-safe storage and management of host connections.
-type DefaultHostMap struct {
+// defaultHostMap provides thread-safe storage and management of host connections.
+type defaultHostMap struct {
 	hosts map[uuid.UUID]hostconn.Conn
 	mu    sync.RWMutex
 
@@ -25,17 +24,17 @@ type DefaultHostMap struct {
 	hostConnFactory hostconn.HostConnFactory
 }
 
-var _ HostMap = &DefaultHostMap{}
+var _ HostMap = &defaultHostMap{}
 
 func NewDefaultHostMap(ctx context.Context, hostConnFactory hostconn.HostConnFactory) HostMap {
-	return &DefaultHostMap{
+	return &defaultHostMap{
 		hosts:           make(map[uuid.UUID]hostconn.Conn),
 		ctx:             ctx,
 		hostConnFactory: hostConnFactory,
 	}
 }
 
-func (h *DefaultHostMap) Add(conn *websocket.Conn) uuid.UUID {
+func (h *defaultHostMap) Add(conn *websocket.Conn) uuid.UUID {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -55,20 +54,17 @@ func (h *DefaultHostMap) Add(conn *websocket.Conn) uuid.UUID {
 	return id
 }
 
-func (h *DefaultHostMap) Remove(id uuid.UUID) {
+func (h *defaultHostMap) Remove(id uuid.UUID) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	if host, ok := h.hosts[id]; ok {
-		err := host.Close()
-		if err != nil {
-			log.Printf("WARNING: failed to close host %s: %v", id, err)
-		}
+		host.Close()
 	}
 	delete(h.hosts, id)
 }
 
-func (h *DefaultHostMap) Get(id uuid.UUID) (hostconn.Conn, bool) {
+func (h *defaultHostMap) Get(id uuid.UUID) (hostconn.Conn, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
@@ -76,7 +72,7 @@ func (h *DefaultHostMap) Get(id uuid.UUID) (hostconn.Conn, bool) {
 	return host, ok
 }
 
-func (h *DefaultHostMap) removeWithoutClosing(id uuid.UUID) {
+func (h *defaultHostMap) removeWithoutClosing(id uuid.UUID) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 

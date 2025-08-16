@@ -16,17 +16,16 @@ type MockConn struct {
 	mock.Mock
 }
 
-func (m *MockConn) Query(query []byte) ([]byte, error) {
+func (m *MockConn) Query(query ...[]byte) ([]byte, error) {
 	panic("implement me")
 }
 
-func (m *MockConn) QueryWithTimeout(query []byte, timeout time.Duration) ([]byte, error) {
+func (m *MockConn) QueryWithTimeout(timeout time.Duration, query ...[]byte) ([]byte, error) {
 	panic("implement me")
 }
 
-func (m *MockConn) Close() error {
-	args := m.Called()
-	return args.Error(0)
+func (m *MockConn) Close() {
+	m.Called()
 }
 
 type MockHostConnFactory struct {
@@ -198,7 +197,6 @@ func TestDefaultHostMap_OnCloseCallback(t *testing.T) {
 		factory.On("NewHostConn", ctx, mockWebSocketConn, mock.AnythingOfType("func()")).Return(mockConn).Run(func(args mock.Arguments) {
 			capturedOnClose = args.Get(2).(func())
 		})
-		mockConn.On("Close").Return(nil)
 
 		hostMap := NewDefaultHostMap(ctx, factory)
 
@@ -215,7 +213,6 @@ func TestDefaultHostMap_OnCloseCallback(t *testing.T) {
 		_, exists = hostMap.Get(id)
 		assert.False(t, exists)
 
-		mockConn.AssertExpectations(t)
 		factory.AssertExpectations(t)
 	})
 }
@@ -230,7 +227,7 @@ func TestDefaultHostMap_EdgeCases(t *testing.T) {
 		factory.On("NewHostConn", ctx, mockWebSocketConn, mock.AnythingOfType("func()")).Return(mockConn)
 		mockConn.On("Close").Return(nil).Once()
 
-		hostMap := NewDefaultHostMap(ctx, factory).(*DefaultHostMap)
+		hostMap := NewDefaultHostMap(ctx, factory).(*defaultHostMap)
 
 		id := hostMap.Add(mockWebSocketConn)
 

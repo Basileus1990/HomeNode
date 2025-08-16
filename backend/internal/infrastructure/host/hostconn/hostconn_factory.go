@@ -22,13 +22,13 @@ type DefaultHostConnectionFactory struct{}
 func (f *DefaultHostConnectionFactory) NewHostConn(ctx context.Context, wsConn *websocket.Conn, closeHandler func()) Conn {
 	ctx, cancel := context.WithCancel(ctx)
 
-	conn := DefaultConn{
+	conn := defaultConn{
 		wsConn:           wsConn,
 		ctx:              ctx,
 		cancelFunc:       cancel,
 		closeHandler:     closeHandler,
 		responseChannels: make(map[uint32]chan []byte),
-		queryCh:          make(chan []byte),
+		queryCh:          make(chan [][]byte),
 	}
 
 	originalCloseHandler := conn.wsConn.CloseHandler()

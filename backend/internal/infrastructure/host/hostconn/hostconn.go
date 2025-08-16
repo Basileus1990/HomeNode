@@ -15,6 +15,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/helpers"
 	"github.com/gorilla/websocket"
 	"sync"
 	"sync/atomic"
@@ -32,10 +33,6 @@ var (
 
 	// ErrQueryTimeout is returned when a query does not receive a response within the specified timeout duration.
 	ErrQueryTimeout = errors.New("query timeout")
-
-	// ErrInvalidResponse is returned when the received response does not
-	// conform to the expected binary protocol format (missing query ID).
-	ErrInvalidResponse = errors.New("invalid response format")
 )
 
 type Conn interface {
@@ -46,7 +43,7 @@ type Conn interface {
 	//
 	// Returns the response payload (without the query ID) or an error if the operation fails or times out.
 	// On any error other than timeout error the connection is closed, so there is no need to close it again
-	Query(query []byte) ([]byte, error)
+	Query(query ...[]byte) ([]byte, error)
 
 	// QueryWithTimeout sends a query and waits for a response within the specified timeout.
 	// Multiple concurrent queries are supported and will be properly routed to their respective callers.
@@ -57,23 +54,21 @@ type Conn interface {
 	//
 	// Returns the response payload or an error if the operation fails or times out.
 	// On any error other than timeout error the connection is closed, so there is no need to close it again
-	QueryWithTimeout(query []byte, timeout time.Duration) ([]byte, error)
+	QueryWithTimeout(timeout time.Duration, query ...[]byte) ([]byte, error)
 
 	// Close terminates the connection and cleans up all associated resources.
 	// After calling Close, all pending and future queries will fail with ErrConnectionClosed.
 	// Close is safe to call multiple times and from multiple goroutines.
-	//
-	// Returns any error encountered while closing the underlying WebSocket connection.
-	Close() error
+	Close()
 }
 
-// DefaultConn is the default implementation of the Conn interface. It manages a WebSocket connection with
+// defaultConn is the default implementation of the Conn interface. It manages a WebSocket connection with
 // automatic query ID generation, response routing, and connection lifecycle management.
 //
 // The connection operates with two background goroutines:
 // - send: handles outgoing queries from the queryCh channel
 // - listen: handles incoming responses and routes them to waiting queries
-type DefaultConn struct {
+type defaultConn struct {
 	wsConn *websocket.Conn
 
 	ctx        context.Context
@@ -81,7 +76,7 @@ type DefaultConn struct {
 
 	nextQueryId uint32
 
-	queryCh            chan []byte
+	queryCh            chan [][]byte
 	responseChannels   map[uint32]chan []byte
 	responseChannelsMu sync.Mutex
 
@@ -91,13 +86,13 @@ type DefaultConn struct {
 	closeHandler func()
 }
 
-var _ Conn = (*DefaultConn)(nil)
+var _ Conn = (*defaultConn)(nil)
 
-func (conn *DefaultConn) Query(query []byte) ([]byte, error) {
-	return conn.QueryWithTimeout(query, defaultQueryTimeout)
+func (conn *defaultConn) Query(query ...[]byte) ([]byte, error) {
+	return conn.QueryWithTimeout(defaultQueryTimeout, query...)
 }
 
-func (conn *DefaultConn) QueryWithTimeout(query []byte, timeout time.Duration) ([]byte, error) {
+func (conn *defaultConn) QueryWithTimeout(timeout time.Duration, query ...[]byte) ([]byte, error) {
 	if err := conn.getCloseError(); err != nil {
 		return nil, err
 	}
@@ -105,14 +100,14 @@ func (conn *DefaultConn) QueryWithTimeout(query []byte, timeout time.Duration) (
 	queryId, responseCh := conn.createNewResponseChannel()
 	defer conn.cleanupResponseChannel(queryId)
 
-	binaryQuery := getBinaryFromQuery(queryId, query)
+	queryWithId := addQueryIdToQuery(query, queryId)
 
 	ctx, cancel := context.WithTimeout(conn.ctx, timeout)
 	defer cancel()
 
 	// Send the query
 	select {
-	case conn.queryCh <- binaryQuery:
+	case conn.queryCh <- queryWithId:
 	case <-ctx.Done():
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return nil, ErrQueryTimeout
@@ -132,20 +127,16 @@ func (conn *DefaultConn) QueryWithTimeout(query []byte, timeout time.Duration) (
 	}
 }
 
-func (conn *DefaultConn) Close() error {
-	var err error
+func (conn *defaultConn) Close() {
 	conn.closeOnce.Do(func() {
-		// Maybe send close message
-
 		conn.cancelFunc()
-		err = conn.wsConn.Close()
+		_ = conn.wsConn.Close()
 		conn.setCloseError(ErrConnectionClosed)
 		conn.closeHandler()
 	})
-	return err
 }
 
-func (conn *DefaultConn) closeWithError(err error) {
+func (conn *defaultConn) closeWithError(err error) {
 	conn.closeOnce.Do(func() {
 		conn.setCloseError(err)
 		conn.cancelFunc()
@@ -154,7 +145,7 @@ func (conn *DefaultConn) closeWithError(err error) {
 	})
 }
 
-func (conn *DefaultConn) setCloseError(err error) {
+func (conn *defaultConn) setCloseError(err error) {
 	conn.closeMu.Lock()
 	defer conn.closeMu.Unlock()
 	if conn.closeErr == nil {
@@ -162,13 +153,13 @@ func (conn *DefaultConn) setCloseError(err error) {
 	}
 }
 
-func (conn *DefaultConn) getCloseError() error {
+func (conn *defaultConn) getCloseError() error {
 	conn.closeMu.RLock()
 	defer conn.closeMu.RUnlock()
 	return conn.closeErr
 }
 
-func (conn *DefaultConn) send() {
+func (conn *defaultConn) send() {
 	defer func() {
 		// Clean up on exit
 		conn.closeWithError(ErrConnectionClosed)
@@ -178,16 +169,30 @@ func (conn *DefaultConn) send() {
 		select {
 		case <-conn.ctx.Done():
 			return
-		case binQuery := <-conn.queryCh:
-			if err := conn.wsConn.WriteMessage(websocket.BinaryMessage, binQuery); err != nil {
-				conn.closeWithError(fmt.Errorf("write error: %w", err))
+		case query := <-conn.queryCh:
+			w, err := conn.wsConn.NextWriter(websocket.BinaryMessage)
+			if err != nil {
+				conn.closeWithError(fmt.Errorf("hostconn nextwriter error: %w", err))
+				return
+			}
+
+			for _, part := range query {
+				if _, err = w.Write(part); err != nil {
+					_ = w.Close()
+					conn.closeWithError(fmt.Errorf("hostconn write error: %w", err))
+					return
+				}
+			}
+
+			if err = w.Close(); err != nil {
+				conn.closeWithError(fmt.Errorf("hostconn close writer error: %w", err))
 				return
 			}
 		}
 	}
 }
 
-func (conn *DefaultConn) listen() {
+func (conn *defaultConn) listen() {
 	defer func() {
 		// Clean up on exit
 		conn.closeWithError(ErrConnectionClosed)
@@ -218,7 +223,7 @@ func (conn *DefaultConn) listen() {
 	}
 }
 
-func (conn *DefaultConn) handleResponse(response []byte) error {
+func (conn *defaultConn) handleResponse(response []byte) error {
 	queryId, result, err := getResponseFromBinary(response)
 	if err != nil {
 		return err
@@ -241,7 +246,7 @@ func (conn *DefaultConn) handleResponse(response []byte) error {
 	return nil
 }
 
-func (conn *DefaultConn) createNewResponseChannel() (uint32, <-chan []byte) {
+func (conn *defaultConn) createNewResponseChannel() (uint32, <-chan []byte) {
 	id := atomic.AddUint32(&conn.nextQueryId, 1)
 
 	conn.responseChannelsMu.Lock()
@@ -253,7 +258,7 @@ func (conn *DefaultConn) createNewResponseChannel() (uint32, <-chan []byte) {
 	return id, respCh
 }
 
-func (conn *DefaultConn) cleanupResponseChannel(queryId uint32) {
+func (conn *defaultConn) cleanupResponseChannel(queryId uint32) {
 	conn.responseChannelsMu.Lock()
 	defer conn.responseChannelsMu.Unlock()
 
@@ -263,16 +268,19 @@ func (conn *DefaultConn) cleanupResponseChannel(queryId uint32) {
 	}
 }
 
-func getBinaryFromQuery(queryId uint32, query []byte) []byte {
-	buf := make([]byte, 4+len(query))
-	binary.BigEndian.PutUint32(buf[0:4], queryId)
-	copy(buf[4:], query)
-	return buf
+func addQueryIdToQuery(query [][]byte, queryId uint32) [][]byte {
+	binQueryId := helpers.Uint32ToBinary(queryId)
+
+	newQuery := make([][]byte, 0, len(query)+1)
+	newQuery = append(newQuery, binQueryId)
+	newQuery = append(newQuery, query...)
+
+	return newQuery
 }
 
 func getResponseFromBinary(data []byte) (uint32, []byte, error) {
 	if len(data) < queryIdSizeInBytes {
-		return 0, nil, ErrInvalidResponse
+		return 0, nil, fmt.Errorf("hostconn ERROR - response lenght less than 4 bytes. No query id")
 	}
 
 	queryId := binary.BigEndian.Uint32(data[0:queryIdSizeInBytes])

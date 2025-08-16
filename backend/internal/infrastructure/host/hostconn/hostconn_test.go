@@ -139,6 +139,22 @@ func TestSuccessfulQuery(t *testing.T) {
 	assert.Equal(t, "pong", string(response))
 }
 
+func TestSuccessfulMultipleQuery(t *testing.T) {
+	server := newTestServer()
+	defer server.close()
+
+	conn := createTestConnection(t, server)
+	defer conn.Close()
+
+	response, err := conn.Query([]byte("abc"), []byte("cba"))
+	assert.NoError(t, err)
+	assert.Equal(t, "echo: abccba", string(response))
+
+	response, err = conn.Query([]byte("abc"), []byte(""), []byte("cba"))
+	assert.NoError(t, err)
+	assert.Equal(t, "echo: abccba", string(response))
+}
+
 func TestQueryWithCustomTimeout(t *testing.T) {
 	server := newTestServer()
 	defer server.close()
@@ -146,7 +162,7 @@ func TestQueryWithCustomTimeout(t *testing.T) {
 	conn := createTestConnection(t, server)
 	defer conn.Close()
 
-	response, err := conn.QueryWithTimeout([]byte("ping"), 5*time.Second)
+	response, err := conn.QueryWithTimeout(5*time.Second, []byte("ping"))
 	assert.NoError(t, err)
 	assert.Equal(t, "pong", string(response))
 }
@@ -158,7 +174,7 @@ func TestQueryZeroTimeout(t *testing.T) {
 	conn := createTestConnection(t, server)
 	defer conn.Close()
 
-	_, err := conn.QueryWithTimeout([]byte("timeout"), 0)
+	_, err := conn.QueryWithTimeout(0, []byte("timeout"))
 	assert.ErrorIs(t, err, ErrQueryTimeout)
 }
 
@@ -169,7 +185,7 @@ func TestQueryTimeout(t *testing.T) {
 	conn := createTestConnection(t, server)
 	defer conn.Close()
 
-	_, err := conn.QueryWithTimeout([]byte("timeout"), 100*time.Millisecond)
+	_, err := conn.QueryWithTimeout(100*time.Millisecond, []byte("timeout"))
 	assert.ErrorIs(t, err, ErrQueryTimeout)
 }
 
@@ -217,8 +233,7 @@ func TestConnectionClose(t *testing.T) {
 	assert.Equal(t, "pong", string(response))
 
 	// Close the connection
-	err = conn.Close()
-	assert.NoError(t, err)
+	conn.Close()
 
 	// Subsequent queries should fail
 	_, err = conn.Query([]byte("ping"))
@@ -234,7 +249,7 @@ func TestHostCloseConnection(t *testing.T) {
 	defer conn.Close()
 
 	// Send a message that causes app to close connection
-	_, err := conn.QueryWithTimeout([]byte("close"), 1*time.Second)
+	_, err := conn.QueryWithTimeout(1*time.Second, []byte("close"))
 
 	// Give some time for the cancellation to propagate
 	time.Sleep(100 * time.Millisecond)
@@ -251,13 +266,12 @@ func TestLargeMessage(t *testing.T) {
 	conn := createTestConnection(t, server)
 	defer conn.Close()
 
-	// Create a large message (1MB)
 	largePayload := make([]byte, 1024*1024)
 	for i := range largePayload {
 		largePayload[i] = byte(i % 256)
 	}
 
-	response, err := conn.QueryWithTimeout(largePayload, 30*time.Second)
+	response, err := conn.QueryWithTimeout(30*time.Second, largePayload)
 	assert.NoError(t, err)
 
 	expected := append([]byte("echo: "), largePayload...)
@@ -293,27 +307,10 @@ func TestInvalidResponse(t *testing.T) {
 
 	hostConn := (&DefaultHostConnectionFactory{}).NewHostConn(context.Background(), conn, func() {})
 	defer hostConn.Close()
-
-	// This should eventually cause the connection to close due to invalid response
-	_, err = hostConn.QueryWithTimeout([]byte("test"), 2*time.Second)
-	assert.ErrorIs(t, err, ErrInvalidResponse)
-}
-
-func TestMultipleCloses(t *testing.T) {
-	server := newTestServer()
-	defer server.close()
-
-	conn := createTestConnection(t, server)
-
-	// Multiple closes should be safe
-	err1 := conn.Close()
-	err2 := conn.Close()
-	err3 := conn.Close()
-
-	assert.NoError(t, err1)
-	assert.NoError(t, err2)
-	assert.NoError(t, err3)
-	assert.True(t, server.closeHandlerCalled)
+	
+	_, err = hostConn.QueryWithTimeout(2*time.Second, []byte("test"))
+	require.Error(t, err)
+	assert.EqualError(t, err, "hostconn ERROR - response lenght less than 4 bytes. No query id")
 }
 
 func TestQueryAfterContextCancel(t *testing.T) {

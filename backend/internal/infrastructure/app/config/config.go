@@ -13,10 +13,17 @@ import (
 
 const envTag = "env"
 
+type ServerCfg struct {
+	Port int `env:"PORT"`
+}
+
+type WebsocketCfg struct {
+	WebsocketBufferSize int `env:"WEBSOCKET_BUFFER_SIZE"`
+}
+
 type Config struct {
-	Server struct {
-		Port int `env:"PORT"`
-	}
+	Server    ServerCfg
+	Websocket WebsocketCfg
 }
 
 var cfg *Config
