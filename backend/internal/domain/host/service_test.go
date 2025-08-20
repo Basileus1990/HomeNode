@@ -2,7 +2,7 @@ package host
 
 import (
 	"errors"
-	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/msgtype"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_consts"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -16,7 +16,7 @@ import (
 
 // --- Mocks ---
 
-// MockConn implements hostconn.Conn
+// MockConn implements hostconn.HostConn
 type MockConn struct {
 	mock.Mock
 }
@@ -57,11 +57,11 @@ func (m *MockHostMap) Remove(id uuid.UUID) {
 	m.Called(id)
 }
 
-func (m *MockHostMap) Get(id uuid.UUID) (hostconn.Conn, bool) {
+func (m *MockHostMap) Get(id uuid.UUID) (hostconn.HostConn, bool) {
 	args := m.Called(id)
-	var c hostconn.Conn
+	var c hostconn.HostConn
 	if args.Get(0) != nil {
-		c = args.Get(0).(hostconn.Conn)
+		c = args.Get(0).(hostconn.HostConn)
 	}
 	return c, args.Bool(1)
 }
@@ -76,8 +76,8 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 
 		mockHostMap.On("Get", id).Return(mockConn, true)
 
-		expectedQuery := [][]byte{msgtype.ServerSendUuid.Binary(), id[:]}
-		mockConn.On("Query", expectedQuery).Return(msgtype.HostResponseOK.Binary(), nil)
+		expectedQuery := [][]byte{ws_consts.ServerSendUuid.Binary(), id[:]}
+		mockConn.On("Query", expectedQuery).Return(ws_consts.HostResponseOK.Binary(), nil)
 
 		svc := NewHostService(mockHostMap)
 		err := svc.InitialiseNewHostConnection(id)
@@ -108,7 +108,7 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 
 		mockHostMap.On("Get", id).Return(mockConn, true)
 
-		expectedQuery := [][]byte{msgtype.ServerSendUuid.Binary(), id[:]}
+		expectedQuery := [][]byte{ws_consts.ServerSendUuid.Binary(), id[:]}
 		queryErr := errors.New("network problem")
 		mockConn.On("Query", expectedQuery).Return(nil, queryErr)
 		mockConn.On("Close").Return()
@@ -132,7 +132,7 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 		mockHostMap.On("Get", id).Return(mockConn, true)
 		mockConn.On("Close").Return()
 
-		expectedQuery := [][]byte{msgtype.ServerSendUuid.Binary(), id[:]}
+		expectedQuery := [][]byte{ws_consts.ServerSendUuid.Binary(), id[:]}
 		mockConn.On("Query", expectedQuery).Return([]byte("NO"), nil)
 
 		svc := NewHostService(mockHostMap)
