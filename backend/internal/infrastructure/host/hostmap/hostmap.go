@@ -12,12 +12,12 @@ import (
 type HostMap interface {
 	Add(conn *websocket.Conn) uuid.UUID
 	Remove(id uuid.UUID)
-	Get(id uuid.UUID) (hostconn.Conn, bool)
+	Get(id uuid.UUID) (hostconn.HostConn, bool)
 }
 
 // defaultHostMap provides thread-safe storage and management of host connections.
 type defaultHostMap struct {
-	hosts map[uuid.UUID]hostconn.Conn
+	hosts map[uuid.UUID]hostconn.HostConn
 	mu    sync.RWMutex
 
 	ctx             context.Context
@@ -28,7 +28,7 @@ var _ HostMap = &defaultHostMap{}
 
 func NewDefaultHostMap(ctx context.Context, hostConnFactory hostconn.HostConnFactory) HostMap {
 	return &defaultHostMap{
-		hosts:           make(map[uuid.UUID]hostconn.Conn),
+		hosts:           make(map[uuid.UUID]hostconn.HostConn),
 		ctx:             ctx,
 		hostConnFactory: hostConnFactory,
 	}
@@ -64,7 +64,7 @@ func (h *defaultHostMap) Remove(id uuid.UUID) {
 	delete(h.hosts, id)
 }
 
-func (h *defaultHostMap) Get(id uuid.UUID) (hostconn.Conn, bool) {
+func (h *defaultHostMap) Get(id uuid.UUID) (hostconn.HostConn, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
