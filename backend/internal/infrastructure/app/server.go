@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/hostconnect"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/host"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/ping"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/app/appcontainer"
 	"github.com/gin-gonic/gin"
@@ -44,11 +44,13 @@ func (s *Server) setUpRoutes() *gin.Engine {
 	pingController := ping.Controller{}
 	pingController.SetUpRoutes(v1)
 
-	host := v1.Group("host")
-	hostConnectController := hostconnect.Controller{
-		HostMap: s.container.HostMap,
+	hostGroup := v1.Group("host")
+	hostConnectController := host.Controller{
+		HostMap:      s.container.HostMap,
+		HostService:  s.container.HostService,
+		WebsocketCfg: s.container.Config.Websocket,
 	}
-	hostConnectController.SetUpRoutes(host)
+	hostConnectController.SetUpRoutes(hostGroup)
 
 	return router
 }
