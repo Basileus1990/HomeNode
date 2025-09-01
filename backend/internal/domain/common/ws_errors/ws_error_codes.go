@@ -9,9 +9,9 @@ func (c WebsocketErrorCode) Binary() []byte {
 }
 
 const (
-	ConnectionClosed WebsocketErrorCode = 0
-	HostNotFound     WebsocketErrorCode = 1
-	QueryTimeout     WebsocketErrorCode = 2
-	InvalidUrlParams WebsocketErrorCode = 3
-	UnknownError     WebsocketErrorCode = 4
+	UnknownError     WebsocketErrorCode = 0
+	ConnectionClosed WebsocketErrorCode = 1
+	Timeout          WebsocketErrorCode = 2
+	HostNotFound     WebsocketErrorCode = 3
+	InvalidUrlParams WebsocketErrorCode = 4
 )

@@ -33,13 +33,13 @@ func (s *defaultConnectionService) InitialiseNewHostConnection(id uuid.UUID) err
 
 	query := helpers.UUIDToBinary(id)
 
-	response, err := hostConn.Query(ws_consts.ServerSendUuid.Binary(), query)
+	response, err := hostConn.Query(ws_consts.InitWithUuidQuery.Binary(), query)
 	if err != nil {
 		hostConn.Close()
 		return fmt.Errorf("error on quering newly connected host: %w", err)
 	}
 
-	if !bytes.Equal(response, ws_consts.HostResponseOK.Binary()) {
+	if !bytes.Equal(response, ws_consts.ACK.Binary()) {
 		hostConn.Close()
 		return fmt.Errorf("unexpected first response from host %s: %q", id.String(), response)
 	}
@@ -55,7 +55,7 @@ func (s *defaultConnectionService) GetResourceMetadata(hostUuid, resourceUuid uu
 
 	query := helpers.UUIDToBinary(resourceUuid)
 
-	response, err := hostConn.Query(ws_consts.ServerQueryResourceMetadata.Binary(), query)
+	response, err := hostConn.Query(ws_consts.MetadataQuery.Binary(), query)
 	if err != nil {
 		return nil, err
 	}

@@ -20,8 +20,8 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 
 		mockHostMap.On("Get", id).Return(mockConn, true)
 
-		expectedQuery := [][]byte{ws_consts.ServerSendUuid.Binary(), helpers.UUIDToBinary(id)}
-		mockConn.On("Query", expectedQuery).Return(ws_consts.HostResponseOK.Binary(), nil)
+		expectedQuery := [][]byte{ws_consts.InitWithUuidQuery.Binary(), helpers.UUIDToBinary(id)}
+		mockConn.On("Query", expectedQuery).Return(ws_consts.ACK.Binary(), nil)
 
 		svc := NewHostService(mockHostMap)
 		err := svc.InitialiseNewHostConnection(id)
@@ -52,7 +52,7 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 
 		mockHostMap.On("Get", id).Return(mockConn, true)
 
-		expectedQuery := [][]byte{ws_consts.ServerSendUuid.Binary(), helpers.UUIDToBinary(id)}
+		expectedQuery := [][]byte{ws_consts.InitWithUuidQuery.Binary(), helpers.UUIDToBinary(id)}
 		queryErr := errors.New("network problem")
 		mockConn.On("Query", expectedQuery).Return(nil, queryErr)
 		mockConn.On("Close").Return()
@@ -76,7 +76,7 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 		mockHostMap.On("Get", id).Return(mockConn, true)
 		mockConn.On("Close").Return()
 
-		expectedQuery := [][]byte{ws_consts.ServerSendUuid.Binary(), helpers.UUIDToBinary(id)}
+		expectedQuery := [][]byte{ws_consts.InitWithUuidQuery.Binary(), helpers.UUIDToBinary(id)}
 		mockConn.On("Query", expectedQuery).Return([]byte("NO"), nil)
 
 		svc := NewHostService(mockHostMap)
@@ -98,10 +98,10 @@ func TestGetResourceMetadata(t *testing.T) {
 
 		mockHostMap.On("Get", hostId).Return(mockConn, true)
 
-		expectedQuery := [][]byte{ws_consts.ServerQueryResourceMetadata.Binary(), helpers.UUIDToBinary(resourceId)}
-		mockConn.On("Query", expectedQuery).Return(ws_consts.HostResponseOK.Binary(), nil)
+		expectedQuery := [][]byte{ws_consts.MetadataQuery.Binary(), helpers.UUIDToBinary(resourceId)}
+		mockConn.On("Query", expectedQuery).Return(ws_consts.ACK.Binary(), nil)
 
-		expectedResponse := ws_consts.HostResponseOK.Binary()
+		expectedResponse := ws_consts.ACK.Binary()
 
 		svc := NewHostService(mockHostMap)
 		resp, err := svc.GetResourceMetadata(hostId, resourceId)
@@ -138,7 +138,7 @@ func TestGetResourceMetadata(t *testing.T) {
 
 		mockHostMap.On("Get", hostId).Return(mockConn, true)
 
-		expectedQuery := [][]byte{ws_consts.ServerQueryResourceMetadata.Binary(), helpers.UUIDToBinary(resourceId)}
+		expectedQuery := [][]byte{ws_consts.MetadataQuery.Binary(), helpers.UUIDToBinary(resourceId)}
 		mockConn.On("Query", expectedQuery).Return(nil, errors.New("test error"))
 
 		svc := NewHostService(mockHostMap)

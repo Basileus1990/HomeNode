@@ -10,14 +10,9 @@ func (t WebsocketMessageType) Binary() []byte {
 	return helpers.Uint16ToBinary(uint16(t))
 }
 
-// Query types
 const (
-	ServerSendUuid              WebsocketMessageType = 0
-	ServerQueryResourceMetadata WebsocketMessageType = 1
-)
-
-// Response types
-const (
-	HostResponseOK    WebsocketMessageType = 1000
-	HostResponseError WebsocketMessageType = 1001
+	Error             WebsocketMessageType = 0
+	ACK               WebsocketMessageType = 1
+	InitWithUuidQuery WebsocketMessageType = 2
+	MetadataQuery     WebsocketMessageType = 3
 )

@@ -69,7 +69,7 @@ func (c *Controller) GetResourceMetadata(ctx *gin.Context) {
 	resourceID, resourceErr := uuid.Parse(ctx.Param("resourceUuid"))
 
 	if hostErr != nil || resourceErr != nil {
-		err = clientConn.Send(ws_consts.HostResponseError.Binary(), ws_errors.InvalidUrlParams.Binary())
+		err = clientConn.Send(ws_consts.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
 		if err != nil {
 			log.Printf("error GetResourceMetadata - sending InvalidUrlParams message: %v", err)
 		}
@@ -80,16 +80,16 @@ func (c *Controller) GetResourceMetadata(ctx *gin.Context) {
 	if err != nil {
 		if errors.Is(err, &ws_errors.WebsocketError{}) {
 			err = clientConn.Send(
-				ws_consts.HostResponseError.Binary(),
+				ws_consts.Error.Binary(),
 				err.(ws_errors.WebsocketError).Code().Binary(),
 			)
 			if err != nil {
-				log.Printf("error GetResourceMetadata - sending HostResponseError: %v", err)
+				log.Printf("error GetResourceMetadata - sending Error: %v", err)
 			}
 			return
 		}
 
-		err = clientConn.Send(ws_consts.HostResponseError.Binary(), ws_errors.UnknownError.Binary())
+		err = clientConn.Send(ws_consts.Error.Binary(), ws_errors.UnknownError.Binary())
 		if err != nil {
 			log.Printf("error GetResourceMetadata - sending UnknownError: %v", err)
 		}

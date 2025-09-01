@@ -1,0 +1,12 @@
+# Message types ID
+- 0: Error
+- 1: ACK
+- 2: Init With UUID Query
+- 3: Metadata Query
+- 4: Metadata Response
+- 5: Download Init Request
+- 6: Download Init Response
+- 7: Chunk Request
+- 8: Chunk Response
+- 9: EOF Response
+- 10: Download Completion Request
