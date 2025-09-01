@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
@@ -27,9 +28,6 @@ func newTestServer() *testServer {
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
-			//CheckOrigin: func(r *http.Request) bool {
-			//	return true // Allow all origins for testing
-			//},
 		},
 	}
 
@@ -51,10 +49,9 @@ func (ts *testServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			break
+			log.Fatalf("error on reading message: %v", err)
 		}
 
-		// Extract query ID and payload
 		if len(message) < 4 {
 			continue
 		}
@@ -62,7 +59,6 @@ func (ts *testServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		queryID := message[:4]
 		payload := message[4:]
 
-		// Create response based on payload
 		var response []byte
 		switch string(payload) {
 		case "ping":

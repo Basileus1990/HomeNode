@@ -25,10 +25,10 @@ func NewHostService(hostMap hostmap.HostMap) HostService {
 	}
 }
 
-func (cs *defaultConnectionService) InitialiseNewHostConnection(id uuid.UUID) error {
-	hostConn, ok := cs.hostMap.Get(id)
+func (s *defaultConnectionService) InitialiseNewHostConnection(id uuid.UUID) error {
+	hostConn, ok := s.hostMap.Get(id)
 	if !ok {
-		return ws_errors.ConnectionClosedErr
+		return ws_errors.HostNotFoundErr
 	}
 
 	query := helpers.UUIDToBinary(id)
@@ -47,8 +47,8 @@ func (cs *defaultConnectionService) InitialiseNewHostConnection(id uuid.UUID) er
 	return nil
 }
 
-func (cs *defaultConnectionService) GetResourceMetadata(hostUuid, resourceUuid uuid.UUID) ([]byte, error) {
-	hostConn, ok := cs.hostMap.Get(hostUuid)
+func (s *defaultConnectionService) GetResourceMetadata(hostUuid, resourceUuid uuid.UUID) ([]byte, error) {
+	hostConn, ok := s.hostMap.Get(hostUuid)
 	if !ok {
 		return nil, ws_errors.HostNotFoundErr
 	}

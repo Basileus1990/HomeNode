@@ -13,4 +13,5 @@ const (
 	HostNotFound     WebsocketErrorCode = 1
 	QueryTimeout     WebsocketErrorCode = 2
 	InvalidUrlParams WebsocketErrorCode = 3
+	UnknownError     WebsocketErrorCode = 4
 )

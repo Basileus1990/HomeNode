@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_errors"
 	"github.com/gorilla/websocket"
+	"io"
+	"strings"
 )
 
 type ClientConn interface {
@@ -24,7 +26,7 @@ func (c *defaultClientConn) Send(payload ...[]byte) error {
 	w, err := c.ws.NextWriter(websocket.BinaryMessage)
 	if err != nil {
 		c.Close()
-		return fmt.Errorf("hostconn nextwriter error: %w", err)
+		return c.resolveError(fmt.Errorf("clientconn nextwriter error: %w", err))
 	}
 
 	for _, part := range payload {
@@ -32,27 +34,43 @@ func (c *defaultClientConn) Send(payload ...[]byte) error {
 			_ = w.Close()
 			c.Close()
 
-			if websocket.IsCloseError(err,
-				websocket.CloseNormalClosure,
-				websocket.CloseGoingAway,
-				websocket.CloseAbnormalClosure,
-				websocket.CloseNoStatusReceived,
-				websocket.ClosePolicyViolation,
-			) {
-				return ws_errors.ConnectionClosedErr
-			}
-			return fmt.Errorf("hostconn write error: %w", err)
+			return c.resolveError(fmt.Errorf("clientconn write error: %w", err))
 		}
 	}
 
 	if err = w.Close(); err != nil {
 		c.Close()
-		return fmt.Errorf("hostconn close writer error: %w", err)
+		return c.resolveError(fmt.Errorf("clientconn close writer error: %w", err))
 	}
 
 	return nil
 }
 
 func (c *defaultClientConn) Listen() ([]byte, error) {
-	panic("not implemented")
+	_, reader, err := c.ws.NextReader()
+	if err != nil {
+		c.Close()
+		return nil, c.resolveError(fmt.Errorf("clientconn nextreader error: %w", err))
+	}
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		c.Close()
+		return nil, c.resolveError(fmt.Errorf("clientconn read error: %w", err))
+	}
+
+	return data, nil
+}
+
+func (c *defaultClientConn) resolveError(err error) error {
+	if websocket.IsCloseError(err,
+		websocket.CloseNormalClosure,
+		websocket.CloseGoingAway,
+		websocket.CloseAbnormalClosure,
+		websocket.CloseNoStatusReceived,
+		websocket.ClosePolicyViolation,
+	) || strings.Contains(err.Error(), "closed network connection") {
+		return ws_errors.ConnectionClosedErr
+	}
+	return err
 }

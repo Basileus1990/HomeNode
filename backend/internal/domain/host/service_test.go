@@ -3,80 +3,24 @@ package host
 import (
 	"errors"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_consts"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/helpers"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostconn"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostmap"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
-	"time"
-
-	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostconn"
-	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
-
-// --- Mocks ---
-
-// MockConn implements hostconn.HostConn
-type MockConn struct {
-	mock.Mock
-}
-
-func (m *MockConn) Query(query ...[]byte) ([]byte, error) {
-	args := m.Called(query)
-	var b []byte
-	if args.Get(0) != nil {
-		b = args.Get(0).([]byte)
-	}
-	return b, args.Error(1)
-}
-
-func (m *MockConn) QueryWithTimeout(timeout time.Duration, query ...[]byte) ([]byte, error) {
-	args := m.Called(query, timeout)
-	var b []byte
-	if args.Get(0) != nil {
-		b = args.Get(0).([]byte)
-	}
-	return b, args.Error(1)
-}
-
-func (m *MockConn) Close() {
-	m.Called()
-}
-
-// MockHostMap implements hostmap.HostMap
-type MockHostMap struct {
-	mock.Mock
-}
-
-func (m *MockHostMap) Add(conn *websocket.Conn) uuid.UUID {
-	args := m.Called(conn)
-	return args.Get(0).(uuid.UUID)
-}
-
-func (m *MockHostMap) Remove(id uuid.UUID) {
-	m.Called(id)
-}
-
-func (m *MockHostMap) Get(id uuid.UUID) (hostconn.HostConn, bool) {
-	args := m.Called(id)
-	var c hostconn.HostConn
-	if args.Get(0) != nil {
-		c = args.Get(0).(hostconn.HostConn)
-	}
-	return c, args.Bool(1)
-}
-
-// --- Tests ---
 
 func TestInitialiseNewHostConnection(t *testing.T) {
 	t.Run("success: host replies OK", func(t *testing.T) {
 		id := uuid.New()
-		mockHostMap := &MockHostMap{}
-		mockConn := &MockConn{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockConn := &hostconn.MockConn{}
 
 		mockHostMap.On("Get", id).Return(mockConn, true)
 
-		expectedQuery := [][]byte{ws_consts.ServerSendUuid.Binary(), id[:]}
+		expectedQuery := [][]byte{ws_consts.ServerSendUuid.Binary(), helpers.UUIDToBinary(id)}
 		mockConn.On("Query", expectedQuery).Return(ws_consts.HostResponseOK.Binary(), nil)
 
 		svc := NewHostService(mockHostMap)
@@ -89,7 +33,7 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 
 	t.Run("error: host not found", func(t *testing.T) {
 		id := uuid.New()
-		mockHostMap := &MockHostMap{}
+		mockHostMap := &hostmap.MockHostMap{}
 
 		mockHostMap.On("Get", id).Return(nil, false)
 
@@ -97,18 +41,18 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 		err := svc.InitialiseNewHostConnection(id)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "newly created host not found with id")
+		assert.Contains(t, err.Error(), "host not found")
 		mockHostMap.AssertExpectations(t)
 	})
 
 	t.Run("error: query returns error", func(t *testing.T) {
 		id := uuid.New()
-		mockHostMap := &MockHostMap{}
-		mockConn := &MockConn{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockConn := &hostconn.MockConn{}
 
 		mockHostMap.On("Get", id).Return(mockConn, true)
 
-		expectedQuery := [][]byte{ws_consts.ServerSendUuid.Binary(), id[:]}
+		expectedQuery := [][]byte{ws_consts.ServerSendUuid.Binary(), helpers.UUIDToBinary(id)}
 		queryErr := errors.New("network problem")
 		mockConn.On("Query", expectedQuery).Return(nil, queryErr)
 		mockConn.On("Close").Return()
@@ -126,13 +70,13 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 
 	t.Run("error: unexpected response from host", func(t *testing.T) {
 		id := uuid.New()
-		mockHostMap := &MockHostMap{}
-		mockConn := &MockConn{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockConn := &hostconn.MockConn{}
 
 		mockHostMap.On("Get", id).Return(mockConn, true)
 		mockConn.On("Close").Return()
 
-		expectedQuery := [][]byte{ws_consts.ServerSendUuid.Binary(), id[:]}
+		expectedQuery := [][]byte{ws_consts.ServerSendUuid.Binary(), helpers.UUIDToBinary(id)}
 		mockConn.On("Query", expectedQuery).Return([]byte("NO"), nil)
 
 		svc := NewHostService(mockHostMap)
@@ -140,6 +84,69 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unexpected first response from host")
+		mockHostMap.AssertExpectations(t)
+		mockConn.AssertExpectations(t)
+	})
+}
+
+func TestGetResourceMetadata(t *testing.T) {
+	t.Run("success: host replies OK", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockHostMap := &hostmap.MockHostMap{}
+		mockConn := &hostconn.MockConn{}
+
+		mockHostMap.On("Get", hostId).Return(mockConn, true)
+
+		expectedQuery := [][]byte{ws_consts.ServerQueryResourceMetadata.Binary(), helpers.UUIDToBinary(resourceId)}
+		mockConn.On("Query", expectedQuery).Return(ws_consts.HostResponseOK.Binary(), nil)
+
+		expectedResponse := ws_consts.HostResponseOK.Binary()
+
+		svc := NewHostService(mockHostMap)
+		resp, err := svc.GetResourceMetadata(hostId, resourceId)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, resp)
+		mockHostMap.AssertExpectations(t)
+		mockConn.AssertExpectations(t)
+	})
+
+	t.Run("error: host not found", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockHostMap := &hostmap.MockHostMap{}
+		mockConn := &hostconn.MockConn{}
+
+		mockHostMap.On("Get", hostId).Return(nil, false)
+
+		svc := NewHostService(mockHostMap)
+		resp, err := svc.GetResourceMetadata(hostId, resourceId)
+
+		require.Error(t, err)
+		assert.Equal(t, "host not found", err.Error())
+		assert.Nil(t, resp)
+		mockHostMap.AssertExpectations(t)
+		mockConn.AssertExpectations(t)
+	})
+
+	t.Run("success: host query error", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockHostMap := &hostmap.MockHostMap{}
+		mockConn := &hostconn.MockConn{}
+
+		mockHostMap.On("Get", hostId).Return(mockConn, true)
+
+		expectedQuery := [][]byte{ws_consts.ServerQueryResourceMetadata.Binary(), helpers.UUIDToBinary(resourceId)}
+		mockConn.On("Query", expectedQuery).Return(nil, errors.New("test error"))
+
+		svc := NewHostService(mockHostMap)
+		resp, err := svc.GetResourceMetadata(hostId, resourceId)
+
+		require.Error(t, err)
+		assert.Equal(t, "test error", err.Error())
+		assert.Nil(t, resp)
 		mockHostMap.AssertExpectations(t)
 		mockConn.AssertExpectations(t)
 	})
