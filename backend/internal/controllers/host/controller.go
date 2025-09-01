@@ -104,8 +104,8 @@ func (c *Controller) GetResourceMetadata(ctx *gin.Context) {
 
 func (c *Controller) upgrader() websocket.Upgrader {
 	return websocket.Upgrader{
-		ReadBufferSize:  c.WebsocketCfg.WebsocketBufferSize,
-		WriteBufferSize: c.WebsocketCfg.WebsocketBufferSize,
+		ReadBufferSize:  c.WebsocketCfg.BatchSize,
+		WriteBufferSize: c.WebsocketCfg.BatchSize,
 		// TODO: Allow all origins; in production, you should check the origin
 		CheckOrigin: func(r *http.Request) bool {
 			return true

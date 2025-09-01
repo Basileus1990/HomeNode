@@ -18,7 +18,7 @@ type ServerCfg struct {
 }
 
 type WebsocketCfg struct {
-	WebsocketBufferSize int `env:"WEBSOCKET_BUFFER_SIZE"`
+	BatchSize int `env:"BATCH_SIZE"`
 }
 
 type Config struct {
