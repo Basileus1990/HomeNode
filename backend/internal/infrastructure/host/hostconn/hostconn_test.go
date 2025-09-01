@@ -60,16 +60,16 @@ func (ts *testServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		payload := message[4:]
 
 		var response []byte
+		response = append(response, queryID...)
 		switch string(payload) {
 		case "ping":
-			response = append(response, queryID...)
 			response = append(response, []byte("pong")...)
 		case "timeout":
 			continue
 		case "close":
+			conn.WriteMessage(websocket.BinaryMessage, response)
 			return
 		default:
-			response = append(response, queryID...)
 			response = append(response, []byte("echo: ")...)
 			response = append(response, payload...)
 		}
@@ -172,7 +172,7 @@ func TestQueryZeroTimeout(t *testing.T) {
 	defer conn.Close()
 
 	_, err := conn.QueryWithTimeout(0, []byte("timeout"))
-	assert.ErrorIs(t, err, ws_errors.QueryTimeoutErr)
+	assert.ErrorIs(t, err, ws_errors.TimeoutErr)
 }
 
 func TestQueryTimeout(t *testing.T) {
@@ -183,7 +183,7 @@ func TestQueryTimeout(t *testing.T) {
 	defer conn.Close()
 
 	_, err := conn.QueryWithTimeout(100*time.Millisecond, []byte("timeout"))
-	assert.ErrorIs(t, err, ws_errors.QueryTimeoutErr)
+	assert.ErrorIs(t, err, ws_errors.TimeoutErr)
 }
 
 func TestConcurrentQueries(t *testing.T) {
@@ -245,14 +245,17 @@ func TestHostCloseConnection(t *testing.T) {
 	conn := createTestConnection(t, server)
 	defer conn.Close()
 
-	// Send a message that causes app to close connection
-	_, err := conn.QueryWithTimeout(1*time.Second, []byte("close"))
+	returnMessage, err := conn.QueryWithTimeout(1*time.Second, []byte("close"))
+	require.NoError(t, err)
+	assert.Empty(t, returnMessage)
 
 	// Give some time for the cancellation to propagate
 	time.Sleep(100 * time.Millisecond)
 
-	// Should get either a connection closed error or timeout
+	returnMessage, err = conn.Query([]byte("abc"))
+
 	assert.ErrorIs(t, err, ws_errors.ConnectionClosedErr)
+	assert.Empty(t, returnMessage)
 	assert.True(t, server.closeHandlerCalled)
 }
 

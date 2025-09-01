@@ -3,6 +3,7 @@ package hostmap
 import (
 	"context"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostconn"
+	"log"
 	"sync"
 
 	"github.com/google/uuid"
@@ -51,6 +52,7 @@ func (h *defaultHostMap) Add(conn *websocket.Conn) uuid.UUID {
 	})
 	h.hosts[id] = hostConn
 
+	log.Printf("new host \"%v\" has connected\n", id)
 	return id
 }
 
@@ -62,6 +64,7 @@ func (h *defaultHostMap) Remove(id uuid.UUID) {
 		host.Close()
 	}
 	delete(h.hosts, id)
+	log.Printf("host \"%v\" has disconnected\n", id)
 }
 
 func (h *defaultHostMap) Get(id uuid.UUID) (hostconn.HostConn, bool) {
@@ -77,4 +80,5 @@ func (h *defaultHostMap) removeWithoutClosing(id uuid.UUID) {
 	defer h.mu.Unlock()
 
 	delete(h.hosts, id)
+	log.Printf("host \"%v\" has disconnected\n", id)
 }

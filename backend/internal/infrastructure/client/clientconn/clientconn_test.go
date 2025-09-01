@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 type testServer struct {
@@ -87,14 +88,14 @@ func (ts *testServer) close() {
 	ts.server.Close()
 }
 
-func createTestConnection(t *testing.T, server *testServer) ClientConn {
+func createTestConnection(t *testing.T, server *testServer, timeout time.Duration) ClientConn {
 	t.Helper()
 
 	dialer := websocket.DefaultDialer
 	conn, _, err := dialer.Dial(server.url(), nil)
 	require.NoError(t, err)
 
-	clientConn := (&DefaultClientConnFactory{}).NewClientConn(conn)
+	clientConn := (&DefaultClientConnFactory{}).NewClientConn(conn, timeout)
 
 	return clientConn
 }
@@ -103,7 +104,7 @@ func TestSendSuccess(t *testing.T) {
 	server := newTestServer()
 	defer server.close()
 
-	conn := createTestConnection(t, server)
+	conn := createTestConnection(t, server, DefaultClientConnTimeout)
 	defer conn.Close()
 
 	err := conn.Send([]byte("hello"))
@@ -132,7 +133,7 @@ func TestSendAfterClose(t *testing.T) {
 	server := newTestServer()
 	defer server.close()
 
-	conn := createTestConnection(t, server)
+	conn := createTestConnection(t, server, DefaultClientConnTimeout)
 	conn.Close()
 
 	err := conn.Send([]byte("hello"))
@@ -143,7 +144,7 @@ func TestListenAfterClose(t *testing.T) {
 	server := newTestServer()
 	defer server.close()
 
-	conn := createTestConnection(t, server)
+	conn := createTestConnection(t, server, DefaultClientConnTimeout)
 
 	err := conn.Send([]byte("hello"))
 	assert.NoError(t, err)
@@ -153,4 +154,44 @@ func TestListenAfterClose(t *testing.T) {
 	returnMessage, err := conn.Listen()
 	assert.ErrorIs(t, err, ws_errors.ConnectionClosedErr)
 	assert.Nil(t, returnMessage)
+}
+
+func TestSendAfterCLientClose(t *testing.T) {
+	server := newTestServer()
+	defer server.close()
+
+	conn := createTestConnection(t, server, DefaultClientConnTimeout)
+	defer conn.Close()
+
+	err := conn.Send([]byte("close"))
+	assert.NoError(t, err)
+
+	time.Sleep(time.Millisecond * 100)
+
+	msg, err := conn.Listen()
+	assert.ErrorIs(t, err, ws_errors.ConnectionClosedErr)
+	assert.Empty(t, msg)
+}
+
+func TestWriteTimeout(t *testing.T) {
+	server := newTestServer()
+	defer server.close()
+
+	conn := createTestConnection(t, server, 0)
+	defer conn.Close()
+
+	err := conn.Send([]byte("abc"))
+	assert.ErrorIs(t, err, ws_errors.TimeoutErr)
+}
+
+func TestListenTimeout(t *testing.T) {
+	server := newTestServer()
+	defer server.close()
+
+	conn := createTestConnection(t, server, 0)
+	defer conn.Close()
+
+	msg, err := conn.Listen()
+	assert.ErrorIs(t, err, ws_errors.TimeoutErr)
+	assert.Empty(t, msg)
 }

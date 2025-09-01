@@ -62,7 +62,7 @@ func (c *Controller) GetResourceMetadata(ctx *gin.Context) {
 		return
 	}
 
-	clientConn := c.ClientConnFactory.NewClientConn(ws)
+	clientConn := c.ClientConnFactory.NewClientConn(ws, clientconn.DefaultClientConnTimeout)
 	defer clientConn.Close()
 
 	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))

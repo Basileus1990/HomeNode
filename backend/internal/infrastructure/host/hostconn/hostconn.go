@@ -43,7 +43,7 @@ type HostConn interface {
 	//
 	// The query parameter will be sent as the payload portion of the message, with a unique query ID automatically prepended.
 	// The timeout parameter specifies the maximum time to wait for a response.
-	// If the timeout is exceeded, ws_errors.QueryTimeoutErr is returned.
+	// If the timeout is exceeded, ws_errors.TimeoutErr is returned.
 	//
 	// Returns the response payload or an error if the operation fails or times out.
 	// On any error other than timeout error the connection is closed, so there is no need to close it again
@@ -103,7 +103,7 @@ func (conn *defaultHostConn) QueryWithTimeout(timeout time.Duration, query ...[]
 	case conn.queryCh <- queryWithId:
 	case <-ctx.Done():
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return nil, ws_errors.QueryTimeoutErr
+			return nil, ws_errors.TimeoutErr
 		}
 		return nil, conn.getCloseError()
 	}
@@ -114,7 +114,7 @@ func (conn *defaultHostConn) QueryWithTimeout(timeout time.Duration, query ...[]
 		return response, nil
 	case <-ctx.Done():
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return nil, ws_errors.QueryTimeoutErr
+			return nil, ws_errors.TimeoutErr
 		}
 		return nil, conn.getCloseError()
 	}

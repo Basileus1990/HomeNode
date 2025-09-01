@@ -23,7 +23,7 @@ var HostNotFoundErr = WebsocketError{
 	code: HostNotFound,
 }
 
-var QueryTimeoutErr = WebsocketError{
-	msg:  "query timeout",
+var TimeoutErr = WebsocketError{
+	msg:  "timeout",
 	code: Timeout,
 }
