@@ -28,9 +28,8 @@ export default function Dropzone({ setSelectedFiles }: { setSelectedFiles: React
                 transition: 'background-color 0.3s ease',
             } })}>
                 <input {...getInputProps({
+                    multiple: true, // Allow multiple files
                     webkitdirectory: "true", // Allow directory selection
-                    //directory: "true", // Allow directory selection
-                    //multiple: true, // Allow multiple files
                 })} />
                 <p>Drag and drop some files here, or click to select files</p>
             </div>

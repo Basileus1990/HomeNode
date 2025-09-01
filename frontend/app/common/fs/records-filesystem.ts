@@ -1,27 +1,36 @@
 import type { RecordMetadata } from "./types";
-import { RecordKind, InvalidRecordError, NotFileRecordError } from "./types";
+import { Errors, RecordKind } from "./types";
 
-const META_FILE = "meta.json"
-const FILE_RECORD_PREFIX = "file_"
-const DIR_RECORD_PREFIX = "dir_"
+export const META_FILE = "meta.json"
+export const FILE_RECORD_PREFIX = "file_"
+export const DIR_RECORD_PREFIX = "dir_"
 
 export class RecordHandle {
-    protected _recordHandle: FileSystemDirectoryHandle;
+    protected _recordHandle: FileSystemDirectoryHandle; // handle to folder
     private _metadata?: RecordMetadata = undefined;
 
+    /**
+     * DO NOT USE - use factory method
+     */
     constructor(handle: FileSystemDirectoryHandle) {
         this._recordHandle = handle;
     }
 
+    /**
+     * MUST be called before using the object, can't be in contructor as it's async
+     */
     public async init(): Promise<RecordHandle> {
         await this.readMetadata();
         return this;
     }
 
+    /**
+     * loads metadata from json file into oject
+     */
     private async readMetadata() {
         const metadataFile = await this._recordHandle.getFileHandle(META_FILE);
         if (!metadataFile) {
-            throw new InvalidRecordError({
+            throw new Errors.InvalidRecordError({
                 name: "INVALID_RECORD_ERROR",
                 message: "Metadata file not found",
             });
@@ -54,7 +63,7 @@ export class RecordHandle {
         if (kind)
             return kind
         else
-            throw new InvalidRecordError({
+            throw new Errors.InvalidRecordError({
                 name: "INVALID_RECORD_ERROR",
                 message: "Cannot identify record type from handle.name",
             });
@@ -69,6 +78,10 @@ export class RecordHandle {
 
     // Factory methods to create records
 
+    /**
+     * tries to read FileRecord or DirectoryRecord based on given FileSystemDirectoryHandle
+     * throws InvalidRecordError
+     */
     public static async readFromHandleAsync(handle: FileSystemDirectoryHandle): Promise<RecordHandle> {
         const recordKind = RecordHandle.checkKind(handle.name);
         if (recordKind === RecordKind.directory) {
@@ -76,7 +89,7 @@ export class RecordHandle {
         } else if (recordKind === RecordKind.file) {
             return new FileRecordHandle(handle).init();
         } else {
-            throw new InvalidRecordError({
+            throw new Errors.InvalidRecordError({
                 name: "INVALID_RECORD_ERROR",
                 message: "Cannot identify record type from handle.name",
             });
@@ -94,6 +107,10 @@ export class RecordHandle {
 export class FileRecordHandle extends RecordHandle {
     fileHandle?: FileSystemFileHandle;
 
+    /**
+     * DO NOT USE - use factory method
+     * can't be made private because of no friend level protection in ts
+     */
     constructor(handle: FileSystemDirectoryHandle) {
         super(handle);
     }
@@ -107,12 +124,15 @@ export class FileRecordHandle extends RecordHandle {
                 return this;
             }
         }
-        throw new NotFileRecordError({
+        throw new Errors.NotFileRecordError({
             name: "NOT_FILE_RECORD_ERROR",
             message: "No file handle found",
         });
     }
 
+    /**
+     * get handle of the stored file
+     */
     public async getHandle(): Promise<FileSystemFileHandle> {
         if (!this.fileHandle) {
             await this.init();
@@ -138,7 +158,8 @@ export class FileRecordHandle extends RecordHandle {
             await writable.close();
         } else {
             const accessHandle = await fileHandle.createSyncAccessHandle();
-            accessHandle.write(await file.arrayBuffer());
+            const arrayBuffer = await file.arrayBuffer();
+            accessHandle.write(arrayBuffer);
             accessHandle.flush();
             accessHandle.close();
         }
@@ -150,6 +171,9 @@ export class FileRecordHandle extends RecordHandle {
 }
 
 export class DirectoryRecordHandle extends RecordHandle {
+    /** 
+     * DO NOT USE - use factory method
+     */
     constructor(handle: FileSystemDirectoryHandle) {
         super(handle);
     }
@@ -159,7 +183,10 @@ export class DirectoryRecordHandle extends RecordHandle {
         return this;
     }
 
-    public async *entries() {
+    /**
+     * [name, RecordHandle] generator iterating over records in this directory
+     */
+    public async *entries(): AsyncGenerator<[string, Promise<RecordHandle>]> {
         for await (const [key, value] of this._recordHandle.entries()) {
             if (value.kind === "directory") {
                 yield [key, RecordHandle.readFromHandleAsync(value as FileSystemDirectoryHandle)];
@@ -167,7 +194,10 @@ export class DirectoryRecordHandle extends RecordHandle {
         }
     }
 
-    public async find(recordName: string, recursive: boolean = false) {
+    /**
+     * null if not found
+     *  */ 
+    public async findByName(recordName: string, recursive: boolean = false) {
         async function _find(recordName: string, dir: FileSystemDirectoryHandle, recursive: boolean = false): Promise<RecordHandle | null> {
             for await (const handle of dir.values()) {
                 if (handle.kind === "directory") {
@@ -188,10 +218,16 @@ export class DirectoryRecordHandle extends RecordHandle {
         return _find(recordName, this._recordHandle, recursive);
     }
 
+    /** 
+     * create INSIDE this directory
+     */
     public async createFileRecord(name: string, file: File, metadata: RecordMetadata, useSyncWrite: boolean = false) {
         return FileRecordHandle.createFileRecordAsync(name, this._recordHandle, file, metadata, useSyncWrite);
     }
 
+    /**
+     * create INSIDE this directory
+     */
     public async createDirectoryRecord(name: string, metadata: RecordMetadata) {
         return DirectoryRecordHandle.createDirectoryRecordAsync(name, this._recordHandle, metadata);
     }
