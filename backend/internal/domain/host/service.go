@@ -3,13 +3,16 @@ package host
 import (
 	"bytes"
 	"fmt"
-	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/msgtype"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_consts"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_errors"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/helpers"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostmap"
 	"github.com/google/uuid"
 )
 
 type HostService interface {
 	InitialiseNewHostConnection(id uuid.UUID) error
+	GetResourceMetadata(hostUuid, resourceUuid uuid.UUID) ([]byte, error)
 }
 
 type defaultConnectionService struct {
@@ -22,24 +25,40 @@ func NewHostService(hostMap hostmap.HostMap) HostService {
 	}
 }
 
-func (cs *defaultConnectionService) InitialiseNewHostConnection(id uuid.UUID) error {
-	hostConn, ok := cs.hostMap.Get(id)
+func (s *defaultConnectionService) InitialiseNewHostConnection(id uuid.UUID) error {
+	hostConn, ok := s.hostMap.Get(id)
 	if !ok {
-		return fmt.Errorf("newly created host not found with id: %s", id.String())
+		return ws_errors.HostNotFoundErr
 	}
 
-	payload := id[:]
+	query := helpers.UUIDToBinary(id)
 
-	response, err := hostConn.Query(msgtype.ServerSendUuid.Binary(), payload)
+	response, err := hostConn.Query(ws_consts.InitWithUuidQuery.Binary(), query)
 	if err != nil {
 		hostConn.Close()
 		return fmt.Errorf("error on quering newly connected host: %w", err)
 	}
 
-	if !bytes.Equal(response, msgtype.HostResponseOK.Binary()) {
+	if !bytes.Equal(response, ws_consts.ACK.Binary()) {
 		hostConn.Close()
 		return fmt.Errorf("unexpected first response from host %s: %q", id.String(), response)
 	}
 
 	return nil
+}
+
+func (s *defaultConnectionService) GetResourceMetadata(hostUuid, resourceUuid uuid.UUID) ([]byte, error) {
+	hostConn, ok := s.hostMap.Get(hostUuid)
+	if !ok {
+		return nil, ws_errors.HostNotFoundErr
+	}
+
+	query := helpers.UUIDToBinary(resourceUuid)
+
+	response, err := hostConn.Query(ws_consts.MetadataQuery.Binary(), query)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
 }

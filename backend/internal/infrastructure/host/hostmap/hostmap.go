@@ -3,6 +3,7 @@ package hostmap
 import (
 	"context"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostconn"
+	"log"
 	"sync"
 
 	"github.com/google/uuid"
@@ -12,12 +13,12 @@ import (
 type HostMap interface {
 	Add(conn *websocket.Conn) uuid.UUID
 	Remove(id uuid.UUID)
-	Get(id uuid.UUID) (hostconn.Conn, bool)
+	Get(id uuid.UUID) (hostconn.HostConn, bool)
 }
 
 // defaultHostMap provides thread-safe storage and management of host connections.
 type defaultHostMap struct {
-	hosts map[uuid.UUID]hostconn.Conn
+	hosts map[uuid.UUID]hostconn.HostConn
 	mu    sync.RWMutex
 
 	ctx             context.Context
@@ -28,7 +29,7 @@ var _ HostMap = &defaultHostMap{}
 
 func NewDefaultHostMap(ctx context.Context, hostConnFactory hostconn.HostConnFactory) HostMap {
 	return &defaultHostMap{
-		hosts:           make(map[uuid.UUID]hostconn.Conn),
+		hosts:           make(map[uuid.UUID]hostconn.HostConn),
 		ctx:             ctx,
 		hostConnFactory: hostConnFactory,
 	}
@@ -51,6 +52,7 @@ func (h *defaultHostMap) Add(conn *websocket.Conn) uuid.UUID {
 	})
 	h.hosts[id] = hostConn
 
+	log.Printf("new host \"%v\" has connected\n", id)
 	return id
 }
 
@@ -62,9 +64,10 @@ func (h *defaultHostMap) Remove(id uuid.UUID) {
 		host.Close()
 	}
 	delete(h.hosts, id)
+	log.Printf("host \"%v\" has disconnected\n", id)
 }
 
-func (h *defaultHostMap) Get(id uuid.UUID) (hostconn.Conn, bool) {
+func (h *defaultHostMap) Get(id uuid.UUID) (hostconn.HostConn, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
@@ -77,4 +80,5 @@ func (h *defaultHostMap) removeWithoutClosing(id uuid.UUID) {
 	defer h.mu.Unlock()
 
 	delete(h.hosts, id)
+	log.Printf("host \"%v\" has disconnected\n", id)
 }

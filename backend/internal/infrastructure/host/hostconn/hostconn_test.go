@@ -2,10 +2,12 @@ package hostconn
 
 import (
 	"context"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_errors"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
@@ -26,9 +28,6 @@ func newTestServer() *testServer {
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
-			//CheckOrigin: func(r *http.Request) bool {
-			//	return true // Allow all origins for testing
-			//},
 		},
 	}
 
@@ -50,10 +49,9 @@ func (ts *testServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			break
+			log.Fatalf("error on reading message: %v", err)
 		}
 
-		// Extract query ID and payload
 		if len(message) < 4 {
 			continue
 		}
@@ -61,18 +59,17 @@ func (ts *testServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		queryID := message[:4]
 		payload := message[4:]
 
-		// Create response based on payload
 		var response []byte
+		response = append(response, queryID...)
 		switch string(payload) {
 		case "ping":
-			response = append(response, queryID...)
 			response = append(response, []byte("pong")...)
 		case "timeout":
 			continue
 		case "close":
+			conn.WriteMessage(websocket.BinaryMessage, response)
 			return
 		default:
-			response = append(response, queryID...)
 			response = append(response, []byte("echo: ")...)
 			response = append(response, payload...)
 		}
@@ -91,7 +88,7 @@ func (ts *testServer) close() {
 	ts.server.Close()
 }
 
-func createTestConnection(t *testing.T, server *testServer) Conn {
+func createTestConnection(t *testing.T, server *testServer) HostConn {
 	t.Helper()
 
 	dialer := websocket.DefaultDialer
@@ -99,14 +96,14 @@ func createTestConnection(t *testing.T, server *testServer) Conn {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	hostConn := (&DefaultHostConnectionFactory{}).NewHostConn(ctx, conn, func() {
+	hostConn := (&DefaultHostConnFactory{}).NewHostConn(ctx, conn, func() {
 		server.closeHandlerCalled = true
 	})
 
 	return hostConn
 }
 
-func createBenchmarkTestConnection(t testing.TB, server *testServer) Conn {
+func createBenchmarkTestConnection(t testing.TB, server *testServer) HostConn {
 	t.Helper()
 
 	dialer := websocket.DefaultDialer
@@ -114,7 +111,7 @@ func createBenchmarkTestConnection(t testing.TB, server *testServer) Conn {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	hostConn := (&DefaultHostConnectionFactory{}).NewHostConn(ctx, conn, func() {
+	hostConn := (&DefaultHostConnFactory{}).NewHostConn(ctx, conn, func() {
 		server.closeHandlerCalled = true
 	})
 
@@ -175,7 +172,7 @@ func TestQueryZeroTimeout(t *testing.T) {
 	defer conn.Close()
 
 	_, err := conn.QueryWithTimeout(0, []byte("timeout"))
-	assert.ErrorIs(t, err, ErrQueryTimeout)
+	assert.ErrorIs(t, err, ws_errors.TimeoutErr)
 }
 
 func TestQueryTimeout(t *testing.T) {
@@ -186,7 +183,7 @@ func TestQueryTimeout(t *testing.T) {
 	defer conn.Close()
 
 	_, err := conn.QueryWithTimeout(100*time.Millisecond, []byte("timeout"))
-	assert.ErrorIs(t, err, ErrQueryTimeout)
+	assert.ErrorIs(t, err, ws_errors.TimeoutErr)
 }
 
 func TestConcurrentQueries(t *testing.T) {
@@ -237,7 +234,7 @@ func TestConnectionClose(t *testing.T) {
 
 	// Subsequent queries should fail
 	_, err = conn.Query([]byte("ping"))
-	assert.ErrorIs(t, err, ErrConnectionClosed)
+	assert.ErrorIs(t, err, ws_errors.ConnectionClosedErr)
 	assert.True(t, server.closeHandlerCalled)
 }
 
@@ -248,14 +245,17 @@ func TestHostCloseConnection(t *testing.T) {
 	conn := createTestConnection(t, server)
 	defer conn.Close()
 
-	// Send a message that causes app to close connection
-	_, err := conn.QueryWithTimeout(1*time.Second, []byte("close"))
+	returnMessage, err := conn.QueryWithTimeout(1*time.Second, []byte("close"))
+	require.NoError(t, err)
+	assert.Empty(t, returnMessage)
 
 	// Give some time for the cancellation to propagate
 	time.Sleep(100 * time.Millisecond)
 
-	// Should get either a connection closed error or timeout
-	assert.ErrorIs(t, err, ErrConnectionClosed)
+	returnMessage, err = conn.Query([]byte("abc"))
+
+	assert.ErrorIs(t, err, ws_errors.ConnectionClosedErr)
+	assert.Empty(t, returnMessage)
 	assert.True(t, server.closeHandlerCalled)
 }
 
@@ -305,9 +305,9 @@ func TestInvalidResponse(t *testing.T) {
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	require.NoError(t, err)
 
-	hostConn := (&DefaultHostConnectionFactory{}).NewHostConn(context.Background(), conn, func() {})
+	hostConn := (&DefaultHostConnFactory{}).NewHostConn(context.Background(), conn, func() {})
 	defer hostConn.Close()
-	
+
 	_, err = hostConn.QueryWithTimeout(2*time.Second, []byte("test"))
 	require.Error(t, err)
 	assert.EqualError(t, err, "hostconn ERROR - response lenght less than 4 bytes. No query id")
@@ -323,7 +323,7 @@ func TestQueryAfterContextCancel(t *testing.T) {
 	conn, _, err := dialer.Dial(server.url(), nil)
 	require.NoError(t, err)
 
-	hostConn := (&DefaultHostConnectionFactory{}).NewHostConn(ctx, conn, func() {
+	hostConn := (&DefaultHostConnFactory{}).NewHostConn(ctx, conn, func() {
 		server.closeHandlerCalled = true
 	})
 	defer hostConn.Close()
@@ -339,7 +339,7 @@ func TestQueryAfterContextCancel(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	_, err = hostConn.Query([]byte("ping"))
-	assert.ErrorIs(t, err, ErrConnectionClosed)
+	assert.ErrorIs(t, err, ws_errors.ConnectionClosedErr)
 	assert.True(t, server.closeHandlerCalled)
 }
 

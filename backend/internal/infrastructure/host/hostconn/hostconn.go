@@ -15,6 +15,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_errors"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/helpers"
 	"github.com/gorilla/websocket"
 	"sync"
@@ -27,19 +28,11 @@ const (
 	defaultQueryTimeout = 30 * time.Second
 )
 
-var (
-	// ErrConnectionClosed is returned when attempting to perform operations on a connection that has been already closed.
-	ErrConnectionClosed = errors.New("connection closed")
-
-	// ErrQueryTimeout is returned when a query does not receive a response within the specified timeout duration.
-	ErrQueryTimeout = errors.New("query timeout")
-)
-
-type Conn interface {
+type HostConn interface {
 	// Query sends a query and waits for a response using the default timeout which is set at 30 seconds.
 	// Multiple concurrent queries are supported and will be properly routed to their respective callers based on query IDs.
 	//
-	// The query parameter will be sent as the payload portion of the message, with a unique query ID automatically prepended.
+	// All byte arras will be sent in one message in order they have been provided, with a unique query ID automatically prepended.
 	//
 	// Returns the response payload (without the query ID) or an error if the operation fails or times out.
 	// On any error other than timeout error the connection is closed, so there is no need to close it again
@@ -50,7 +43,7 @@ type Conn interface {
 	//
 	// The query parameter will be sent as the payload portion of the message, with a unique query ID automatically prepended.
 	// The timeout parameter specifies the maximum time to wait for a response.
-	// If the timeout is exceeded, ErrQueryTimeout is returned.
+	// If the timeout is exceeded, ws_errors.TimeoutErr is returned.
 	//
 	// Returns the response payload or an error if the operation fails or times out.
 	// On any error other than timeout error the connection is closed, so there is no need to close it again
@@ -62,14 +55,14 @@ type Conn interface {
 	Close()
 }
 
-// defaultConn is the default implementation of the Conn interface. It manages a WebSocket connection with
+// defaultHostConn is the default implementation of the HostConn interface. It manages a WebSocket connection with
 // automatic query ID generation, response routing, and connection lifecycle management.
 //
 // The connection operates with two background goroutines:
 // - send: handles outgoing queries from the queryCh channel
 // - listen: handles incoming responses and routes them to waiting queries
-type defaultConn struct {
-	wsConn *websocket.Conn
+type defaultHostConn struct {
+	ws *websocket.Conn
 
 	ctx        context.Context
 	cancelFunc context.CancelFunc
@@ -86,13 +79,13 @@ type defaultConn struct {
 	closeHandler func()
 }
 
-var _ Conn = (*defaultConn)(nil)
+var _ HostConn = (*defaultHostConn)(nil)
 
-func (conn *defaultConn) Query(query ...[]byte) ([]byte, error) {
+func (conn *defaultHostConn) Query(query ...[]byte) ([]byte, error) {
 	return conn.QueryWithTimeout(defaultQueryTimeout, query...)
 }
 
-func (conn *defaultConn) QueryWithTimeout(timeout time.Duration, query ...[]byte) ([]byte, error) {
+func (conn *defaultHostConn) QueryWithTimeout(timeout time.Duration, query ...[]byte) ([]byte, error) {
 	if err := conn.getCloseError(); err != nil {
 		return nil, err
 	}
@@ -110,7 +103,7 @@ func (conn *defaultConn) QueryWithTimeout(timeout time.Duration, query ...[]byte
 	case conn.queryCh <- queryWithId:
 	case <-ctx.Done():
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return nil, ErrQueryTimeout
+			return nil, ws_errors.TimeoutErr
 		}
 		return nil, conn.getCloseError()
 	}
@@ -121,31 +114,31 @@ func (conn *defaultConn) QueryWithTimeout(timeout time.Duration, query ...[]byte
 		return response, nil
 	case <-ctx.Done():
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return nil, ErrQueryTimeout
+			return nil, ws_errors.TimeoutErr
 		}
 		return nil, conn.getCloseError()
 	}
 }
 
-func (conn *defaultConn) Close() {
+func (conn *defaultHostConn) Close() {
 	conn.closeOnce.Do(func() {
 		conn.cancelFunc()
-		_ = conn.wsConn.Close()
-		conn.setCloseError(ErrConnectionClosed)
+		_ = conn.ws.Close()
+		conn.setCloseError(ws_errors.ConnectionClosedErr)
 		conn.closeHandler()
 	})
 }
 
-func (conn *defaultConn) closeWithError(err error) {
+func (conn *defaultHostConn) closeWithError(err error) {
 	conn.closeOnce.Do(func() {
 		conn.setCloseError(err)
 		conn.cancelFunc()
-		_ = conn.wsConn.Close()
+		_ = conn.ws.Close()
 		conn.closeHandler()
 	})
 }
 
-func (conn *defaultConn) setCloseError(err error) {
+func (conn *defaultHostConn) setCloseError(err error) {
 	conn.closeMu.Lock()
 	defer conn.closeMu.Unlock()
 	if conn.closeErr == nil {
@@ -153,16 +146,16 @@ func (conn *defaultConn) setCloseError(err error) {
 	}
 }
 
-func (conn *defaultConn) getCloseError() error {
+func (conn *defaultHostConn) getCloseError() error {
 	conn.closeMu.RLock()
 	defer conn.closeMu.RUnlock()
 	return conn.closeErr
 }
 
-func (conn *defaultConn) send() {
+func (conn *defaultHostConn) send() {
 	defer func() {
 		// Clean up on exit
-		conn.closeWithError(ErrConnectionClosed)
+		conn.closeWithError(ws_errors.ConnectionClosedErr)
 	}()
 
 	for {
@@ -170,7 +163,7 @@ func (conn *defaultConn) send() {
 		case <-conn.ctx.Done():
 			return
 		case query := <-conn.queryCh:
-			w, err := conn.wsConn.NextWriter(websocket.BinaryMessage)
+			w, err := conn.ws.NextWriter(websocket.BinaryMessage)
 			if err != nil {
 				conn.closeWithError(fmt.Errorf("hostconn nextwriter error: %w", err))
 				return
@@ -192,10 +185,10 @@ func (conn *defaultConn) send() {
 	}
 }
 
-func (conn *defaultConn) listen() {
+func (conn *defaultHostConn) listen() {
 	defer func() {
 		// Clean up on exit
-		conn.closeWithError(ErrConnectionClosed)
+		conn.closeWithError(ws_errors.ConnectionClosedErr)
 	}()
 
 	for {
@@ -203,16 +196,19 @@ func (conn *defaultConn) listen() {
 		case <-conn.ctx.Done():
 			return
 		default:
-			_, response, err := conn.wsConn.ReadMessage()
+			_, response, err := conn.ws.ReadMessage()
 			if err != nil {
 				if websocket.IsCloseError(err,
 					websocket.CloseNormalClosure,
 					websocket.CloseGoingAway,
 					websocket.CloseAbnormalClosure,
 				) {
-					conn.closeWithError(ErrConnectionClosed)
+					conn.closeWithError(ws_errors.ConnectionClosedErr)
 					return
 				}
+
+				conn.closeWithError(err)
+				return
 			}
 
 			if err = conn.handleResponse(response); err != nil {
@@ -223,7 +219,7 @@ func (conn *defaultConn) listen() {
 	}
 }
 
-func (conn *defaultConn) handleResponse(response []byte) error {
+func (conn *defaultHostConn) handleResponse(response []byte) error {
 	queryId, result, err := getResponseFromBinary(response)
 	if err != nil {
 		return err
@@ -246,7 +242,7 @@ func (conn *defaultConn) handleResponse(response []byte) error {
 	return nil
 }
 
-func (conn *defaultConn) createNewResponseChannel() (uint32, <-chan []byte) {
+func (conn *defaultHostConn) createNewResponseChannel() (uint32, <-chan []byte) {
 	id := atomic.AddUint32(&conn.nextQueryId, 1)
 
 	conn.responseChannelsMu.Lock()
@@ -258,7 +254,7 @@ func (conn *defaultConn) createNewResponseChannel() (uint32, <-chan []byte) {
 	return id, respCh
 }
 
-func (conn *defaultConn) cleanupResponseChannel(queryId uint32) {
+func (conn *defaultHostConn) cleanupResponseChannel(queryId uint32) {
 	conn.responseChannelsMu.Lock()
 	defer conn.responseChannelsMu.Unlock()
 

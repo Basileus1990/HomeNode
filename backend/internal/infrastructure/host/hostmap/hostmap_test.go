@@ -32,9 +32,9 @@ type MockHostConnFactory struct {
 	mock.Mock
 }
 
-func (m *MockHostConnFactory) NewHostConn(ctx context.Context, conn *websocket.Conn, onClose func()) hostconn.Conn {
+func (m *MockHostConnFactory) NewHostConn(ctx context.Context, conn *websocket.Conn, onClose func()) hostconn.HostConn {
 	args := m.Called(ctx, conn, onClose)
-	return args.Get(0).(hostconn.Conn)
+	return args.Get(0).(hostconn.HostConn)
 }
 
 func TestDefaultHostMap_Add(t *testing.T) {

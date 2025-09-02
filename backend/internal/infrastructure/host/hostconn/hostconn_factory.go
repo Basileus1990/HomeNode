@@ -2,14 +2,15 @@ package hostconn
 
 import (
 	"context"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_errors"
 	"github.com/gorilla/websocket"
 )
 
 type HostConnFactory interface {
-	NewHostConn(ctx context.Context, wsConn *websocket.Conn, closeHandler func()) Conn
+	NewHostConn(ctx context.Context, wsConn *websocket.Conn, closeHandler func()) HostConn
 }
 
-// DefaultHostConnectionFactory creates and initializes a new connection wrapper around the provided WebSocket connection.
+// DefaultHostConnFactory creates and initializes a new connection wrapper around the provided WebSocket connection.
 // It starts the necessary background goroutines for handling message sending and receiving.
 //
 // The provided context controls the connection lifetime. When the context
@@ -17,13 +18,13 @@ type HostConnFactory interface {
 // will be terminated.
 //
 // The WebSocket connection should be established and ready for communication.
-type DefaultHostConnectionFactory struct{}
+type DefaultHostConnFactory struct{}
 
-func (f *DefaultHostConnectionFactory) NewHostConn(ctx context.Context, wsConn *websocket.Conn, closeHandler func()) Conn {
+func (f *DefaultHostConnFactory) NewHostConn(ctx context.Context, wsConn *websocket.Conn, closeHandler func()) HostConn {
 	ctx, cancel := context.WithCancel(ctx)
 
-	conn := defaultConn{
-		wsConn:           wsConn,
+	conn := defaultHostConn{
+		ws:               wsConn,
 		ctx:              ctx,
 		cancelFunc:       cancel,
 		closeHandler:     closeHandler,
@@ -31,10 +32,10 @@ func (f *DefaultHostConnectionFactory) NewHostConn(ctx context.Context, wsConn *
 		queryCh:          make(chan [][]byte),
 	}
 
-	originalCloseHandler := conn.wsConn.CloseHandler()
-	conn.wsConn.SetCloseHandler(func(code int, text string) error {
+	originalCloseHandler := conn.ws.CloseHandler()
+	conn.ws.SetCloseHandler(func(code int, text string) error {
 		_ = originalCloseHandler(code, text)
-		conn.closeWithError(ErrConnectionClosed)
+		conn.closeWithError(ws_errors.ConnectionClosedErr)
 		return nil
 	})
 
