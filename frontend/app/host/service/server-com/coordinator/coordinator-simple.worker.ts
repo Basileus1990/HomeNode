@@ -1,12 +1,12 @@
-import { FromSocketMessageTypes, type HReaderOut, HMReader } from '../message/readers';
-import { ToSocketMessageTypes, type HWriterIn, HMWriter } from '../message/writers';
+import { SocketToHostMessageTypes, HMHostReader } from '../message/readers';
+import { HostToSocketMessageTypes, HMHostWriter } from '../message/writers';
 import { FSService } from '~/common/fs/fs-service';
-import { RecordChunker } from './chunker';
+import { RecordChunker } from '../stream/chunker';
 
 const socket = new WebSocket(import.meta.env.VITE_SERVER_WS_URL);
 socket.binaryType = "arraybuffer";
-const reader = new HMReader();
-const writer = new HMWriter();
+const reader = new HMHostReader();
+const writer = new HMHostWriter();
 const chunkers = new Map<number, { chunker: RecordChunker, lastActive: number }>();
 
 
@@ -19,7 +19,7 @@ socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
 
     const { respondentId, typeNo, flags, payload } = msg;
     switch (typeNo) {
-        case (FromSocketMessageTypes.RecordInfoRequest): {
+        case (SocketToHostMessageTypes.RecordInfoRequest): {
             const recordName = payload.recordName;
             const record = await FSService.findRecordByName(recordName);
 
@@ -30,12 +30,12 @@ socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
 
             const messageBuffer = writer.write({
                 respondentId, 
-                typeNo: ToSocketMessageTypes.RecordInfoResponse, 
+                typeNo: HostToSocketMessageTypes.RecordInfoResponse, 
                 payload: record.getMetadata()});
             socket.send(messageBuffer);
             break;
         }
-        case (FromSocketMessageTypes.ResourceDownloadRequest): {
+        case (SocketToHostMessageTypes.ResourceDownloadRequest): {
             const recordName = payload.recordName;
             const record = await FSService.findRecordByName(recordName);
 
@@ -50,7 +50,7 @@ socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
             // TODO: fill out the response
             const resp = writer.write({
                 respondentId,
-                typeNo: ToSocketMessageTypes.RecordDownloadResponse,
+                typeNo: HostToSocketMessageTypes.RecordDownloadResponse,
                 payload: {
                     batchesNo: 0,
                     totalBytes: 0,
@@ -60,7 +60,7 @@ socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
             socket.send(resp);
             break;
         }
-        case (FromSocketMessageTypes.ChunkRequest): {
+        case (SocketToHostMessageTypes.ChunkRequest): {
             const entry = chunkers.get(respondentId);
 
             if (!entry) {
@@ -72,7 +72,7 @@ socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
             if (!chunk) {
                 const resp = writer.write({
                     respondentId: msg.respondentId, 
-                    typeNo: ToSocketMessageTypes.EofChunkResponse,
+                    typeNo: HostToSocketMessageTypes.EofChunkResponse,
                     payload: new ArrayBuffer(0)
                 });
                 socket.send(resp);
@@ -80,7 +80,7 @@ socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
             } else {
                 const resp = writer.write({
                     respondentId: respondentId, 
-                    typeNo: ToSocketMessageTypes.ChunkResponse,
+                    typeNo: HostToSocketMessageTypes.ChunkResponse,
                     payload: chunk
                 });
                 socket.send(resp);
@@ -98,7 +98,7 @@ socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
 function sendError(respondentId: number, errorCode: number, message?: string) {
     const errorMessage = writer.write({
         respondentId, 
-        typeNo: ToSocketMessageTypes.Error,
+        typeNo: HostToSocketMessageTypes.Error,
         payload: {
             errorCode,
             message

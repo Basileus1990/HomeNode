@@ -1,7 +1,5 @@
 import { FileRecordHandle, RecordHandle } from "~/common/fs/records-filesystem";
 
-const chunkSize = parseInt(import.meta.env.VITE_CHUNK_SIZE);
-
 /**
  * abstracts generating chunks from files / folders
  * only files supported for now
@@ -14,12 +12,12 @@ export class RecordChunker {
     }
 
     // factory method dance, because we can't have async constructor, but don't want uninitialized objects laying around
-    public static async createChunker(record: RecordHandle) {
+    public static async createChunker(record: RecordHandle, chunkSize: number) {
         if (record.getKind() === "file") {
             const fileRecord = await RecordHandle.readFromHandleAsync(record.getUnderlayingHandle()) as FileRecordHandle;
             const fileHandle = await fileRecord.getHandle();
             const file = await fileHandle.getFile();
-            return new RecordChunker(new FileRecordChunker(file));
+            return new RecordChunker(new FileRecordChunker(file, chunkSize));
         } else {
             throw new Error("Not implemented");
         }
@@ -36,9 +34,11 @@ export class RecordChunker {
 class FileRecordChunker {
     private file: File;
     private offset: number = 0;
+    private chunkSize: number;
 
-    constructor(file: File) {
+    constructor(file: File, chunkSize: number) {
         this.file = file;
+        this.chunkSize = chunkSize;
     }
 
     public async next(): Promise<ArrayBuffer | null> {
@@ -46,8 +46,8 @@ class FileRecordChunker {
             return null;
         }
 
-        const slice = this.file.slice(this.offset, this.offset + chunkSize);
-        this.offset += chunkSize;
+        const slice = this.file.slice(this.offset, this.offset + this.chunkSize);
+        this.offset += this.chunkSize;
         return slice.arrayBuffer();
     }
 }

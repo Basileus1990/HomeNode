@@ -1,7 +1,7 @@
 import type { FileWithPath } from "react-dropzone";
 
 import { getNewUUID } from "./id";
-import { RecordKind, type RecordMetadata } from "~/common/fs/types";
+import { RecordKind, type RecordMetadata } from "../../common/fs/types";
 
 export async function prepareFilesForUpload(files: FileWithPath[]) {
     const tree = rebuildTree(files);

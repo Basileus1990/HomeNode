@@ -1,12 +1,17 @@
 import { useEffect, useRef } from "react";
+import { useRevalidator } from "react-router";
 
-export default function useServerCommunicatorWorker() {
+import { saveHostId } from "../../id";
+
+export default function useCoordinatorWorker() {
     const workerRef = useRef<Worker | null>(null);
+    const revalidator = useRevalidator();
 
     // Worker will handle disconnect from socket
     // and cleanup on its own
     const disconnect = () => {
         if (workerRef.current) {
+            console.log('worker disconneted');
             workerRef.current.postMessage({ type: "stop" });
             workerRef.current = null;
         }
@@ -14,18 +19,16 @@ export default function useServerCommunicatorWorker() {
 
     useEffect(() => {
         // Initialize the worker only once on component mount
-        workerRef.current = new Worker(new URL("./server-com-worker.ts", import.meta.url), {
+        workerRef.current = new Worker(new URL("./coordinator.worker.ts", import.meta.url), {
             type: "module",});
 
         workerRef.current.onmessage = (event) => {
-            const { type, payload } = event.data;
-            if (type === "socketData") {
-                console.log("Data received from worker:", payload);
-                // Handle socket data if needed
+            // coordinator received new host UUID assigned by the server
+            if (event.data.type === "hostId") {
+                saveHostId(event.data.hostId);
+                revalidator.revalidate();   // refresh UI to display the UUID
             }
         };
-
-        workerRef.current.postMessage({ type: "start" });
 
         // Cleanup the worker when the component unmounts
         return () => {

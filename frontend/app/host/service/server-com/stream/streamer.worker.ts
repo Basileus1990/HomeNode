@@ -1,19 +1,21 @@
-import { RecordHandle } from '~/common/fs/records-filesystem';
-import type { FromCoordinator, RequestChunkMessage } from './types';
+import { RecordHandle } from '../../../../common/fs/records-filesystem';
+import type { CoordinatorToStreamer, RequestChunkMessage } from '../types';
 import { RecordChunker } from './chunker';
 
-let respondentId: number;
+let downloadId: number;
 let record: RecordHandle;
 let chunker: RecordChunker;
+let chunkSize: number;
 
-self.onmessage = async (e: MessageEvent<FromCoordinator>) => {
+self.onmessage = async (e: MessageEvent<CoordinatorToStreamer>) => {
     const msg = e.data;
 
     // prepare for streaming
     if (msg.type === 'prepare') {
-        respondentId = msg.respondentId;
+        downloadId = msg.downloadId;
         record = msg.recordHandle;
-        chunker = await RecordChunker.createChunker(record);
+        chunkSize = msg.chunkSize;
+        chunker = await RecordChunker.createChunker(record, chunkSize);
     }
 
     // send next chunk
@@ -23,14 +25,14 @@ self.onmessage = async (e: MessageEvent<FromCoordinator>) => {
         if (!chunk) {       // EOF reached, no chunks to send
             self.postMessage({
                 type: 'eof',
-                respondentId 
+                respondentId: msg.respondentId 
             })
             return;
         }
 
         self.postMessage({  // send the chunk to coordinator who owns the socket
             type: 'chunk',
-            respondentId,
+            respondentId: msg.respondentId,
             chunk
         });
     }
