@@ -2,11 +2,12 @@ import type { RecordHandle } from "~/common/fs/records-filesystem";
 
 export interface PrepareStreamMessage {
   type: 'prepare';
-  respondentId: number;
+  downloadId: number;
   recordHandle: RecordHandle;
+  chunkSize: number;
 }
 
-export interface ChunkMessage {
+export interface ChunkReadyMessage {
   type: 'chunk';
   respondentId: number;
   chunk: ArrayBuffer;
@@ -17,15 +18,20 @@ export interface RequestChunkMessage {
   respondentId: number;
 }
 
-export interface EofMessage {
+export interface EofReachedMessage {
   type: 'eof';
   respondentId: number;
 }
 
-export type ToCoordinator =
-  | ChunkMessage
-  | EofMessage;
+export type StreamerToCoordinator =
+  | ChunkReadyMessage
+  | EofReachedMessage;
 
-export type FromCoordinator =
+export type CoordinatorToStreamer =
   | PrepareStreamMessage
   | RequestChunkMessage;
+
+export interface HostIdReceived {
+  type: 'hostId';
+  hostId: string;
+}

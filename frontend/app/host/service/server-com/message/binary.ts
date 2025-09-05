@@ -7,15 +7,14 @@ export function disassemble(data: ArrayBuffer) {
     const view = new DataView(data);
     const respondentId = view.getUint32(0, useLittleEndian);
     const typeNo = view.getUint16(4, useLittleEndian);
-    const flags = view.getUint8(6);
-    const payload = data.slice(7);
-    return { respondentId, typeNo, flags, payload };
+    const payload = data.slice(6);
+    return { respondentId, typeNo, payload };
 };
 
 /**
  * creates binary message for the server from respondentId, message type, flags byte and binary payload buffer
  */
-export function assemble(respondentId: number, typeNo: number, flags: number, payloadBuffer: ArrayBuffer): ArrayBuffer {
+export function assemble(respondentId: number, typeNo: number, payloadBuffer: ArrayBuffer): ArrayBuffer {
     const payloadView = new Uint8Array(payloadBuffer);
     const buffer = new ArrayBuffer(6 + payloadView.length);
     const view = new DataView(buffer);
@@ -23,8 +22,7 @@ export function assemble(respondentId: number, typeNo: number, flags: number, pa
 
     view.setUint32(0, respondentId, useLittleEndian);
     view.setUint16(4, typeNo, useLittleEndian);
-    view.setUint8(6, flags);
-    byteView.set(payloadView, 7);
+    byteView.set(payloadView, 6);
     return buffer;
 };
 
