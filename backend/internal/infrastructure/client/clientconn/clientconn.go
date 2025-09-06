@@ -5,12 +5,14 @@ import (
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_errors"
 	"github.com/gorilla/websocket"
 	"io"
+	"log"
 	"strings"
 	"time"
 )
 
 type ClientConn interface {
 	Send(payload ...[]byte) error
+	SendAndLogError(payload ...[]byte)
 	Listen() ([]byte, error)
 	Close()
 }
@@ -55,6 +57,12 @@ func (c *defaultClientConn) Send(payload ...[]byte) error {
 	}
 
 	return nil
+}
+
+func (c *defaultClientConn) SendAndLogError(payload ...[]byte) {
+	if err := c.Send(payload...); err != nil {
+		log.Printf("error Client Send And Log Error: %v", err)
+	}
 }
 
 func (c *defaultClientConn) Listen() ([]byte, error) {

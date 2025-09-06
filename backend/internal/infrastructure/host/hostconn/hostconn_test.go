@@ -310,7 +310,7 @@ func TestInvalidResponse(t *testing.T) {
 
 	_, err = hostConn.QueryWithTimeout(2*time.Second, []byte("test"))
 	require.Error(t, err)
-	assert.EqualError(t, err, "hostconn ERROR - response lenght less than 4 bytes. No query id")
+	assert.EqualError(t, err, "invalid host response body error")
 }
 
 func TestQueryAfterContextCancel(t *testing.T) {

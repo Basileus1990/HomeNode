@@ -31,7 +31,7 @@ func NewContainer(ctx context.Context) (*Container, error) {
 
 	clientConnFactory := &clientconn.DefaultClientConnFactory{}
 
-	hostService := host.NewHostService(hostMap)
+	hostService := host.NewHostService(hostMap, cfg.Websocket)
 
 	container := Container{
 		Config:            *cfg,
