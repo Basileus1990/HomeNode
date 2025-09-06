@@ -25,7 +25,7 @@ type Controller struct {
 func (c *Controller) SetUpRoutes(group *gin.RouterGroup) {
 	group.GET("connect", c.HostConnect)
 	group.GET(":hostUuid/:resourceUuid/metadata", c.GetResourceMetadata)
-
+	group.GET(":hostUuid/:resourceUuid/download", c.DownloadResource)
 }
 
 // HostConnect

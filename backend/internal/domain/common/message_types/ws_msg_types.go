@@ -27,7 +27,7 @@ const (
 	DownloadCompletionRequest WebsocketMessageType = 10
 )
 
-func GetMsgType(msg []byte, messageType WebsocketMessageType) (WebsocketMessageType, error) {
+func GetMsgType(msg []byte) (WebsocketMessageType, error) {
 	if len(msg) < WebsocketMessageTypeSize {
 		return 0, ws_errors.InvalidMessageBodyErr
 	}

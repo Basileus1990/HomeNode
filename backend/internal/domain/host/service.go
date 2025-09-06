@@ -84,7 +84,7 @@ func (s *defaultConnectionService) DownloadResource(clientConn clientconn.Client
 		return err
 	}
 
-	msgType, err := message_types.GetMsgType(downloadInitResp, message_types.Error)
+	msgType, err := message_types.GetMsgType(downloadInitResp)
 	if err != nil {
 		return err
 	}
