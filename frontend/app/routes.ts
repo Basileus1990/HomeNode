@@ -11,17 +11,17 @@ export default [
 
     // host routes
     ...prefix("host", [
-        layout("./host/pages/layout.tsx", [
-            index("./host/pages/main/main.tsx"),  // default view - share new item or view shared items
-            route("share", "./host/pages/share-new/share.tsx"), // share new item
-            route("shared/:item_id?", "./host/pages/shared-list/shared-list.tsx"),  // view shared items
+        layout("./host/views/layout.tsx", [
+            index("./host/views/main/main.tsx"),  // default view - share new item or view shared items
+            route("share", "./host/views/share-new/share.tsx"), // share new item
+            route("shared/:item_id?", "./host/views/shared-list/shared-list.tsx"),  // view shared items
         ]),
     ]),
 
 
     // client routes
     ...prefix("client", [
-        index("./client/pages/main/main.tsx"),    // default route, will be empty or redirect to some list view
-        route(":host_id/:item_id", "./client/pages/view-item/view-item.tsx"), // dynamic route to view a specific item
+        index("./client/views/main/main.tsx"),    // default route, will be empty or redirect to some list view
+        route(":host_id/:item_id", "./client/views/view-item/view-item.tsx"), // dynamic route to view a specific item
     ])
 ] satisfies RouteConfig;
