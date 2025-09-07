@@ -1,6 +1,6 @@
 import type { CoordinatorToStreamer, StreamerToCoordinator, PrepareStreamMessage, RequestChunkMessage } from '../types';
-import { SocketToHostMessageTypes, HMHostReader } from '../message/readers';
-import { HostToSocketMessageTypes, HMHostWriter } from '../message/writers';
+import { ServerToHostMessage, HMHostReader } from '../message/readers';
+import { HostToServerMessage, HMHostWriter } from '../message/writers';
 import { FSService } from '../../../../common/fs/fs-service';
 
 
@@ -10,7 +10,6 @@ const hostConnectURL = 'ws://localhost:3000/api/v1/host/connect'
 
 const socket = new WebSocket(hostConnectURL);
 socket.binaryType = "arraybuffer";
-console.log('connecting to:', hostConnectURL);
 const reader = new HMHostReader();
 const writer = new HMHostWriter();
 const streamWorkers = new Map<number, { worker: Worker, lastActive: number }>();
@@ -24,36 +23,34 @@ socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
         return;
     }
 
-    const { respondentId, typeNo, payload: payload } = msg;
+    const { respondentId, typeNo, payload } = msg;
     switch (typeNo) {
-        case (SocketToHostMessageTypes.ServerError): {
-            console.log('error', msg.payload.errorType);
+        case (ServerToHostMessage.Types.ServerError): {
+            console.log('error:', (payload as ServerToHostMessage.ServerError).errorType);
             break;
         }
-        case (SocketToHostMessageTypes.ServerACK): {
+        case (ServerToHostMessage.Types.ServerACK): {
             console.log('server ACK');
             break;
         }
-        case (SocketToHostMessageTypes.NewHostIDGrant): {
-            const hostId = msg.payload;
-            console.log('assigned new id:', hostId);
+        case (ServerToHostMessage.Types.NewHostIDGrant): {
+            const hostId = (payload as ServerToHostMessage.NewHostIdGrant);
 
             self.postMessage({
                 type: "hostId",
                 hostId
             });
 
-            const response = writer.write(
+            const response = await writer.write(
                 respondentId,
-                HostToSocketMessageTypes.HostACK,
-                null
+                HostToServerMessage.Types.HostACK
             );
             socket.send(response);
             break;
         }
-        case (SocketToHostMessageTypes.MetadataRequest): {
-            const recordName = payload;
-            const record = await FSService.findRecordByName(recordName, undefined, true);
+        case (ServerToHostMessage.Types.MetadataRequest): {
+            const resourceId = (payload as ServerToHostMessage.ReadMetadata).resourceId;
+            const record = await FSService.findRecordByName(resourceId, undefined, true);
 
             if (!record) {
                 sendError(respondentId, 400, "resource not found");
@@ -61,41 +58,29 @@ socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
             }
 
             const metadata = await FSService.readRecordIntoItem(record);
-            const messageBuffer = writer.write(
+            const messageBuffer = await writer.write(
                 respondentId, 
-                HostToSocketMessageTypes.MetadataResponse, 
+                HostToServerMessage.Types.MetadataResponse, 
                 {
                     record: metadata
                 });
             socket.send(messageBuffer);
             break;
         }
-        case (SocketToHostMessageTypes.StreamStartRequest): {
-            const recordName = payload.recordID;
-            const chunkSize = payload.chunkSize;
-            const record = await FSService.findRecordByName(recordName);
+        case (ServerToHostMessage.Types.StreamStartRequest): {
+            const resourceId = (payload as ServerToHostMessage.StartStream).resourceId;
+            const chunkSize = (payload as ServerToHostMessage.StartStream).chunkSize;
+            const record = await FSService.findRecordByName(resourceId);
             const downloadId = downloadIdCounter++;
 
             if (!record) {
                 sendError(respondentId, 400, "resource not found");
                 break;
             }
+            const metadata = await record.getMetadata();
 
             const worker = createStreamerWorker();
             streamWorkers.set(downloadId, { worker, lastActive: Date.now() });
-
-            // TODO: fill out the response
-            // TODO: encryption
-            const resp = writer.write(
-                respondentId,
-                HostToSocketMessageTypes.StartStreamResponse,
-                {
-                    downloadId,
-                    chunkSize,
-                    sizeInChunks: 0
-                }
-            );
-            socket.send(resp);
 
             worker.postMessage({
                 type: 'prepare',
@@ -103,10 +88,23 @@ socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
                 chunkSize,
                 downloadId
             });
+
+            const recordSize = await record.getSize();
+            const resp = await writer.write(
+                respondentId,
+                HostToServerMessage.Types.StartStreamResponse,
+                {
+                    downloadId,
+                    chunkSize,
+                    sizeInChunks: Math.ceil(recordSize / chunkSize),
+                    encryption: metadata.encryptionData
+                }
+            );
+            socket.send(resp);
             break;
         }
-        case (SocketToHostMessageTypes.ChunkRequest): {
-            const downloadId = payload.downloadId;
+        case (ServerToHostMessage.Types.ChunkRequest): {
+            const downloadId = (payload as ServerToHostMessage.ChunkRequest).downloadId;
             const entry = streamWorkers.get(downloadId);
 
             if (!entry) {
@@ -130,9 +128,8 @@ self.onmessage = (event) => {
     const { type, payload } = event.data;
 
     if (type == "stop") {
-        console.log("Worker stopped", 'disconnecting...');
+        console.log("Worker stopped");
         socket.close();
-        console.log('disconnected');
         self.close();
     }
 }
@@ -140,7 +137,7 @@ self.onmessage = (event) => {
 function createStreamerWorker() {
     const worker = new Worker(new URL('./streamer.worker.ts', import.meta.url));
 
-    worker.onmessage = (ev: MessageEvent<StreamerToCoordinator>) => {
+    worker.onmessage = async (ev: MessageEvent<StreamerToCoordinator>) => {
         const msg = ev.data;
         const entry = streamWorkers.get(msg.respondentId);
 
@@ -150,19 +147,21 @@ function createStreamerWorker() {
         }
 
         if (msg.type === 'chunk') {
-            const resp = writer.write(
+            const resp = await writer.write(
                 msg.respondentId,
-                HostToSocketMessageTypes.ChunkResponse,
-                msg.chunk
+                HostToServerMessage.Types.ChunkResponse,
+                { 
+                    chunk: msg.chunk,
+                    encryption: msg.encryption
+                }
             );
             socket.send(resp);
 
             entry.lastActive = Date.now();
         } else if (msg.type === 'eof') {
-            const resp = writer.write(
+            const resp = await writer.write(
                 msg.respondentId,
-                HostToSocketMessageTypes.EOFResponse,
-                null
+                HostToServerMessage.Types.EOFResponse
             );
             socket.send(resp);
 
@@ -174,13 +173,13 @@ function createStreamerWorker() {
 }
 
 // convenience function for sending error messages
-function sendError(respondentId: number, errorCode: number, message?: string) {
-    const errorMessage = writer.write(
+async function sendError(respondentId: number, errorType: number, message?: string) {
+    const errorMessage = await writer.write(
         respondentId, 
-        HostToSocketMessageTypes.HostError,
+        HostToServerMessage.Types.HostError,
         {
-            errorCode,
-            message
+            errorType,
+            errorInfo: { message }
         }
     );
     socket.send(errorMessage);

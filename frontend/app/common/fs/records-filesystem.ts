@@ -76,6 +76,10 @@ export class RecordHandle {
         return this._metadata as RecordMetadata;
     }
 
+    public async getSize(): Promise<number> {
+        return 0;
+    };
+
     // Factory methods to create records
 
     /**
@@ -139,6 +143,14 @@ export class FileRecordHandle extends RecordHandle {
         }
         return this.fileHandle as FileSystemFileHandle;
     }
+
+    public async getSize(): Promise<number> {
+        if (!this.fileHandle) {
+            await this.init();
+        }
+        const file = await this.fileHandle!.getFile();
+        return file.size;
+    };
 
     // Factory methods to create file records
 
@@ -235,6 +247,15 @@ export class DirectoryRecordHandle extends RecordHandle {
     public async removeRecord(recordName: string) {
         return this._recordHandle.removeEntry(recordName, { recursive: true });
     }
+
+    public async getSize(): Promise<number> {
+        let size = 0;
+        for await (const [_, record] of this.entries()) {
+            const recordSize = (await record).getSize();
+            size += await recordSize;
+        }
+        return size;
+    };
 
     // Factory methods to create directory records
 

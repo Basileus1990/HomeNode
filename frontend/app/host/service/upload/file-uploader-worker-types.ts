@@ -1,3 +1,5 @@
+import type { EncryptionData } from "~/common/crypto";
+
 export type FileUploaderWorkerFilePayload = {
     file: File;
     path?: string;
@@ -13,5 +15,6 @@ export type FileUploaderWorkerMessage = {
     type: FileUploaderWorkerMessageType;
     payload?: FileUploaderWorkerFilePayload[];
     msg?: string;
+    encryption?: EncryptionData;
 }
 

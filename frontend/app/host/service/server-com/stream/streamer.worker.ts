@@ -1,11 +1,13 @@
+import type { EncryptionData } from '~/common/crypto';
 import { RecordHandle } from '../../../../common/fs/records-filesystem';
 import type { CoordinatorToStreamer, RequestChunkMessage } from '../types';
 import { RecordChunker } from './chunker';
 
-let downloadId: number;
-let record: RecordHandle;
+let downloadId: number;     // id of this specific download stream
+let record: RecordHandle;   
 let chunker: RecordChunker;
 let chunkSize: number;
+let encryption: EncryptionData | undefined;
 
 self.onmessage = async (e: MessageEvent<CoordinatorToStreamer>) => {
     const msg = e.data;
@@ -15,6 +17,7 @@ self.onmessage = async (e: MessageEvent<CoordinatorToStreamer>) => {
         downloadId = msg.downloadId;
         record = msg.recordHandle;
         chunkSize = msg.chunkSize;
+        encryption = (await record.getMetadata()).encryptionData;
         chunker = await RecordChunker.createChunker(record, chunkSize);
     }
 
@@ -33,7 +36,8 @@ self.onmessage = async (e: MessageEvent<CoordinatorToStreamer>) => {
         self.postMessage({  // send the chunk to coordinator who owns the socket
             type: 'chunk',
             respondentId: msg.respondentId,
-            chunk
+            chunk,
+            encryption
         });
     }
 };

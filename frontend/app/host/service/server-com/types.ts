@@ -1,4 +1,5 @@
 import type { RecordHandle } from "~/common/fs/records-filesystem";
+import type { EncryptionData } from "~/common/crypto";
 
 export interface PrepareStreamMessage {
   type: 'prepare';
@@ -11,6 +12,7 @@ export interface ChunkReadyMessage {
   type: 'chunk';
   respondentId: number;
   chunk: ArrayBuffer;
+  encryption?: EncryptionData;
 }
 
 export interface RequestChunkMessage {
@@ -35,3 +37,8 @@ export interface HostIdReceived {
   type: 'hostId';
   hostId: string;
 }
+
+export type CoorindatorToUI =
+  | HostIdReceived;
+
+// export type UIToCoordinator

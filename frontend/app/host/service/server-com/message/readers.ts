@@ -2,20 +2,56 @@ import { USE_LITTLE_ENDIAN, FlagService, decodePerJson, decodeUUID } from "~/com
 import { decryptBuffer } from "~/common/crypto";
 
 
-/**
- * ! numbers / names are placeholders
- * types of messages from server to host
- */
-export enum SocketToHostMessageTypes {
-    ServerError = 0,
-    ServerACK = 1,
-    NewHostIDGrant = 2,
-    // 4.
-    MetadataRequest = 3,
-    StreamStartRequest = 6,
-    ChunkRequest = 7,
-    // 8.
-    EndStreamRequest = 9,
+export namespace ServerToHostMessage {
+    export enum Types {
+        ServerError = 0,
+        ServerACK = 1,
+        NewHostIDGrant = 2,
+        MetadataRequest = 3,
+        StreamStartRequest = 4,
+        ChunkRequest = 5,
+        EndStreamRequest = 6,
+    }
+
+    export type ServerError = {
+        errorType: number;
+        errorInfo?: object;  // deserialized from JSON, contains additional information
+    }
+    export type ServerACK = {
+        ack: boolean;
+    }
+    export type NewHostIdGrant = {
+        hostId: string;
+    }
+    export type ReadMetadata = {
+        resourceId: string;
+    }
+    export type StartStream = {
+        resourceId: string;
+        chunkSize: number;
+    }
+    export type ChunkRequest = {
+        downloadId: number;
+        offset: BigInt;
+    }
+    export type EndStream = {
+        downloadId: number;
+    }
+
+    export type Contents =
+      | ServerError
+      | ServerACK
+      | NewHostIdGrant
+      | ReadMetadata
+      | StartStream
+      | ChunkRequest
+      | EndStream
+}
+
+export type HMHostReaderOut = { 
+    respondentId: number, 
+    typeNo: number, 
+    payload: ServerToHostMessage.Contents | null 
 }
 
 /**
@@ -24,8 +60,7 @@ export enum SocketToHostMessageTypes {
  * errors are either fault of messed up message or wrong typeNo - impossible to tell which one - and largely left to caller
  */
 export class HMHostReader {
-    public read(data: ArrayBuffer, parms?: any): 
-        { respondentId: number, typeNo: number, payload: any } | null {
+    public read(data: ArrayBuffer, parms?: any): HMHostReaderOut | null {
         const { respondentId, typeNo, payload } = this.disassemble(data);
         const interpretedData = this.dispatch(typeNo, payload, parms);
         return { respondentId, typeNo, payload: interpretedData };
@@ -46,22 +81,22 @@ export class HMHostReader {
     // here goes logic for reading each type of message
     // nothing is type safe, we're no longer in strictly-typed land
     // use parms object to pass additional information
-    private dispatch(typeNo: number, data: ArrayBuffer, parms?: any): any {
+    private dispatch(typeNo: number, data: ArrayBuffer, parms?: any): ServerToHostMessage.Contents | null {
         try {
             switch (typeNo) {
-                case SocketToHostMessageTypes.ServerError: 
+                case ServerToHostMessage.Types.ServerError: 
                     return this.readServerError(data);
-                case SocketToHostMessageTypes.ServerACK: 
+                case ServerToHostMessage.Types.ServerACK: 
                     return this.readServerACK(data);
-                case SocketToHostMessageTypes.NewHostIDGrant:
+                case ServerToHostMessage.Types.NewHostIDGrant:
                     return this.readNewHostIDGrant(data);
-                case SocketToHostMessageTypes.MetadataRequest:
+                case ServerToHostMessage.Types.MetadataRequest:
                     return this.readMetadataRequest(data);
-                case SocketToHostMessageTypes.StreamStartRequest:
+                case ServerToHostMessage.Types.StreamStartRequest:
                     return this.readStreamStartRequest(data);
-                case SocketToHostMessageTypes.ChunkRequest:
+                case ServerToHostMessage.Types.ChunkRequest:
                     return this.readChunkRequest(data);
-                case SocketToHostMessageTypes.EndStreamRequest:
+                case ServerToHostMessage.Types.EndStreamRequest:
                     return this.readEndStreamRequest(data);
                 default:
                     return null;
@@ -72,8 +107,8 @@ export class HMHostReader {
         }
     }
 
-    // 1.
-    private readServerError(data: ArrayBuffer) {
+    // 0.
+    private readServerError(data: ArrayBuffer): ServerToHostMessage.ServerError {
         const view = new DataView(data);
         const errorType = view.getUint16(0, USE_LITTLE_ENDIAN);
         if (data.byteLength > 2) {
@@ -88,45 +123,42 @@ export class HMHostReader {
             return  { errorType, errorInfo: undefined };
     }
 
-    // 2.
+    // 1.
     // ACK has no payload, so data here is empty
-    private readServerACK(data: ArrayBuffer) {
-        return true;
+    private readServerACK(data: ArrayBuffer): ServerToHostMessage.ServerACK {
+        return { ack: true };
+    }
+
+    // 2.
+    private readNewHostIDGrant(data: ArrayBuffer): ServerToHostMessage.NewHostIdGrant {
+        return { hostId: decodeUUID(data.slice(0, 16)) };
     }
 
     // 3.
-    private readNewHostIDGrant(data: ArrayBuffer) {
-        return decodeUUID(data.slice(0, 16));
+    private readMetadataRequest(data: ArrayBuffer): ServerToHostMessage.ReadMetadata {
+        return { resourceId: decodeUUID(data.slice(0, 16)) };
     }
 
     // 4.
+    private readStreamStartRequest(data: ArrayBuffer): ServerToHostMessage.StartStream {
+        const resourceId = decodeUUID(data.slice(0, 16));
+        const view = new DataView(data);
+        const chunkSize = view.getUint32(16, USE_LITTLE_ENDIAN);
+        return { resourceId, chunkSize };
+    }
 
     // 5.
-    private readMetadataRequest(data: ArrayBuffer) {
-        return decodeUUID(data.slice(0, 16));
+    private readChunkRequest(data: ArrayBuffer): ServerToHostMessage.ChunkRequest {
+        const view = new DataView(data);
+        const downloadId = view.getUint32(0, USE_LITTLE_ENDIAN);
+        const offset = view.getBigUint64(16, USE_LITTLE_ENDIAN);
+        return { downloadId, offset };
     }
 
     // 6.
-    private readStreamStartRequest(data: ArrayBuffer) {
-        const resourceID = decodeUUID(data.slice(0, 16));
+    private readEndStreamRequest(data: ArrayBuffer): ServerToHostMessage.EndStream {
         const view = new DataView(data);
-        const chunkSize = view.getUint32(16, USE_LITTLE_ENDIAN);
-        return { resourceID, chunkSize};
-    }
-
-    // 7.
-    private readChunkRequest(data: ArrayBuffer) {
-        const downloadID = decodeUUID(data.slice(0, 16));
-        const view = new DataView(data);
-        const offset = view.getBigUint64(16, USE_LITTLE_ENDIAN);
-        return { downloadID, offset };
-    }
-
-    // 8.
-
-    // 9.
-    private readEndStreamRequest(data: ArrayBuffer) {
-        const downloadID = decodeUUID(data.slice(0, 16));
-        return downloadID;
+        const downloadId = view.getUint32(0, USE_LITTLE_ENDIAN);
+        return { downloadId };
     }
 }

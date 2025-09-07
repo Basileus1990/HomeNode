@@ -1,18 +1,18 @@
 import type { FileWithPath } from "react-dropzone";
 
 import { FSService } from "../../../common/fs/fs-service";
-import { prepareFilesForUpload, type RecordTreeNode } from "../prepare-files";
+import { prepareFilesForUpload, type RecordTreeNode } from "./prepare-files";
 import { RecordKind } from "../../../common/fs/types";
 import type { DirectoryRecordHandle } from "../../../common/fs/records-filesystem";
 import type { FileUploaderWorkerFilePayload } from "./file-uploader-worker-types";
 
 
 self.onmessage = async (event) => {
-    const { type, payload, msg } = event.data;
+    const { type, payload, msg, encryption } = event.data;
 
     if (type === "upload") {
         const files = rebuildPayload(payload);
-        const tree = await prepareFilesForUpload(files);
+        const tree = await prepareFilesForUpload(files, encryption);
         const rootRecord = await FSService.getRootRecord();
         try {
             await createRecordsFromTree(tree, rootRecord as DirectoryRecordHandle);

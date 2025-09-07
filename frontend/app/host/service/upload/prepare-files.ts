@@ -1,10 +1,11 @@
 import type { FileWithPath } from "react-dropzone";
 
-import { getNewUUID } from "./id";
-import { RecordKind, type RecordMetadata } from "../../common/fs/types";
+import { getNewUUID } from "../id";
+import { RecordKind, type RecordMetadata } from "../../../common/fs/types";
+import type { EncryptionData } from "../../../common/crypto";
 
-export async function prepareFilesForUpload(files: FileWithPath[]) {
-    const tree = rebuildTree(files);
+export async function prepareFilesForUpload(files: FileWithPath[], encryption?: EncryptionData) {
+    const tree = rebuildTree(files, encryption);
     // place for any additional preparation logic if needed
     return tree;
 }
@@ -16,7 +17,7 @@ export interface RecordTreeNode {
     file?: FileWithPath;
 }
 
-export async function rebuildTree(files: FileWithPath[]): Promise<RecordTreeNode> {
+export async function rebuildTree(files: FileWithPath[], encryption?: EncryptionData): Promise<RecordTreeNode> {
     const dateNow = Date.now();
     const root: RecordTreeNode = { 
         recordName: "root", 
@@ -45,6 +46,7 @@ export async function rebuildTree(files: FileWithPath[]): Promise<RecordTreeNode
                         contentName: part,
                         dateShared: dateNow,
                         kind: RecordKind.file,
+                        encryptionData: encryption
                     },
                     file: file,
                 });
@@ -60,6 +62,7 @@ export async function rebuildTree(files: FileWithPath[]): Promise<RecordTreeNode
                             contentName: part,
                             dateShared: dateNow,
                             kind: RecordKind.directory,
+                            encryptionData: encryption
                         },
                         children: [],
                     };

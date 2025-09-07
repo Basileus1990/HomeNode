@@ -1,48 +1,55 @@
-import type { StartStreamMessage } from "~/client/service/server-com/ws/stream/types";
 import { USE_LITTLE_ENDIAN, FlagService, encodePerJson, encodeUUID } from "~/common/communication/binary"
-import { encryptBuffer } from "~/common/crypto";
+import { encryptBuffer, type EncryptionData } from "~/common/crypto";
 import { type Items } from "~/common/fs/types";
 
-/**
- * ! numbers / names are placeholders
- * types of messages from host to server
- */
-export enum HostToSocketMessageTypes {
-    HostError = 0,
-    HostACK = 1,
 
-    CurrentHostIDDeclaration = 2,
-    MetadataResponse = 3,
-    StartStreamResponse = 6,
-    ChunkResponse = 7,
-    EOFResponse = 8
-}
-
-type MetadataParams = {
-    encryption?: {
-        salt: Uint8Array, 
-        iv: Uint8Array
-    },
-    record: Items.RecordItem
-}
-
-type StreamStartParams = { 
-    downloadId: number,
-    sizeInChunks: number,
-    chunkSize: number,
-    encryption?: {
-        salt: Uint8Array, 
-        iv: Uint8Array
+export namespace HostToServerMessage {
+    export enum Types {
+        HostError = 0,
+        HostACK = 1,
+        CurrentHostIDDeclaration = 2,
+        MetadataResponse = 3,
+        StartStreamResponse = 4,
+        ChunkResponse = 5,
+        EOFResponse = 6
     }
-};
+    export type HostError = {
+        errorType: number;
+        errorInfo?: object;  // deserialized from JSON, contains additional information
+    }
+    export type CurrentHostIdDeclaration = {
+        hostId: string;
+    }
+    export type Metadata = {
+        record: Items.RecordItem[];
+        encryption?: EncryptionData;
+    }
+    export type StartStream = {
+        downloadId: number;
+        sizeInChunks: number;
+        chunkSize: number;
+        encryption?: EncryptionData;
+    }
+    export type Chunk = {
+        chunk: ArrayBuffer;
+        encryption?: EncryptionData;
+    }
+
+    export type Params =
+      | HostError
+      | CurrentHostIdDeclaration
+      | Metadata
+      | StartStream
+      | Chunk
+}
 
 /**
  * takes data needed to build a message and writes a binary buffer for sending to the server
  * builds messages based on given type number
  */
 export class HMHostWriter {
-    public write(respondentId: number, typeNo: number, payload: any): ArrayBuffer {
-        const payloadBytes  = this.dispatch(typeNo, payload);
+    public async write(respondentId: number, typeNo: number, payload?: HostToServerMessage.Params): Promise<ArrayBuffer> {
+        const payloadBytes  = await this.dispatch(typeNo, payload);
         return this.assemble(respondentId, typeNo, payloadBytes)
     }
 
@@ -63,29 +70,29 @@ export class HMHostWriter {
 
     // here goes logic for writing each type of message
     // nothing is type safe, we're no longer in strictly-typed land
-    protected dispatch(typeNo: number, data: any): ArrayBuffer {
+    protected async dispatch(typeNo: number, data?: HostToServerMessage.Params): Promise<ArrayBuffer> {
         switch (typeNo) {
-            case HostToSocketMessageTypes.HostError:
-                return this.writeHostError(data);
-            case HostToSocketMessageTypes.HostACK:
+            case HostToServerMessage.Types.HostError:
+                return this.writeHostError(data as HostToServerMessage.HostError);
+            case HostToServerMessage.Types.HostACK:
                 return this.writeHostACK();
-            case HostToSocketMessageTypes.CurrentHostIDDeclaration:
-                return this.writeCurrentHostIDDeclaration(data);
-            case HostToSocketMessageTypes.MetadataResponse:
-                return this.writeMetadataResponse(data);
-            case HostToSocketMessageTypes.StartStreamResponse:
-                return this.writeStreamStartResponse(data);
-            case HostToSocketMessageTypes.ChunkResponse:
-                return this.writeChunkResponse(data);
-            case HostToSocketMessageTypes.EOFResponse:
+            case HostToServerMessage.Types.CurrentHostIDDeclaration:
+                return this.writeCurrentHostIDDeclaration(data as HostToServerMessage.CurrentHostIdDeclaration);
+            case HostToServerMessage.Types.MetadataResponse:
+                return this.writeMetadataResponse(data as HostToServerMessage.Metadata);
+            case HostToServerMessage.Types.StartStreamResponse:
+                return this.writeStreamStartResponse(data as HostToServerMessage.StartStream);
+            case HostToServerMessage.Types.ChunkResponse:
+                return this.writeChunkResponse(data as HostToServerMessage.Chunk);
+            case HostToServerMessage.Types.EOFResponse:
                 return this.writeEOFResponse();
             default:
                 throw new Error(`Unknown message type: ${typeNo}`);
         }
     }
 
-    // 1.
-    private writeHostError(data: { errorType: number, errorInfo: object | undefined }) {
+    // 0.
+    private writeHostError(data: HostToServerMessage.HostError) {
         let buffer;
         if (data.errorInfo) {
             const encodedErrorInfo = encodePerJson(data.errorInfo);
@@ -101,61 +108,52 @@ export class HMHostWriter {
         return buffer;
     }
 
-    // 2.
+    // 1.
     // ACK has no body, so we return empty, 0-size ArrayBuffer
     private writeHostACK() {
         return new ArrayBuffer();
     }
 
-    // 3.
-    // the request has no body, so we return empty, 0-size ArrayBuffer
-    // private writeNewHostIDRequest() {
-    //     return new ArrayBuffer();
-    // }
-
-    // 4.
-    private writeCurrentHostIDDeclaration(data: { hostID: string }) {
-        const encodedID = encodeUUID(data.hostID);
-        return encodedID.buffer as ArrayBuffer;
+    // 2.
+    private writeCurrentHostIDDeclaration(data: HostToServerMessage.CurrentHostIdDeclaration) {
+        const encodedId = encodeUUID(data.hostId);
+        return encodedId.buffer as ArrayBuffer;
     }
 
-    // 5.
-    private writeMetadataResponse(data: MetadataParams){
-        const encryptedMetadata = encodePerJson(data.record);
-        let payload;
-        let bytes;
+    // 3.
+    private async writeMetadataResponse(data: HostToServerMessage.Metadata) {
+        let encodedMetadata = encodePerJson(data.record);
+        let buffer;
         let metadataIndex = 1;
         let flags = 0;
 
         if (data.encryption) {
             flags = FlagService.setEncrypted(flags);
-            payload = new ArrayBuffer(1 + 16 + 12 + encryptedMetadata.length);
-            bytes = new Uint8Array(payload);
-            bytes.set(data.encryption.salt, 1);
-            bytes.set(data.encryption.iv, 17);
+            buffer = new ArrayBuffer(1 + 16 + 12 + encodedMetadata.length);
+            writeEncryptionData(buffer, 1, 17, data.encryption);
+            const { salt, iv, ciphertext } = await encryptBuffer(data.encryption.password, encodedMetadata.buffer as ArrayBuffer, data.encryption.salt, data.encryption.iv);
+            encodedMetadata = new Uint8Array(ciphertext);
             metadataIndex = 29;
         } else {
-            payload = new ArrayBuffer(1 + encryptedMetadata.length);
-            bytes = new Uint8Array(payload);
+            buffer = new ArrayBuffer(1 + encodedMetadata.length);
         }
-        const view = new DataView(payload);
+        const view = new DataView(buffer);
+        const bytes = new Uint8Array(buffer);
         view.setUint8(0, flags);
-        bytes.set(encryptedMetadata, metadataIndex);
+        bytes.set(encodedMetadata, metadataIndex);
 
-        return payload;
+        return buffer;
     }
 
-    // 6.
-    private writeStreamStartResponse(data: StreamStartParams) {
+    // 4.
+    private writeStreamStartResponse(data: HostToServerMessage.StartStream) {
         let payload;
-
         let flags = 0;
+
         if (data.encryption) {
             flags = FlagService.setEncrypted(flags);
             payload = new ArrayBuffer(4 + 1 + 4 + 4 + 16 + 12);
-            const bytes = new Uint8Array(payload);
-            bytes.set(data.encryption.salt, 13);
-            bytes.set(data.encryption.iv, 19);
+            writeEncryptionData(payload, 13, 29, data.encryption);
         } else {
             payload = new ArrayBuffer(4 + 1 + 4 + 4);
         }
@@ -169,8 +167,13 @@ export class HMHostWriter {
     }
 
     // 7.
-    private writeChunkResponse(data: ArrayBuffer) {
-        return data;
+    private async writeChunkResponse(data: HostToServerMessage.Chunk) {
+        if (data.encryption) {
+            const { salt, iv, ciphertext } = await encryptBuffer(data.encryption.password, data.chunk, data.encryption.salt, data.encryption.iv);
+            return ciphertext;
+        }
+
+        return data.chunk;
     }
 
     // 8.
@@ -178,4 +181,10 @@ export class HMHostWriter {
     private writeEOFResponse() {
         return new ArrayBuffer();
     }
+}
+
+function writeEncryptionData(buffer: ArrayBuffer, saltOffset: number, ivOffset: number, encryptionData: EncryptionData) {
+    const bytes = new Uint8Array(buffer);
+    bytes.set(encryptionData.salt, saltOffset);
+    bytes.set(encryptionData.iv, ivOffset);
 }

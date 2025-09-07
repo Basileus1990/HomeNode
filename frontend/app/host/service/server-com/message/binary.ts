@@ -25,17 +25,3 @@ export function assemble(respondentId: number, typeNo: number, payloadBuffer: Ar
     byteView.set(payloadView, 6);
     return buffer;
 };
-
-export namespace FlagService {
-    export const enum Flags {
-        encryptionFlag = 1,
-    };
-
-    export function isEncrypted(flags: number): boolean {
-        return (flags & Flags.encryptionFlag) == Flags.encryptionFlag
-    }
-
-    export function setEncrypted(flags: number): number {
-        return (flags | Flags.encryptionFlag)
-    } 
-}
