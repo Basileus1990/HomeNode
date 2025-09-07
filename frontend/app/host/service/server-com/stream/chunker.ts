@@ -1,4 +1,5 @@
-import { FileRecordHandle, RecordHandle } from "~/common/fs/records-filesystem";
+import { RecordHandle, FileRecordHandle } from "../../../../common/fs/fs";
+import { FSService } from "~/common/fs/fs-service";
 
 /**
  * abstracts generating chunks from files / folders
@@ -14,7 +15,7 @@ export class RecordChunker {
     // factory method dance, because we can't have async constructor, but don't want uninitialized objects laying around
     public static async createChunker(record: RecordHandle, chunkSize: number) {
         if (record.getKind() === "file") {
-            const fileRecord = await RecordHandle.readFromHandleAsync(record.getUnderlayingHandle()) as FileRecordHandle;
+            const fileRecord = await FSService.readFromHandleAsync(record.getUnderlayingHandle()) as FileRecordHandle;
             const fileHandle = await fileRecord.getHandle();
             const file = await fileHandle.getFile();
             return new RecordChunker(new FileRecordChunker(file, chunkSize));

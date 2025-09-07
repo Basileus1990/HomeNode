@@ -1,8 +1,8 @@
 import type { EncryptionData } from '../../../../common/crypto';
-import { RecordHandle } from '../../../../common/fs/records-filesystem';
-import type { CoordinatorToStreamer, RequestChunkMessage } from '../types';
+import { RecordHandle } from "../../../../common/fs/fs";
+import type { CoordinatorToStreamer } from '../types';
 import { RecordChunker } from './chunker';
-import { FSService } from '~/common/fs/fs-service';
+import { FSService } from '../../../../common/fs/fs-service';
 
 let downloadId: number;     // id of this specific download stream
 let record: RecordHandle | null;   

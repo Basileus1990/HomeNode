@@ -1,9 +1,9 @@
 import type { FileWithPath } from "react-dropzone";
 
+import { RecordKind } from "../../../common/fs/types";
+import type { DirectoryRecordHandle } from "../../../common/fs/fs";
 import { FSService } from "../../../common/fs/fs-service";
 import { prepareFilesForUpload, type RecordTreeNode } from "./prepare-files";
-import { RecordKind } from "../../../common/fs/types";
-import type { DirectoryRecordHandle } from "../../../common/fs/records-filesystem";
 import type { FileUploaderWorkerFilePayload } from "./file-uploader-worker-types";
 
 

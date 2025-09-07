@@ -1,4 +1,3 @@
-import type { RecordHandle } from "~/common/fs/records-filesystem";
 import type { EncryptionData } from "~/common/crypto";
 
 export interface PrepareStreamMessage {

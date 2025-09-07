@@ -2,7 +2,7 @@ import type { Route } from ".react-router/types/app/host/pages/shared-list/+type
 import { useRevalidator } from "react-router";
 
 import { FSService } from "~/common/fs/fs-service";
-import { RecordHandle } from "~/common/fs/records-filesystem";
+import { RecordHandle } from "~/common/fs/fs";
 import type { Items } from "~/common/fs/types";
 import RecordsList from "./components/records-list";
 
