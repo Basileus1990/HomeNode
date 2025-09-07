@@ -11,7 +11,7 @@ export default function Dropzone({ setSelectedFiles }: { setSelectedFiles: React
             console.log('Event:', event);
         },
         multiple: true,
-        useFsAccessApi: true, 
+        useFsAccessApi: false, 
     });
 
     return (

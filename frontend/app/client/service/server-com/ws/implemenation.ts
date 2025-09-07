@@ -67,28 +67,46 @@ export class HostWebSocketclient implements ClientToServerCommunication {
         onError?: () => void
 
     ) {
-        try {
-            const fileHandle = await showSaveFilePicker({
-                _preferPolyfill: false,
-                suggestedName: filename,
-                excludeAcceptAllOption: false // default
-            });
-            const writeable = fileHandle.createWritable();
-            const url = WebSocketServerEndpointService.getDownloadEndpointURL(hostId, itemId);
+        return new Promise(async (resolve, reject) => {
+            try {
+                const fileHandle = await showSaveFilePicker({
+                    _preferPolyfill: false,
+                    suggestedName: filename,
+                    excludeAcceptAllOption: false // default
+                });
+                const writeable = await fileHandle.createWritable();
+                const writerStream = writeable.getWriter();
+                const transferableStream = new WritableStream({
+                    write(chunk) {
+                        return writerStream.write(chunk);
+                    },
+                    close() {
+                        return writerStream.close();
+                    },
+                    abort(err) {
+                        return writerStream.abort(err);
+                    },
+                });
+                console.log('created writeable', writeable);
+                const url = WebSocketServerEndpointService.getDownloadEndpointURL(hostId, itemId);
+                console.log('querying', url);
 
-            const worker = createWorker();
-            worker.postMessage({
-                type: 'start',
-                stream: writeable,
-                url: url,
-            }, [writeable]);
-        } catch (e) {
-            console.error(e);
-        }
+                const worker = createWorker(resolve, reject);
+                worker.postMessage({
+                    type: 'start',
+                    stream: transferableStream,
+                    url: url,
+                }, [transferableStream]);
+                console.log('sent start order to downloader');
+            } catch (e) {
+                console.error(e);
+                reject(e);
+            }
+        });
 
 
-        function createWorker() {
-            const worker = new Worker(new URL('./downloader.worker.ts', import.meta.url), {
+        function createWorker(resolve: (value: unknown) => void, reject: (reason?: any) => void) {
+            const worker = new Worker(new URL('./stream/downloader.worker.ts', import.meta.url), {
                 type: 'module',
             });
 
@@ -97,16 +115,31 @@ export class HostWebSocketclient implements ClientToServerCommunication {
 
                 switch (msg.type) {
                     case 'started':
+                        console.log('started downloading: ', msg.sizeInChunks, ' chunks');
+                        if (onStart){
+                            onStart(msg.sizeInChunks);
+                        }
                         break;
                     case 'chunk': {
+                        console.log('received chunk: ', msg.chunkNo);
                         if (onChunk) {
                             onChunk(msg.chunkNo);
                         }
                         break;
                     }
                     case 'aborted':
+                        console.log('error');
+                        if (onError) {
+                            onError();
+                        }
+                        reject('abort');
                         break;
                     case 'eof':
+                        console.log('eof');
+                        if (onEof) {
+                            onEof();
+                        }
+                        resolve(true);
                         break
                     default:
                         break;

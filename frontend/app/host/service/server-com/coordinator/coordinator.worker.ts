@@ -33,8 +33,8 @@ socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
             console.log('server ACK');
             break;
         }
-        case (ServerToHostMessage.Types.NewHostIDGrant): {
-            const hostId = (payload as ServerToHostMessage.NewHostIdGrant);
+        case (ServerToHostMessage.Types.InitWithUuidQuery): {
+            const hostId = (payload as ServerToHostMessage.NewHostIdGrant).hostId;
 
             self.postMessage({
                 type: "hostId",
@@ -48,9 +48,10 @@ socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
             socket.send(response);
             break;
         }
-        case (ServerToHostMessage.Types.MetadataRequest): {
+        case (ServerToHostMessage.Types.MetadataQuery): {
             const resourceId = (payload as ServerToHostMessage.ReadMetadata).resourceId;
             const record = await FSService.findRecordByName(resourceId, undefined, true);
+            console.log('received metadata request for', resourceId);
 
             if (!record) {
                 sendError(respondentId, 400, "resource not found");
@@ -64,48 +65,39 @@ socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
                 {
                     record: metadata
                 });
+            console.log('sent', metadata);
             socket.send(messageBuffer);
             break;
         }
-        case (ServerToHostMessage.Types.StreamStartRequest): {
+        case (ServerToHostMessage.Types.DownloadInitRequest): {
             const resourceId = (payload as ServerToHostMessage.StartStream).resourceId;
             const chunkSize = (payload as ServerToHostMessage.StartStream).chunkSize;
-            const record = await FSService.findRecordByName(resourceId);
+            const record = await FSService.findRecordByName(resourceId, undefined, true);
             const downloadId = downloadIdCounter++;
+            console.log('received download request', payload);
 
             if (!record) {
+                console.log(resourceId, 'not found');
                 sendError(respondentId, 400, "resource not found");
                 break;
             }
-            const metadata = await record.getMetadata();
 
-            const worker = createStreamerWorker();
-            streamWorkers.set(downloadId, { worker, lastActive: Date.now() });
-
-            worker.postMessage({
+            const newWorker = createStreamerWorker();
+            streamWorkers.set(downloadId, { worker: newWorker, lastActive: Date.now() });
+            newWorker.postMessage({
                 type: 'prepare',
-                record,
+                resourceId,
                 chunkSize,
-                downloadId
+                downloadId,
+                respondentId
             });
-
-            const recordSize = await record.getSize();
-            const resp = await writer.write(
-                respondentId,
-                HostToServerMessage.Types.StartStreamResponse,
-                {
-                    downloadId,
-                    chunkSize,
-                    sizeInChunks: Math.ceil(recordSize / chunkSize),
-                    encryption: metadata.encryptionData
-                }
-            );
-            socket.send(resp);
+            console.log('created worker');
             break;
         }
         case (ServerToHostMessage.Types.ChunkRequest): {
             const downloadId = (payload as ServerToHostMessage.ChunkRequest).downloadId;
             const entry = streamWorkers.get(downloadId);
+            console.log('queried for chunk from ', downloadId, entry);
 
             if (!entry) {
                 sendError(respondentId, 400, "unkown respondentId");
@@ -116,10 +108,26 @@ socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
                 type: 'next',
                 respondentId
             });
+            console.log('requested chunk from streamer');
+            break;
+        }
+        case (ServerToHostMessage.Types.DownloadCompletionRequest): {
+            const downloadId = (payload as ServerToHostMessage.DownloadCompletion).downloadId;
+            const entry = streamWorkers.get(downloadId);
+            console.log('queried for chunk from ', downloadId, entry);
+
+            if (!entry) {
+                sendError(respondentId, 400, "unkown respondentId");
+                break;
+            }
+
+            console.log('stream finished for streamer', downloadId, 'terminating');
+            entry.worker.terminate();
+            streamWorkers.delete(downloadId);
             break;
         }
         default: {
-
+            console.log('default');
         }
     }
 };
@@ -135,18 +143,22 @@ self.onmessage = (event) => {
 }
 
 function createStreamerWorker() {
-    const worker = new Worker(new URL('./streamer.worker.ts', import.meta.url));
+    const streamerWorker = new Worker(new URL('../stream/streamer.worker.ts', import.meta.url),
+        { type: "module" });
+    console.log(streamerWorker);
 
-    worker.onmessage = async (ev: MessageEvent<StreamerToCoordinator>) => {
+    streamerWorker.onmessage = async (ev: MessageEvent<StreamerToCoordinator>) => {
         const msg = ev.data;
-        const entry = streamWorkers.get(msg.respondentId);
+        const entry = streamWorkers.get(msg.downloadId);
+        console.log('stremer emitted msg');
 
         if (!entry) { // that would be worker that's not in stremWorkers
-            console.log('unkown worker ' + msg.respondentId); // but somehow still got request for chunk from coordinator
+            console.log('unkown worker ' + msg.downloadId); // but somehow still got request for chunk from coordinator
             return; // logicly it will never happen
         }
 
         if (msg.type === 'chunk') {
+            console.log('streamer emited chunk');
             const resp = await writer.write(
                 msg.respondentId,
                 HostToServerMessage.Types.ChunkResponse,
@@ -159,6 +171,7 @@ function createStreamerWorker() {
 
             entry.lastActive = Date.now();
         } else if (msg.type === 'eof') {
+            console.log('streamer emited eof');
             const resp = await writer.write(
                 msg.respondentId,
                 HostToServerMessage.Types.EOFResponse
@@ -167,13 +180,27 @@ function createStreamerWorker() {
 
             entry.worker.terminate(); // close streamer after transfer is finished
             streamWorkers.delete(msg.respondentId); // no retries for now
+        } else if (msg.type === 'ready') {
+            console.log('streamer ready');
+            const resp = await writer.write(
+                msg.respondentId,
+                HostToServerMessage.Types.DownloadInitResponse,
+                {
+                    downloadId: msg.downloadId,
+                    chunkSize: msg.chunkSize,
+                    sizeInChunks: msg.sizeInChunks,
+                    encryption: msg.encryption
+                }
+            );
+            socket.send(resp);
         }
     };
-    return worker;
+    return streamerWorker;
 }
 
 // convenience function for sending error messages
 async function sendError(respondentId: number, errorType: number, message?: string) {
+    console.log('send error', errorType, message);
     const errorMessage = await writer.write(
         respondentId, 
         HostToServerMessage.Types.HostError,

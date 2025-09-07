@@ -6,11 +6,11 @@ export namespace ServerToHostMessage {
     export enum Types {
         ServerError = 0,
         ServerACK = 1,
-        NewHostIDGrant = 2,
-        MetadataRequest = 3,
-        StreamStartRequest = 4,
-        ChunkRequest = 5,
-        EndStreamRequest = 6,
+        InitWithUuidQuery = 2,
+        MetadataQuery = 3,
+        DownloadInitRequest = 5,
+        ChunkRequest = 7,
+        DownloadCompletionRequest = 10,
     }
 
     export type ServerError = {
@@ -37,6 +37,9 @@ export namespace ServerToHostMessage {
     export type EndStream = {
         downloadId: number;
     }
+    export type DownloadCompletion = {
+        downloadId: number;
+    }
 
     export type Contents =
       | ServerError
@@ -46,6 +49,7 @@ export namespace ServerToHostMessage {
       | StartStream
       | ChunkRequest
       | EndStream
+      | DownloadCompletion
 }
 
 export type HMHostReaderOut = { 
@@ -88,15 +92,15 @@ export class HMHostReader {
                     return this.readServerError(data);
                 case ServerToHostMessage.Types.ServerACK: 
                     return this.readServerACK(data);
-                case ServerToHostMessage.Types.NewHostIDGrant:
+                case ServerToHostMessage.Types.InitWithUuidQuery:
                     return this.readNewHostIDGrant(data);
-                case ServerToHostMessage.Types.MetadataRequest:
+                case ServerToHostMessage.Types.MetadataQuery:
                     return this.readMetadataRequest(data);
-                case ServerToHostMessage.Types.StreamStartRequest:
+                case ServerToHostMessage.Types.DownloadInitRequest:
                     return this.readStreamStartRequest(data);
                 case ServerToHostMessage.Types.ChunkRequest:
                     return this.readChunkRequest(data);
-                case ServerToHostMessage.Types.EndStreamRequest:
+                case ServerToHostMessage.Types.DownloadCompletionRequest:
                     return this.readEndStreamRequest(data);
                 default:
                     return null;
@@ -151,7 +155,7 @@ export class HMHostReader {
     private readChunkRequest(data: ArrayBuffer): ServerToHostMessage.ChunkRequest {
         const view = new DataView(data);
         const downloadId = view.getUint32(0, USE_LITTLE_ENDIAN);
-        const offset = view.getBigUint64(16, USE_LITTLE_ENDIAN);
+        const offset = view.getBigUint64(4, USE_LITTLE_ENDIAN);
         return { downloadId, offset };
     }
 

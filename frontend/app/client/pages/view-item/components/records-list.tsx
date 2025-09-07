@@ -1,15 +1,35 @@
 import { Link } from "react-router";
+import { useState } from "react";
 
 import { RecordKind, type Items } from "~/common/fs/types";
 import FileRecordListItem from "~/common/components/file-record-listitem.js";
 import DirectoryRecordListItem from "~/common/components/directory-record-listitem.js";
+import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenation.js"
 
 export default function RecordsList({records, hostId}: 
     {records: Items.RecordItem[], hostId: string}) {
+    const [ isDownloading, setIsDownloading ] = useState(false);
+
     const downloadButton = (record: Items.RecordItem) => (
-        <button onClick={() => {
-            console.log(`Downloading ${record.recordName}`);
-        }}>
+        <button 
+            onClick={() => {
+                if (!isDownloading) {
+                    console.log(`Downloading ${record.recordName}`);
+                    setIsDownloading(true);
+                    HostWebSocketclient.downloadRecord(
+                        hostId, 
+                        record.recordName,
+                        record.contentName
+                    )
+                    .then((value) => console.log('resolved'))
+                    .catch((e) => console.log('caught: ', e))
+                    .finally(setIsDownloading(false));
+                } else {
+                    console.log('wait for other download to finish');
+                }
+            }}
+            disabled={isDownloading}
+        >
             Download
         </button>
     )
@@ -25,8 +45,6 @@ export default function RecordsList({records, hostId}:
             return DirectoryRecordListItem({rec: record as Items.DirectoryRecordItem, children:
                 <>
                     <Link to={`/client/${hostId}/${record.recordName}`}>View</Link>
-                    <br />
-                    {downloadButton(record)}
                 </>
             });
         }

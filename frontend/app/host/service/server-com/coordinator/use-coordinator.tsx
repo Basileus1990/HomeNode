@@ -25,6 +25,7 @@ export default function useCoordinatorWorker() {
         workerRef.current.onmessage = (event) => {
             // coordinator received new host UUID assigned by the server
             if (event.data.type === "hostId") {
+                console.log('received hostId', event.data.hostId);
                 saveHostId(event.data.hostId);
                 revalidator.revalidate();   // refresh UI to display the UUID
             }

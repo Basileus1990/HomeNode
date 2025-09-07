@@ -7,11 +7,11 @@ export namespace HostToServerMessage {
     export enum Types {
         HostError = 0,
         HostACK = 1,
-        CurrentHostIDDeclaration = 2,
-        MetadataResponse = 3,
-        StartStreamResponse = 4,
-        ChunkResponse = 5,
-        EOFResponse = 6
+        CurrentHostIDDeclaration = -1,
+        MetadataResponse = 4,
+        DownloadInitResponse = 6,
+        ChunkResponse = 8,
+        EOFResponse = 9
     }
     export type HostError = {
         errorType: number;
@@ -50,6 +50,7 @@ export namespace HostToServerMessage {
 export class HMHostWriter {
     public async write(respondentId: number, typeNo: number, payload?: HostToServerMessage.Params): Promise<ArrayBuffer> {
         const payloadBytes  = await this.dispatch(typeNo, payload);
+        console.log(payloadBytes.byteLength);
         return this.assemble(respondentId, typeNo, payloadBytes)
     }
 
@@ -80,7 +81,7 @@ export class HMHostWriter {
                 return this.writeCurrentHostIDDeclaration(data as HostToServerMessage.CurrentHostIdDeclaration);
             case HostToServerMessage.Types.MetadataResponse:
                 return this.writeMetadataResponse(data as HostToServerMessage.Metadata);
-            case HostToServerMessage.Types.StartStreamResponse:
+            case HostToServerMessage.Types.DownloadInitResponse:
                 return this.writeStreamStartResponse(data as HostToServerMessage.StartStream);
             case HostToServerMessage.Types.ChunkResponse:
                 return this.writeChunkResponse(data as HostToServerMessage.Chunk);
@@ -93,15 +94,15 @@ export class HMHostWriter {
 
     // 0.
     private writeHostError(data: HostToServerMessage.HostError) {
-        let buffer;
-        if (data.errorInfo) {
-            const encodedErrorInfo = encodePerJson(data.errorInfo);
-            buffer = new ArrayBuffer(2 + encodePerJson.length);
-            const bytes = new Uint8Array(buffer);
-            bytes.set(encodedErrorInfo, 2);
-        } else {
-            buffer = new ArrayBuffer(2);
-        }
+        let buffer = new ArrayBuffer(2);
+        // if (data.errorInfo) {
+        //     const encodedErrorInfo = encodePerJson(data.errorInfo);
+        //     buffer = new ArrayBuffer(2 + encodePerJson.length);
+        //     const bytes = new Uint8Array(buffer);
+        //     bytes.set(encodedErrorInfo, 2);
+        // } else {
+        //     buffer = new ArrayBuffer(2);
+        // }
         const view = new DataView(buffer);
         view.setUint16(data.errorType, 0, USE_LITTLE_ENDIAN);
         
@@ -160,19 +161,22 @@ export class HMHostWriter {
 
         const view = new DataView(payload);
         view.setUint32(0, data.downloadId, USE_LITTLE_ENDIAN);
-        view.setUint8(4, flags);
-        view.setUint32(5, data.sizeInChunks, USE_LITTLE_ENDIAN);
-        view.setUint32(9, data.chunkSize, USE_LITTLE_ENDIAN);
+        view.setUint32(4, data.sizeInChunks, USE_LITTLE_ENDIAN);
+        view.setUint8(8, flags);
+        
+        //view.setUint32(9, data.chunkSize, USE_LITTLE_ENDIAN);
+
+        console.log(new Uint8Array(payload));
         return payload;
     }
 
     // 7.
     private async writeChunkResponse(data: HostToServerMessage.Chunk) {
-        if (data.encryption) {
-            const { salt, iv, ciphertext } = await encryptBuffer(data.encryption.password, data.chunk, data.encryption.salt, data.encryption.iv);
-            return ciphertext;
-        }
-
+        // if (data.encryption) {
+        //     const { salt, iv, ciphertext } = await encryptBuffer(data.encryption.password, data.chunk, data.encryption.salt, data.encryption.iv);
+        //     return ciphertext;
+        // }
+        console.log('sent', data.chunk.byteLength, data.chunk);
         return data.chunk;
     }
 

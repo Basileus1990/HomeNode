@@ -18,7 +18,7 @@ function createSocketReadableStream(url: string, reader: HMClientReader) {
         }
 
         switch (msg.typeNo) {
-          case SocketToClientMessageTypes.StreamStartResponse:
+          case SocketToClientMessageTypes.DownloadInitResponse:
             self.postMessage({
               type: 'started',
               sizeInChunks: msg.payload.sizeInChunks,

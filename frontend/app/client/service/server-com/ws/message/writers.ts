@@ -4,9 +4,10 @@ import { encodeUUID, USE_LITTLE_ENDIAN, encodePerJson, FlagService } from "~/com
 export enum ClientToSocketMessageTypes {
     ClientError = 0,
     ClientACK = 1,
-    MetadataRequest = 5,
-    StreamStartRequest = 6,
+    MetadataRequest = 3,
+    DownloadInitRequest = 5,
     ChunkRequest = 7,
+    DownloadCompletionRequest = 10
 }
 
 export class HMClientWriter {
@@ -36,10 +37,12 @@ export class HMClientWriter {
                 return this.writeClientACK();
             case ClientToSocketMessageTypes.MetadataRequest:
                 return this.writeMetadataRequest(data);
-            case ClientToSocketMessageTypes.StreamStartRequest:
+            case ClientToSocketMessageTypes.DownloadInitRequest:
                 return this.writeStreamStartRequest(data);
             case ClientToSocketMessageTypes.ChunkRequest:
                 return this.writeChunkRequest(data);
+            case ClientToSocketMessageTypes.DownloadCompletionRequest:
+                return this.writeEndStreamRequest(data);
             default:
                 throw new Error(`Unknown client message type: ${typeNo}`);
         }
@@ -72,13 +75,10 @@ export class HMClientWriter {
         return { flags: 0, payload: bytes.buffer };
     }
 
-    private writeChunkRequest(data: { hostID: string, resourceID: string, offset: bigint }) {
-        const ids = this.writeHostResourceIDs(data);
-        const buffer = new ArrayBuffer(16 + 16 + 8);
-        const bytes = new Uint8Array(buffer);
+    private writeChunkRequest(data: { offset: bigint }) {
+        const buffer = new ArrayBuffer(8);
         const view = new DataView(buffer);
-        bytes.set(ids, 0);
-        view.setBigUint64(32, data.offset, USE_LITTLE_ENDIAN);
+        view.setBigUint64(0, data.offset, USE_LITTLE_ENDIAN);
         return { flags: 0, payload: buffer };
     }
 
@@ -89,5 +89,9 @@ export class HMClientWriter {
         bytes.set(encodedHostID, 0);
         bytes.set(encodedResourceID, 16);
         return bytes;
+    }
+
+    private writeEndStreamRequest(data: any) {
+        return { flags: 0, payload: new ArrayBuffer() };
     }
 }
