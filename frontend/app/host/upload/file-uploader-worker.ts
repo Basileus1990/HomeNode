@@ -1,10 +1,10 @@
 import type { FileWithPath } from "react-dropzone";
 
-import { RecordKind } from "../../../common/fs/types";
-import type { DirectoryRecordHandle } from "../../../common/fs/fs";
-import { FSService } from "../../../common/fs/fs-service";
+import { RecordKind } from "../../common/fs/types";
+import type { DirectoryRecordHandle } from "../../common/fs/fs";
+import { FSService } from "../../common/fs/fs-service";
 import { prepareFilesForUpload, type RecordTreeNode } from "./prepare-files";
-import type { FileUploaderWorkerFilePayload } from "./file-uploader-worker-types";
+import type { FileUploaderWorkerFilePayload } from "./types";
 
 
 self.onmessage = async (event) => {

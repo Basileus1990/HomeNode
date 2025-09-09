@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { FileWithPath } from "react-dropzone";
 
-import type {  FileUploaderWorkerMessage } from "~/host/service/upload/file-uploader-worker-types";
+import type {  FileUploaderWorkerMessage } from "./types";
 
 export default function useFileUploaderWorker({ onUpload, onError }: { onUpload: () => void, onError?: (error: string) => void }) {
     const workerRef = useRef<Worker | null>(null);

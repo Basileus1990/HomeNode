@@ -1,58 +1,70 @@
 import type { EncryptionData } from "~/common/crypto";
 
 export interface PrepareStreamMessage {
-  type: 'prepare';
+  type: "prepare";
   respondentId: number;
-  downloadId: number;
+  streamId: number;
   resourceId: string;
   chunkSize: number;
 }
 
 export interface RequestChunkMessage {
-  type: 'next';
+  type: "next";
   respondentId: number;
 }
 
-export type CoordinatorToStreamer =
+export type CoordinatorToStreamWorker =
   | PrepareStreamMessage
   | RequestChunkMessage;
 
 
 export interface StreamerReadyMessage {
-  type: 'ready';
+  type: "ready";
   respondentId: number;
-  downloadId: number;
+  streamId: number;
   chunkSize: number;
   sizeInChunks: number;
   encryption?: EncryptionData;
 }
 
 export interface ChunkReadyMessage {
-  type: 'chunk';
+  type: "chunk";
   respondentId: number;
-  downloadId: number;
+  streamId: number;
   chunk: ArrayBuffer;
   encryption?: EncryptionData;
 }
 
 export interface EofReachedMessage {
-  type: 'eof';
+  type: "eof";
   respondentId: number;
-  downloadId: number;
+  streamId: number;
 }
 
-export type StreamerToCoordinator =
+export interface StreamWorkerErrorMessage {
+  type: "error";
+  streamId: number;
+  message?: string;
+}
+
+export type StreamWorkerToCoordinator =
   | ChunkReadyMessage
   | EofReachedMessage
   | StreamerReadyMessage;
 
 
 export interface HostIdReceived {
-  type: 'hostId';
+  type: "hostId";
   hostId: string;
 }
 
 export type CoorindatorToUI =
   | HostIdReceived;
 
-// export type UIToCoordinator
+
+export interface StopCoordinatorMessage {
+  type: "stop"
+}
+
+export type UIToCoordinator =
+  | StopCoordinatorMessage;

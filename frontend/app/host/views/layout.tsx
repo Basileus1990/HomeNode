@@ -1,6 +1,6 @@
 import { Outlet, Link } from "react-router";
 
-import useCoordinatorWorker from "../service/server-com/coordinator/use-coordinator";
+import useCoordinatorWorker from "../server-com/coordinator/use-coordinator";
 import { getHostId } from "../service/id";
 import { HostIdContext } from "./host-id-context";
 

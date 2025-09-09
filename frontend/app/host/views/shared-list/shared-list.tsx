@@ -1,4 +1,4 @@
-import type { Route } from ".react-router/types/app/host/pages/shared-list/+types/shared-list";
+import type { Route } from ".react-router/types/app/host/views/shared-list/+types/shared-list";
 import { useRevalidator } from "react-router";
 
 import { FSService } from "~/common/fs/fs-service";

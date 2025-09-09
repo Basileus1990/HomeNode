@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router";
 import type { FileWithPath } from "react-dropzone";
 
-import useUploaderWorker from "~/host/service/upload/useUploaderWorker";
+import useUploaderWorker from "~/host/upload/useUploaderWorker";
 
 export default function ShareButton({selectedFiles, setError}: 
     {selectedFiles: FileWithPath[], setError: React.Dispatch<React.SetStateAction<string | null>>}) {

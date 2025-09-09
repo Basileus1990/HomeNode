@@ -1,8 +1,8 @@
 import type { FileWithPath } from "react-dropzone";
 
-import { getNewUUID } from "../id";
-import { RecordKind, type RecordMetadata } from "../../../common/fs/types";
-import type { EncryptionData } from "../../../common/crypto";
+import { getNewUUID } from "../service/id";
+import { RecordKind, type RecordMetadata } from "../../common/fs/types";
+import type { EncryptionData } from "../../common/crypto";
 
 export async function prepareFilesForUpload(files: FileWithPath[], encryption?: EncryptionData) {
     const tree = rebuildTree(files, encryption);
