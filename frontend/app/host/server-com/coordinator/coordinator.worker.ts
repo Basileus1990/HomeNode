@@ -12,7 +12,7 @@ const cleanupInterval = parseInt(import.meta.env.VITE_STREAMER_CLEANUP_INTERVAL)
 
 const _socket = openSocket('ws://localhost:3000/api/v1/host/connect');
 const streamWorkers = new StreamWorkerRegistry();
-const handler =  new HostController(_socket, streamWorkers, self.postMessage);
+const handler =  new HostController(_socket, streamWorkers, (message: any) => self.postMessage(message));
 
 
 _socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {

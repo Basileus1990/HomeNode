@@ -24,8 +24,8 @@ export class RecordChunker {
         }
     }
 
-    public async next(): Promise<ArrayBuffer | null> {
-        return this.chunker.next();
+    public async next(offset?: bigint): Promise<ArrayBuffer | null> {
+        return this.chunker.next(offset);
     }
 }
 
@@ -39,12 +39,14 @@ class FileRecordChunker {
         this.chunkSize = chunkSize;
     }
 
-    public async next(): Promise<ArrayBuffer | null> {
-        if (this.offset > this.file.size) {
+    public async next(offset?: bigint): Promise<ArrayBuffer | null> {
+        const offsetToRead = Number(offset) ?? this.offset;
+
+        if (offsetToRead > this.file.size) {
             return null;
         }
 
-        const slice = this.file.slice(this.offset, this.offset + this.chunkSize);
+        const slice = this.file.slice(offsetToRead, this.offset + this.chunkSize);
         this.offset += this.chunkSize;
         return slice.arrayBuffer();
     }

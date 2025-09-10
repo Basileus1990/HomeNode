@@ -11,6 +11,7 @@ export interface PrepareStreamMessage {
 export interface RequestChunkMessage {
   type: "next";
   respondentId: number;
+  offset?: number;
 }
 
 export type CoordinatorToStreamWorker =

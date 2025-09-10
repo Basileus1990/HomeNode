@@ -94,6 +94,7 @@ export class HostController {
         respondentId: number
     ) {
         const streamId = payload.streamId;
+        const offset = payload.offset;
         const entry = this._streamWorkers.get(streamId);
         log.info('queried for chunk from ', streamId, entry);
 
@@ -104,7 +105,8 @@ export class HostController {
 
         entry.worker.postMessage({
             type: 'next',
-            respondentId
+            respondentId,
+            offset
         });
         log.info('requested chunk from streamer');
     }

@@ -1,6 +1,6 @@
 import { HMClientReader, SocketToClientMessageTypes } from "../message/readers";
 import type { ToDownloader } from "./types";
-import { FlagService } from "~/common/communication/binary";
+import { FlagService } from "~/common/server-com/binary";
 
 
 function createSocketReadableStream(url: string, reader: HMClientReader) {

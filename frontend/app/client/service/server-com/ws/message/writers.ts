@@ -1,11 +1,9 @@
-import { encodeUUID, USE_LITTLE_ENDIAN, encodePerJson, FlagService } from "~/common/communication/binary";
+import { encodeUUID, USE_LITTLE_ENDIAN, encodePerJson, FlagService } from "~/common/server-com/binary";
 
 
 export enum ClientToSocketMessageTypes {
     ClientError = 0,
     ClientACK = 1,
-    MetadataRequest = 3,
-    DownloadInitRequest = 5,
     ChunkRequest = 7,
     DownloadCompletionRequest = 10
 }
@@ -35,10 +33,6 @@ export class HMClientWriter {
                 return this.writeClientError(data);
             case ClientToSocketMessageTypes.ClientACK:
                 return this.writeClientACK();
-            case ClientToSocketMessageTypes.MetadataRequest:
-                return this.writeMetadataRequest(data);
-            case ClientToSocketMessageTypes.DownloadInitRequest:
-                return this.writeStreamStartRequest(data);
             case ClientToSocketMessageTypes.ChunkRequest:
                 return this.writeChunkRequest(data);
             case ClientToSocketMessageTypes.DownloadCompletionRequest:
@@ -63,16 +57,6 @@ export class HMClientWriter {
 
     private writeClientACK() {
         return { flags: 0, payload: new ArrayBuffer() };
-    }
-
-    private writeMetadataRequest(data: { hostID: string, resourceID: string }) {
-        const bytes = this.writeHostResourceIDs(data);
-        return { flags: 0, payload: bytes.buffer };
-    }
-
-    private writeStreamStartRequest(data: { hostID: string, resourceID: string }) {
-        const bytes = this.writeHostResourceIDs(data);
-        return { flags: 0, payload: bytes.buffer };
     }
 
     private writeChunkRequest(data: { offset: bigint }) {

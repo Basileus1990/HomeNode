@@ -47,13 +47,13 @@ self.onmessage = async (e: MessageEvent<CoordinatorToStreamWorker>) => {
     // send next chunk
     if (msg.type === 'next') {
         log.debug(`StreamWorker #${streamId} received request for next chunk`);
-        const chunk = await chunker.next();
+        const chunk = await chunker.next(msg.offset);
 
         if (!chunk) {       // EOF reached, no chunks to send
             self.postMessage({
                 type: 'eof',
                 respondentId: msg.respondentId,
-                streamId
+                streamId,
             })
         } else {
             self.postMessage({

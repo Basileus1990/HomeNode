@@ -1,4 +1,4 @@
-import { USE_LITTLE_ENDIAN, FlagService, decodePerJson } from "~/common/communication/binary";
+import { USE_LITTLE_ENDIAN, FlagService, decodePerJson } from "~/common/server-com/binary";
 
 
 export enum SocketToClientMessageTypes {
