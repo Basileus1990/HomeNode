@@ -1,8 +1,8 @@
 package ws_errors
 
 type WebsocketError struct {
-	msg  string
 	code WebsocketErrorCode
+	msg  string
 }
 
 func (w WebsocketError) Error() string {
@@ -14,16 +14,26 @@ func (w WebsocketError) Code() WebsocketErrorCode {
 }
 
 var ConnectionClosedErr = WebsocketError{
-	msg:  "connection closed",
 	code: ConnectionClosed,
+	msg:  "connection closed error",
 }
 
 var HostNotFoundErr = WebsocketError{
-	msg:  "host not found",
 	code: HostNotFound,
+	msg:  "host not found error",
 }
 
 var TimeoutErr = WebsocketError{
-	msg:  "timeout",
 	code: Timeout,
+	msg:  "timeout error",
+}
+
+var InvalidMessageBodyErr = WebsocketError{
+	code: InvalidMessageBody,
+	msg:  "invalid message body error",
+}
+
+var UnexpectedMessageTypeErr = WebsocketError{
+	code: UnexpectedMessageType,
+	msg:  "unexpected message type error",
 }

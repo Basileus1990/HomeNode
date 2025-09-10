@@ -276,7 +276,7 @@ func addQueryIdToQuery(query [][]byte, queryId uint32) [][]byte {
 
 func getResponseFromBinary(data []byte) (uint32, []byte, error) {
 	if len(data) < queryIdSizeInBytes {
-		return 0, nil, fmt.Errorf("hostconn ERROR - response lenght less than 4 bytes. No query id")
+		return 0, nil, ws_errors.InvalidMessageBodyErr
 	}
 
 	queryId := binary.BigEndian.Uint32(data[0:queryIdSizeInBytes])
