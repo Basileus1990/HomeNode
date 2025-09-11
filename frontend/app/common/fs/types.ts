@@ -13,7 +13,7 @@ export interface RecordMetadata {
 }
 
 /**
- * essentialty view for frontend
+ * essentialty view for config
  */
 export namespace Items {
     export interface RecordItem {

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/config"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/host"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/ping"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/app/appcontainer"
@@ -43,6 +44,10 @@ func (s *Server) setUpRoutes() *gin.Engine {
 
 	pingController := ping.Controller{}
 	pingController.SetUpRoutes(v1)
+
+	configGroup := v1.Group("config")
+	configController := config.Controller{FrontendConfig: s.container.Config.Frontend}
+	configController.SetUpRoutes(configGroup)
 
 	hostGroup := v1.Group("host")
 	hostConnectController := host.Controller{
