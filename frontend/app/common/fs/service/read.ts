@@ -3,7 +3,7 @@ import { type Items, RecordKind } from "../types";
 import { FILE_RECORD_PREFIX, DIR_RECORD_PREFIX } from "../objects/config";
 
     /**
-     * read record into object inteded for displaying in config
+     * read record into object inteded for displaying in frontend
      */
     export async function readRecordIntoItem(record: RecordHandle | null): Promise<Items.RecordItem[]> {
         async function readFileRecord(handle: FileRecordHandle): Promise<Items.FileRecordItem> {
