@@ -21,8 +21,7 @@ export class HMClientWriter {
         const byteView = new Uint8Array(buffer);
 
         view.setUint16(0, typeNo, USE_LITTLE_ENDIAN);
-        view.setUint8(2, flags);
-        byteView.set(payloadView, 3);
+        byteView.set(payloadView, 2);
 
         return buffer;
     }
