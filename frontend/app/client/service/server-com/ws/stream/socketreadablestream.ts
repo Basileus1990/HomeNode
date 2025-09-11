@@ -1,6 +1,6 @@
 import { HMClientReader, SocketToClientMessageTypes } from "../message/readers";
 import type { ToDownloader } from "./types";
-import { FlagService } from "~/common/communication/binary";
+import { FlagService } from "~/common/server-com/binary";
 
 
 function createSocketReadableStream(url: string, reader: HMClientReader) {
@@ -18,7 +18,7 @@ function createSocketReadableStream(url: string, reader: HMClientReader) {
         }
 
         switch (msg.typeNo) {
-          case SocketToClientMessageTypes.StreamStartResponse:
+          case SocketToClientMessageTypes.DownloadInitResponse:
             self.postMessage({
               type: 'started',
               sizeInChunks: msg.payload.sizeInChunks,

@@ -1,3 +1,5 @@
+import type { EncryptionData } from "../crypto";
+
 export enum RecordKind {
     file = "file",
     directory = "directory"
@@ -7,6 +9,7 @@ export interface RecordMetadata {
     contentName: string;
     dateShared: number;
     kind: RecordKind;
+    encryptionData?: EncryptionData;
 }
 
 /**
@@ -18,6 +21,7 @@ export namespace Items {
         contentName: string;
         kind: RecordKind;
         dateShared: number;
+        encryptionData?: EncryptionData;
     }
 
     export interface FileRecordItem extends RecordItem {

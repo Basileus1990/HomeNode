@@ -51,7 +51,7 @@ export function encrypt(key: CryptoKey, iv: BufferSource, data: BufferSource): P
         },
         key,
         data
-    );;
+    );
 }
 
 export async function decrypt(key: CryptoKey, iv: BufferSource, ciphertext: BufferSource): Promise<ArrayBuffer> {
@@ -68,17 +68,17 @@ export async function decrypt(key: CryptoKey, iv: BufferSource, ciphertext: Buff
 /**
  * derives key and encrypts 
  */
-export async function encryptBuffer(password: string, data: BufferSource): Promise<{salt: Uint8Array, iv: Uint8Array, ciphertext: ArrayBuffer}> {
-    const salt = window.crypto.getRandomValues(new Uint8Array(SALT_BYTES));
-    const iv = window.crypto.getRandomValues(new Uint8Array(AES_IV_BYTES));
+export async function encryptBuffer(password: string, data: BufferSource, salt?: Uint8Array<ArrayBuffer>, iv?: Uint8Array<ArrayBuffer>): Promise<{salt: Uint8Array, iv: Uint8Array, ciphertext: ArrayBuffer}> {
+    const _salt = salt ?? window.crypto.getRandomValues(new Uint8Array(SALT_BYTES));
+    const _iv = iv ?? window.crypto.getRandomValues(new Uint8Array(AES_IV_BYTES));
 
     const keyMaterial = await getKeyMaterial(password);
-    const key = await getKey(keyMaterial, salt);
-    const ciphertext = await encrypt(key, iv, data);
+    const key = await getKey(keyMaterial, _salt);
+    const ciphertext = await encrypt(key, _iv, data);
 
     return {
-        salt: salt,
-        iv: iv,
+        salt: _salt,
+        iv: _iv,
         ciphertext: ciphertext
     };
 }
@@ -90,4 +90,10 @@ export async function decryptBuffer(password: string, salt: BufferSource, iv: Bu
     const keyMaterial = await getKeyMaterial(password);
     const key = await getKey(keyMaterial, salt);
     return decrypt(key, iv, ciphertext);
+}
+
+export type EncryptionData = {
+    salt: Uint8Array<ArrayBuffer>;
+    iv: Uint8Array<ArrayBuffer>;
+    password: string;
 }

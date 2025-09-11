@@ -1,23 +1,31 @@
+import log from "loglevel";
+
 import { HMClientReader, SocketToClientMessageTypes } from "../message/readers";
+import { ClientToSocketMessageTypes, HMClientWriter } from "../message/writers";
 import type { ToDownloader } from "./types";
-import { FlagService } from "~/common/communication/binary";
+
+
 
 const _reader = new HMClientReader();
+const _writer = new HMClientWriter();
 
-let _stream: WritableStream;
-let _writer: WritableStreamDefaultWriter;
+let _fileWriter: WritableStreamDefaultWriter;
 let _socket: WebSocket;
 let _url: string;
-let _chunkCounter = 0;
+
+let _chunksReceived = 0;
+let _chunksExpected = 0;
+let _chunkSize = 0;
+let _downloadSize = 0;
+let _offset: bigint = 0n;
 
 
 self.onmessage = (e: MessageEvent<ToDownloader>) => {
     const msg = e.data;
 
     switch (msg.type) {
-        case 'start': {
-            _stream = msg.stream;
-            _writer = _stream.getWriter();
+        case "start": {
+            _fileWriter = msg.stream.getWriter();
             _url = msg.url;
 
             _socket = getSocket(_url);
@@ -33,40 +41,62 @@ function getSocket(url: string) {
 
     socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
         const msg = _reader.read(event.data);
-        let salt: Uint8Array;
-        let iv: Uint8Array;
 
         if (!msg) {
-            console.error("Unable to interpret data from socket");
+            log.error("Client unable to interpret data from socket");
             return;
         }
 
         switch (msg.typeNo) {
-            case SocketToClientMessageTypes.StreamStartResponse: {
-                self.postMessage({
-                    type: 'started',
-                    sizeInChunks: msg.payload.sizeInChunks,
-                });
+            case SocketToClientMessageTypes.DownloadInitResponse: {
+                log.debug("Client received confirmation the host is ready to stream");
+                
+                _chunksExpected = msg.payload.sizeInChunks;
+                _chunkSize = msg.payload.chunkSize;
+                _downloadSize = _chunksExpected * _chunkSize;
 
-                if (FlagService.isEncrypted(msg.flags)) {
-                    salt = msg.payload.salt;
-                    iv = msg.payload.iv;
+                self.postMessage({
+                    type: "started",
+                    sizeInChunks: msg.payload.sizeInChunks,
+                    downloadSize: _downloadSize
+                });
+                
+                if (_offset < _downloadSize) {  // should always be true, but to be sure let's check if we're not trying to download 0-byte file
+                    queryNextChunk(_offset);
+                } else {
+                    finishDownload();
                 }
+
                 break;
             }
             case SocketToClientMessageTypes.ChunkResponse: {
-                _writer.write(msg.payload);
+                _chunksReceived++;
+                _offset += BigInt(_chunkSize);
+
+                _fileWriter.write(msg.payload);
+
                 self.postMessage({
-                    type: 'chunk',
-                    chunkNo: ++_chunkCounter,
+                    type: "chunk",
+                    chunkNo: _chunksReceived,
                 });
+
+                if (_offset < _downloadSize) {
+                    queryNextChunk(_offset);
+                } else {
+                    finishDownload();
+                }
+
                 break;
             }
             case SocketToClientMessageTypes.EOFResponse: {
-                _writer.close();
-                self.postMessage({
-                    type: 'eof',
-                });
+                log.log("received eof");
+                log.log("at ", _chunksReceived, " of ", _chunksExpected)
+
+                if (_offset < _downloadSize) {
+                    queryNextChunk(_offset);
+                } else {
+                    finishDownload();
+                }
                 break;
             }
             default: {
@@ -76,13 +106,39 @@ function getSocket(url: string) {
 
     };
 
-    socket.onerror = () => {
+    socket.onerror = (event) => {
+        log.error(`Client socket suffered an error: ${event} while downloading file`);
         self.postMessage({
-            type: 'aborted',
+            type: "aborted",
         });
         socket.close();
-        // close();
+        close();
     };
 
     return socket;
+}
+
+function finishDownload() {
+    _fileWriter.close();
+
+    const query = _writer.write(
+        ClientToSocketMessageTypes.DownloadCompletionRequest,
+        {}
+    );
+    _socket.send(query);
+    _socket.close();
+
+    log.debug("Client finished download and disconnected");
+    close();
+}
+
+function queryNextChunk(offset: bigint) {
+    log.debug(`Client querying for next chunk at offset: ${offset}`);
+    log.log("Client querying for next chunk");
+
+    const query = _writer.write(
+        ClientToSocketMessageTypes.ChunkRequest,
+        { offset }
+    );
+    _socket.send(query);
 }

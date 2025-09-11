@@ -10,6 +10,6 @@ export class WebSocketServerEndpointService extends ServerEndpointService {
     }
 
     public static getDownloadEndpointURL(hostId: string, itemId: string) {
-        return `${RECORD_DOWNLOAD_ENDPOINT}/${hostId}/${itemId}/download`;
+        return RECORD_DOWNLOAD_ENDPOINT.replace("@hostId", hostId).replace("@itemId", itemId);
     }
 }

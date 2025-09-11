@@ -1,24 +1,24 @@
-import { showSaveFilePicker } from 'native-file-system-adapter';
-//import streamSaver from 'streamsaver';
+import { showSaveFilePicker } from "native-file-system-adapter";
+import log from "loglevel";
+//import streamSaver from "streamsaver";
 
 import { type ClientToServerCommunication } from "../api";
 import { type Items } from "~/common/fs/types";
 import { type FromDownloader } from "./stream/types";
-import { ClientToSocketMessageTypes, HMClientWriter } from "./message/writers";
 import { SocketToClientMessageTypes, HMClientReader } from "./message/readers";
 import { WebSocketServerEndpointService } from "./endpoints";
 
 
 // WIP
-// if ('serviceWorker' in navigator) {
-//     navigator.serviceWorker.register('/sw.js');
-//     //streamSaver.mitm = '/mitm.html';
+// if ("serviceWorker" in navigator) {
+//     navigator.serviceWorker.register("/sw.js");
+//     //streamSaver.mitm = "/mitm.html";
 // }
 
 export class HostWebSocketclient implements ClientToServerCommunication {
-    public static async getRecordItem(hostId: string, itemId: string): Promise<Items.RecordItem[]> {
+    public static async getRecordItem(hostId: string, resourceId: string): Promise<Items.RecordItem[]> {
         return new Promise((resolve, reject) => {
-            const url = WebSocketServerEndpointService.getMetadataEndpointURL(hostId, itemId);
+            const url = WebSocketServerEndpointService.getMetadataEndpointURL(hostId, resourceId);
             const socket = new WebSocket(url);
             socket.binaryType = "arraybuffer";
 
@@ -57,56 +57,97 @@ export class HostWebSocketclient implements ClientToServerCommunication {
     }
 
     // WIP
+    /**
+     * 
+     * @param hostId host identifier
+     * @param resourceId resource identifier
+     * @param filename name the downloaded file will be
+     * @param onStart will be called with the size of download in chunks once the stream is ready
+     * @param onChunk will be called on each chunk
+     * @param onEof will be called once the download finished
+     * @param onError will be called in case of error
+     * @returns 
+     */
     public static async downloadRecord(
         hostId: string, 
-        itemId: string, 
+        resourceId: string, 
         filename: string,
         onStart?: (sizeInChunks?: number) => void,
         onChunk?: (chunkNo?: number) => void,
         onEof?: () => void,
-        onError?: () => void
+        onError?: () => void) 
+    {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const transferableStream = await getFileStream();
+                const url = WebSocketServerEndpointService.getDownloadEndpointURL(hostId, resourceId);
 
-    ) {
-        try {
+                const worker = createDownloadWorker(resolve, reject);
+                worker.postMessage({
+                    type: "start",
+                    stream: transferableStream,
+                    url: url,
+                }, [transferableStream]);
+            } catch (e) {
+                log.error(e);
+                reject(e);
+            }
+        });
+
+
+        async function getFileStream() {
             const fileHandle = await showSaveFilePicker({
                 _preferPolyfill: false,
                 suggestedName: filename,
                 excludeAcceptAllOption: false // default
             });
-            const writeable = fileHandle.createWritable();
-            const url = WebSocketServerEndpointService.getDownloadEndpointURL(hostId, itemId);
-
-            const worker = createWorker();
-            worker.postMessage({
-                type: 'start',
-                stream: writeable,
-                url: url,
-            }, [writeable]);
-        } catch (e) {
-            console.error(e);
+            const writeable = await fileHandle.createWritable();
+            const writerStream = writeable.getWriter();
+            const transferableStream = new WritableStream({
+                write(chunk) {
+                    return writerStream.write(chunk);
+                },
+                close() {
+                    return writerStream.close();
+                },
+                abort(err) {
+                    return writerStream.abort(err);
+                },
+            });
+            return transferableStream;
         }
 
-
-        function createWorker() {
-            const worker = new Worker(new URL('./downloader.worker.ts', import.meta.url), {
-                type: 'module',
+        function createDownloadWorker(resolve: (value: unknown) => void, reject: (reason?: any) => void) {
+            const worker = new Worker(new URL("./stream/downloader.worker.ts", import.meta.url), {
+                type: "module",
             });
 
             worker.onmessage = (e: MessageEvent<FromDownloader>) => {
                 const msg = e.data;
 
                 switch (msg.type) {
-                    case 'started':
+                    case "started":
+                        if (onStart){
+                            onStart(msg.sizeInChunks);
+                        }
                         break;
-                    case 'chunk': {
+                    case "chunk": {
                         if (onChunk) {
                             onChunk(msg.chunkNo);
                         }
                         break;
                     }
-                    case 'aborted':
+                    case "aborted":
+                        if (onError) {
+                            onError();
+                        }
+                        reject("abort");
                         break;
-                    case 'eof':
+                    case "eof":
+                        if (onEof) {
+                            onEof();
+                        }
+                        resolve(true);
                         break
                     default:
                         break;

@@ -5,6 +5,7 @@ export function getNewUUID() {
 }
 
 export function saveHostId(hostId: string) {
+    console.log(hostId);
     localStorage.setItem(HOST_ID_KEY, hostId);
 }
 

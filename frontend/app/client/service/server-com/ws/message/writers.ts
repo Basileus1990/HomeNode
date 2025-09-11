@@ -1,12 +1,11 @@
-import { encodeUUID, USE_LITTLE_ENDIAN, encodePerJson, FlagService } from "~/common/communication/binary";
+import { encodeUUID, USE_LITTLE_ENDIAN, encodePerJson, FlagService } from "~/common/server-com/binary";
 
 
 export enum ClientToSocketMessageTypes {
     ClientError = 0,
     ClientACK = 1,
-    MetadataRequest = 5,
-    StreamStartRequest = 6,
     ChunkRequest = 7,
+    DownloadCompletionRequest = 10
 }
 
 export class HMClientWriter {
@@ -22,8 +21,7 @@ export class HMClientWriter {
         const byteView = new Uint8Array(buffer);
 
         view.setUint16(0, typeNo, USE_LITTLE_ENDIAN);
-        view.setUint8(2, flags);
-        byteView.set(payloadView, 3);
+        byteView.set(payloadView, 2);
 
         return buffer;
     }
@@ -34,12 +32,10 @@ export class HMClientWriter {
                 return this.writeClientError(data);
             case ClientToSocketMessageTypes.ClientACK:
                 return this.writeClientACK();
-            case ClientToSocketMessageTypes.MetadataRequest:
-                return this.writeMetadataRequest(data);
-            case ClientToSocketMessageTypes.StreamStartRequest:
-                return this.writeStreamStartRequest(data);
             case ClientToSocketMessageTypes.ChunkRequest:
                 return this.writeChunkRequest(data);
+            case ClientToSocketMessageTypes.DownloadCompletionRequest:
+                return this.writeEndStreamRequest(data);
             default:
                 throw new Error(`Unknown client message type: ${typeNo}`);
         }
@@ -62,23 +58,10 @@ export class HMClientWriter {
         return { flags: 0, payload: new ArrayBuffer() };
     }
 
-    private writeMetadataRequest(data: { hostID: string, resourceID: string }) {
-        const bytes = this.writeHostResourceIDs(data);
-        return { flags: 0, payload: bytes.buffer };
-    }
-
-    private writeStreamStartRequest(data: { hostID: string, resourceID: string }) {
-        const bytes = this.writeHostResourceIDs(data);
-        return { flags: 0, payload: bytes.buffer };
-    }
-
-    private writeChunkRequest(data: { hostID: string, resourceID: string, offset: bigint }) {
-        const ids = this.writeHostResourceIDs(data);
-        const buffer = new ArrayBuffer(16 + 16 + 8);
-        const bytes = new Uint8Array(buffer);
+    private writeChunkRequest(data: { offset: bigint }) {
+        const buffer = new ArrayBuffer(8);
         const view = new DataView(buffer);
-        bytes.set(ids, 0);
-        view.setBigUint64(32, data.offset, USE_LITTLE_ENDIAN);
+        view.setBigUint64(0, data.offset, USE_LITTLE_ENDIAN);
         return { flags: 0, payload: buffer };
     }
 
@@ -89,5 +72,9 @@ export class HMClientWriter {
         bytes.set(encodedHostID, 0);
         bytes.set(encodedResourceID, 16);
         return bytes;
+    }
+
+    private writeEndStreamRequest(data: any) {
+        return { flags: 0, payload: new ArrayBuffer() };
     }
 }
