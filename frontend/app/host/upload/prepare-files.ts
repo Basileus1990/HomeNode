@@ -37,6 +37,8 @@ export async function rebuildTree(files: FileWithPath[], encryption?: Encryption
         for (let i = 0; i < parts.length; i++) {
             const part = parts[i];
             const isFile = i === parts.length - 1;
+            if (part === "." || part === "")
+                continue;
 
             if (isFile) {
                 // Add file node

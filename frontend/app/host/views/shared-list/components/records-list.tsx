@@ -8,7 +8,7 @@ import { HostIdContext } from "../../host-id-context";
 
 export default function RecordsList({records}: {records: Items.RecordItem[]}) {
     const fetcher = useFetcher();
-    const sortedRecords = records.sort((a, b) => a.contentName.localeCompare(b.contentName));
+    const sortedRecords = records.sort(r => r.dateShared);
     const hostId = useContext(HostIdContext);
 
     const deleteItemFetcher = (item: Items.RecordItem) => (
