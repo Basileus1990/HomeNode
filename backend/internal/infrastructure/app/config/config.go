@@ -21,9 +21,27 @@ type WebsocketCfg struct {
 	BatchSize int `env:"BATCH_SIZE"`
 }
 
+type FrontendCfg struct {
+	StreamerInactivityTimeout int  `env:"FRONTEND_STREAMER_INACTIVITY_TIMEOUT" json:"streamer_inactivity_timeout"`
+	StreamerCleanupInterval   int  `env:"FRONTEND_STREAMER_CLEANUP_INTERVAL" json:"streamer_cleanup_interval"`
+	UseLittleEndian           bool `env:"FRONTEND_USE_LITTLE_ENDIAN" json:"use_little_endian"`
+
+	// Websocket endpoints
+	ServerWSURL         string `env:"FRONTEND_SERVER_WS_URL" json:"server_ws_url"`
+	RecordInfoWSURL     string `env:"FRONTEND_RECORD_INFO_WS_URL" json:"record_info_ws_url"`
+	RecordDownloadWSURL string `env:"FRONTEND_RECORD_DOWNLOAD_WS_URL" json:"record_download_ws_url"`
+
+	// Cryptography
+	PBKDF2Iterations int `env:"FRONTEND_PBKDF2_ITERATIONS" json:"pbkdf2_iterations"`
+	AESKeyLength     int `env:"FRONTEND_AES_KEY_LENGTH" json:"aes_key_length"`
+	AESIVBytes       int `env:"FRONTEND_AES_IV_BYTES" json:"aes_iv_bytes"`
+	SaltBytes        int `env:"FRONTEND_SALT_BYTES" json:"salt_bytes"`
+}
+
 type Config struct {
 	Server    ServerCfg
 	Websocket WebsocketCfg
+	Frontend  FrontendCfg
 }
 
 var cfg *Config
