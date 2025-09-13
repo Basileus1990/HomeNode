@@ -21,6 +21,7 @@ export default function RecordsList({records}: {records: Items.RecordItem[]}) {
     const shareLinkButton = (item: Items.RecordItem) => (
         <button
             onClick={async () => {
+                // TODO Change this into proper solution - for now link has to be changed manually in the browser
                 const link = `http://localhost:5173/client/${hostId}/${item.recordName}`    // placeholder for dev
                 await navigator.clipboard.writeText(link);
             }}
