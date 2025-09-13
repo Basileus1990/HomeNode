@@ -5,19 +5,23 @@ import { ServerToHostMessage } from '../message/readers';
 import { createStreamWorker as createStreamWorker } from './handle-stream-worker';
 import type { StreamWorkerRegistry } from "./stream-worker-registry";
 import { HMHostWriter, HostToServerMessage } from "../message/writers";
+import type { HomeNodeFrontendConfig } from "~/config";
 
 export class HostController {
     private _socket: WebSocket;
+    private _config: HomeNodeFrontendConfig;
     private _streamWorkers: StreamWorkerRegistry;
     private _postMessage: (message: any) => void;
     private _streamCounter = 0;
 
     constructor(
         socket: WebSocket,
+        config: HomeNodeFrontendConfig,
         streamWorkers: StreamWorkerRegistry,
         postMessage: (message: any) => void
     ) {
         this._socket = socket;
+        this._config = config;
         this._streamWorkers = streamWorkers;
         this._postMessage = postMessage;
     }
@@ -76,7 +80,7 @@ export class HostController {
         }
 
         const newStreamId = this._streamCounter++;
-        const newWorker = createStreamWorker(this._socket, (id) => this.setStreamerWorkerLastActiveNow(id));
+        const newWorker = createStreamWorker(this._socket, this._config, (id) => this.setStreamerWorkerLastActiveNow(id));
         this._streamWorkers.set(newStreamId, { worker: newWorker, lastActive: Date.now() });
         newWorker.postMessage({
             type: 'prepare',
@@ -164,7 +168,8 @@ export class HostController {
     private async sendHostAck(respondentId: number) {
         const response = await HMHostWriter.write(
             respondentId,
-            HostToServerMessage.Types.HostACK
+            HostToServerMessage.Types.HostACK,
+            this._config
         );
         this._socket.send(response);
     }
@@ -173,6 +178,7 @@ export class HostController {
         const response = await HMHostWriter.write(
             respondentId,
             HostToServerMessage.Types.MetadataResponse,
+            this._config,
             { record: metadata }
         );
         this._socket.send(response);
@@ -182,6 +188,7 @@ export class HostController {
         const response = await HMHostWriter.write(
             respondentId,
             HostToServerMessage.Types.HostError,
+            this._config,
             {
                 errorType,
                 errorInfo: { message }

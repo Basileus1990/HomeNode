@@ -1,4 +1,5 @@
-import { USE_LITTLE_ENDIAN, FlagService, decodePerJson } from "~/common/server-com/binary";
+import { FlagService, decodePerJson } from "~/common/server-com/binary";
+import type { HomeNodeFrontendConfig } from "~/config";
 
 
 export enum SocketToClientMessageTypes {
@@ -11,31 +12,31 @@ export enum SocketToClientMessageTypes {
 }
 
 export class HMClientReader {
-    public read(data: ArrayBuffer): { typeNo: number, flags: number, payload: any } | null {
-        const { typeNo, flags, payload } = this.disassemble(data);
-        const interpretedPayload = this.dispatch(typeNo, payload);
+    public read(data: ArrayBuffer, config: HomeNodeFrontendConfig): { typeNo: number, flags: number, payload: any } | null {
+        const { typeNo, flags, payload } = this.disassemble(data, config.use_little_endian);
+        const interpretedPayload = this.dispatch(typeNo, payload, config.use_little_endian);
         return { typeNo, flags, payload: interpretedPayload };
     }
 
-    private disassemble(data: ArrayBuffer): { typeNo: number, flags: number, payload: ArrayBuffer } {
+    private disassemble(data: ArrayBuffer, useLittleEndian: boolean = false): { typeNo: number, flags: number, payload: ArrayBuffer } {
         const view = new DataView(data);
-        const typeNo = view.getUint16(0, USE_LITTLE_ENDIAN);
+        const typeNo = view.getUint16(0, useLittleEndian);
         // const flags = view.getUint8(2);
         const payload = data.slice(2);
         return { typeNo, flags: 0, payload };
     }
 
-    protected dispatch(typeNo: number, payload: ArrayBuffer): any {
+    protected dispatch(typeNo: number, payload: ArrayBuffer, useLittleEndian: boolean = false): any {
         try {
             switch (typeNo) {
                 case SocketToClientMessageTypes.ServerError:
-                    return this.readServerError(payload);
+                    return this.readServerError(payload, useLittleEndian);
                 case SocketToClientMessageTypes.ServerACK:
                     return this.readServerAck();
                 case SocketToClientMessageTypes.MetadataResponse:
                     return this.readMetadataResponse(payload);
                 case SocketToClientMessageTypes.DownloadInitResponse:
-                    return this.readStreamStartResponse(payload);
+                    return this.readStreamStartResponse(payload, useLittleEndian);
                 case SocketToClientMessageTypes.ChunkResponse:
                     return this.readChunkResponse(payload);
                 case SocketToClientMessageTypes.EOFResponse:
@@ -50,9 +51,9 @@ export class HMClientReader {
     }
 
     // 1.
-    private readServerError(data: ArrayBuffer) {
+    private readServerError(data: ArrayBuffer, useLittleEndian: boolean = false) {
         const view = new DataView(data);
-        const errorType = view.getUint16(0, USE_LITTLE_ENDIAN);
+        const errorType = view.getUint16(0, useLittleEndian);
         if (data.byteLength > 2) {
             try {
                 const errorInfo = decodePerJson(data.slice(2));
@@ -78,11 +79,11 @@ export class HMClientReader {
     }
 
     // 6.
-    private readStreamStartResponse(data: ArrayBuffer) {
+    private readStreamStartResponse(data: ArrayBuffer, useLittleEndian: boolean = false) {
         const view = new DataView(data);
         
-        const chunkSize = view.getUint32(0, USE_LITTLE_ENDIAN);
-        const sizeInChunks = view.getUint32(4, USE_LITTLE_ENDIAN);
+        const chunkSize = view.getUint32(0, useLittleEndian);
+        const sizeInChunks = view.getUint32(4, useLittleEndian);
         const flags = view.getUint8(8);
         // const result: any = { sizeInChunks };
 

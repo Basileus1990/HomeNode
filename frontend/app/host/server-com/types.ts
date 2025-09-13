@@ -1,4 +1,5 @@
 import type { EncryptionData } from "~/common/crypto";
+import type { HomeNodeFrontendConfig } from "~/config";
 
 export interface PrepareStreamMessage {
   type: "prepare";
@@ -63,9 +64,15 @@ export type CoorindatorToUI =
   | HostIdReceived;
 
 
+export interface StartCoordinatorMessage {
+  type: "start";
+  config: HomeNodeFrontendConfig;
+}
+
 export interface StopCoordinatorMessage {
   type: "stop"
 }
 
 export type UIToCoordinator =
+  | StartCoordinatorMessage
   | StopCoordinatorMessage;

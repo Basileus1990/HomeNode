@@ -4,8 +4,9 @@ import log from "loglevel";
 
 import { saveHostId } from "../../service/id";
 import type { CoorindatorToUI } from "../types";
+import type { HomeNodeFrontendConfig } from "~/config";
 
-export default function useCoordinatorWorker() {
+export default function useCoordinatorWorker(config: HomeNodeFrontendConfig) {
     const workerRef = useRef<Worker | null>(null);
     const revalidator = useRevalidator();
 
@@ -33,6 +34,11 @@ export default function useCoordinatorWorker() {
                     break;
             }
         };
+
+        workerRef.current.postMessage({
+            type: "start",
+            config
+        })
 
         // Cleanup the worker when the component unmounts
         return () => {

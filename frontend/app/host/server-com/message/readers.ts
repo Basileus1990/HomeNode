@@ -1,4 +1,5 @@
-import { USE_LITTLE_ENDIAN, decodePerJson, decodeUUID } from "~/common/server-com/binary"
+import { decodePerJson, decodeUUID } from "~/common/server-com/binary"
+import type { HomeNodeFrontendConfig } from "~/config";
 
 
 export namespace ServerToHostMessage {
@@ -63,19 +64,19 @@ export type HMHostReaderOut = {
  * errors are either fault of messed up message or wrong typeNo - impossible to tell which one - and largely left to caller
  */
 export class HMHostReader {
-    public static read(data: ArrayBuffer, parms?: any): HMHostReaderOut | null {
-        const { respondentId, typeNo, payload } = this.disassemble(data);
-        const interpretedData = this.dispatch(typeNo, payload, parms);
+    public static read(data: ArrayBuffer, config: HomeNodeFrontendConfig, parms?: any): HMHostReaderOut | null {
+        const { respondentId, typeNo, payload } = this.disassemble(data, config.use_little_endian);
+        const interpretedData = this.dispatch(typeNo, payload, parms, config.use_little_endian);
         return { respondentId, typeNo, payload: interpretedData };
     }
 
     // breaks downt the binary message into common parts
     // respondentId, typeNo, flags, payload
-    private static disassemble(data: ArrayBuffer): 
+    private static disassemble(data: ArrayBuffer, useLittleEndian: boolean = false): 
         { respondentId: number, typeNo: number, payload: ArrayBuffer } {
         const view = new DataView(data);
-        const respondentId = view.getUint32(0, USE_LITTLE_ENDIAN);
-        const typeNo = view.getUint16(4, USE_LITTLE_ENDIAN);
+        const respondentId = view.getUint32(0, useLittleEndian);
+        const typeNo = view.getUint16(4, useLittleEndian);
         const payload = data.slice(6);
         return { respondentId, typeNo, payload };
     };
@@ -84,23 +85,29 @@ export class HMHostReader {
     // here goes logic for reading each type of message
     // nothing is type safe, we're no longer in strictly-typed land
     // use parms object to pass additional information
-    private static dispatch(typeNo: number, data: ArrayBuffer, parms?: any): ServerToHostMessage.Contents | null {
+    private static dispatch(
+        typeNo: number, 
+        data: ArrayBuffer, 
+        parms?: any, 
+        useLittleEndian: boolean = false
+    ): ServerToHostMessage.Contents | null 
+    {
         try {
             switch (typeNo) {
                 case ServerToHostMessage.Types.ServerError: 
-                    return this.readServerError(data);
+                    return this.readServerError(data, useLittleEndian);
                 case ServerToHostMessage.Types.ServerACK: 
-                    return this.readServerACK(data);
+                    return this.readServerACK();
                 case ServerToHostMessage.Types.InitWithUuidQuery:
                     return this.readNewHostIDGrant(data);
                 case ServerToHostMessage.Types.MetadataQuery:
                     return this.readMetadataRequest(data);
                 case ServerToHostMessage.Types.DownloadInitRequest:
-                    return this.readStreamStartRequest(data);
+                    return this.readStreamStartRequest(data, useLittleEndian);
                 case ServerToHostMessage.Types.ChunkRequest:
-                    return this.readChunkRequest(data);
+                    return this.readChunkRequest(data, useLittleEndian);
                 case ServerToHostMessage.Types.DownloadCompletionRequest:
-                    return this.readEndStreamRequest(data);
+                    return this.readEndStreamRequest(data, useLittleEndian);
                 default:
                     return null;
             }
@@ -109,9 +116,9 @@ export class HMHostReader {
         }
     }
 
-    private static readServerError(data: ArrayBuffer): ServerToHostMessage.ServerError {
+    private static readServerError(data: ArrayBuffer, useLittleEndian: boolean = false): ServerToHostMessage.ServerError {
         const view = new DataView(data);
-        const errorType = view.getUint16(0, USE_LITTLE_ENDIAN);
+        const errorType = view.getUint16(0, useLittleEndian);
         if (data.byteLength > 2) {
             try {
                 const errorInfo = decodePerJson(data.slice(2));
@@ -125,7 +132,7 @@ export class HMHostReader {
     }
 
     // ACK has no payload, so data here is empty
-    private static readServerACK(data: ArrayBuffer): ServerToHostMessage.ServerACK {
+    private static readServerACK(): ServerToHostMessage.ServerACK {
         return { ack: true };
     }
 
@@ -137,23 +144,23 @@ export class HMHostReader {
         return { resourceId: decodeUUID(data.slice(0, 16)) };
     }
 
-    private static readStreamStartRequest(data: ArrayBuffer): ServerToHostMessage.StartStream {
+    private static readStreamStartRequest(data: ArrayBuffer, useLittleEndian: boolean = false): ServerToHostMessage.StartStream {
         const resourceId = decodeUUID(data.slice(0, 16));
         const view = new DataView(data);
-        const chunkSize = view.getUint32(16, USE_LITTLE_ENDIAN);
+        const chunkSize = view.getUint32(16, useLittleEndian);
         return { resourceId, chunkSize };
     }
 
-    private static readChunkRequest(data: ArrayBuffer): ServerToHostMessage.ChunkRequest {
+    private static readChunkRequest(data: ArrayBuffer, useLittleEndian: boolean = false): ServerToHostMessage.ChunkRequest {
         const view = new DataView(data);
-        const streamId = view.getUint32(0, USE_LITTLE_ENDIAN);
-        const offset = view.getBigUint64(4, USE_LITTLE_ENDIAN);
+        const streamId = view.getUint32(0, useLittleEndian);
+        const offset = view.getBigUint64(4, useLittleEndian);
         return { streamId, offset };
     }
 
-    private static readEndStreamRequest(data: ArrayBuffer): ServerToHostMessage.EndStream {
+    private static readEndStreamRequest(data: ArrayBuffer, useLittleEndian: boolean = false): ServerToHostMessage.EndStream {
         const view = new DataView(data);
-        const streamId = view.getUint32(0, USE_LITTLE_ENDIAN);
+        const streamId = view.getUint32(0, useLittleEndian);
         return { streamId };
     }
 }

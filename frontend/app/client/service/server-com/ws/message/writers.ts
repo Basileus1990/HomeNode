@@ -1,4 +1,5 @@
-import { encodeUUID, USE_LITTLE_ENDIAN, encodePerJson, FlagService } from "~/common/server-com/binary";
+import { encodeUUID, encodePerJson, FlagService } from "~/common/server-com/binary";
+import type { HomeNodeFrontendConfig } from "~/config";
 
 
 export enum ClientToSocketMessageTypes {
@@ -9,31 +10,40 @@ export enum ClientToSocketMessageTypes {
 }
 
 export class HMClientWriter {
-    public write(typeNo: number, payload: any): ArrayBuffer {
-        const { flags, payload: payloadBytes } = this.dispatch(typeNo, payload);
-        return this.assemble(typeNo, flags, payloadBytes);
+    public write(typeNo: number, payload: any, config: HomeNodeFrontendConfig): ArrayBuffer {
+        const { flags, payload: payloadBytes } = this.dispatch(typeNo, payload, config.use_little_endian);
+        return this.assemble(typeNo, flags, payloadBytes, config.use_little_endian);
     }
 
-    private assemble(typeNo: number, flags: number, payloadBuffer: ArrayBuffer): ArrayBuffer {
+    private assemble(
+        typeNo: number, 
+        flags: number, 
+        payloadBuffer: ArrayBuffer, 
+        useLittleEndian: boolean = false
+    ): ArrayBuffer {
         const payloadView = new Uint8Array(payloadBuffer);
         const buffer = new ArrayBuffer(3 + payloadView.length);
         const view = new DataView(buffer);
         const byteView = new Uint8Array(buffer);
 
-        view.setUint16(0, typeNo, USE_LITTLE_ENDIAN);
+        view.setUint16(0, typeNo, useLittleEndian);
         byteView.set(payloadView, 2);
 
         return buffer;
     }
 
-    protected dispatch(typeNo: number, data: any): { flags: number; payload: ArrayBuffer } {
+    protected dispatch(
+        typeNo: number, 
+        data: any, 
+        useLittleEndian: boolean = false
+    ): { flags: number; payload: ArrayBuffer } {
         switch (typeNo) {
             case ClientToSocketMessageTypes.ClientError:
-                return this.writeClientError(data);
+                return this.writeClientError(data, useLittleEndian);
             case ClientToSocketMessageTypes.ClientACK:
                 return this.writeClientACK();
             case ClientToSocketMessageTypes.ChunkRequest:
-                return this.writeChunkRequest(data);
+                return this.writeChunkRequest(data, useLittleEndian);
             case ClientToSocketMessageTypes.DownloadCompletionRequest:
                 return this.writeEndStreamRequest(data);
             default:
@@ -41,7 +51,10 @@ export class HMClientWriter {
         }
     }
 
-    private writeClientError(data: { errorType: number, errorInfo?: object }) {
+    private writeClientError(
+        data: { errorType: number, errorInfo?: object }, 
+        useLittleEndian: boolean = false
+    ) {
         let buffer;
         if (data.errorInfo) {
             const encoded = encodePerJson(data.errorInfo);
@@ -50,7 +63,7 @@ export class HMClientWriter {
         } else {
             buffer = new ArrayBuffer(2);
         }
-        new DataView(buffer).setUint16(0, data.errorType, USE_LITTLE_ENDIAN);
+        new DataView(buffer).setUint16(0, data.errorType, useLittleEndian);
         return { flags: 0, payload: buffer };
     }
 
@@ -58,10 +71,13 @@ export class HMClientWriter {
         return { flags: 0, payload: new ArrayBuffer() };
     }
 
-    private writeChunkRequest(data: { offset: bigint }) {
+    private writeChunkRequest(
+        data: { offset: bigint }, 
+        useLittleEndian: boolean = false
+    ) {
         const buffer = new ArrayBuffer(8);
         const view = new DataView(buffer);
-        view.setBigUint64(0, data.offset, USE_LITTLE_ENDIAN);
+        view.setBigUint64(0, data.offset, useLittleEndian);
         return { flags: 0, payload: buffer };
     }
 

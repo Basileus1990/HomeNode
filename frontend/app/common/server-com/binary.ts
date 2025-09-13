@@ -1,5 +1,3 @@
-export const USE_LITTLE_ENDIAN = import.meta.env.VITE_USE_LITTLE_ENDIAN === "true";
-
 export function decodePerJson(data: ArrayBuffer): object {
     return JSON.parse(new TextDecoder().decode(data));
 }

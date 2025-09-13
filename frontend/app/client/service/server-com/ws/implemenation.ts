@@ -7,6 +7,7 @@ import { type Items } from "~/common/fs/types";
 import { type FromDownloader } from "./stream/types";
 import { SocketToClientMessageTypes, HMClientReader } from "./message/readers";
 import { WebSocketServerEndpointService } from "./endpoints";
+import { getConfig } from "~/config";
 
 
 // WIP
@@ -17,8 +18,9 @@ import { WebSocketServerEndpointService } from "./endpoints";
 
 export class HostWebSocketclient implements ClientToServerCommunication {
     public static async getRecordItem(hostId: string, resourceId: string): Promise<Items.RecordItem[]> {
-        return new Promise((resolve, reject) => {
-            const url = WebSocketServerEndpointService.getMetadataEndpointURL(hostId, resourceId);
+        const config = await getConfig();
+        const url = WebSocketServerEndpointService.getMetadataEndpointURL(hostId, resourceId, config);
+        return new Promise((resolve, reject) => {            
             const socket = new WebSocket(url);
             socket.binaryType = "arraybuffer";
 
@@ -31,7 +33,7 @@ export class HostWebSocketclient implements ClientToServerCommunication {
                 }
 
                 try {
-                    const msg = reader.read(event.data);
+                    const msg = reader.read(event.data, config);
                     if (!msg) {
                         reject(new Error("Unable to interpret data from socket"));
                         return;
@@ -77,16 +79,17 @@ export class HostWebSocketclient implements ClientToServerCommunication {
         onEof?: () => void,
         onError?: () => void) 
     {
+        const config = await getConfig();
+        const url = WebSocketServerEndpointService.getDownloadEndpointURL(hostId, resourceId, config);
         return new Promise(async (resolve, reject) => {
             try {
                 const transferableStream = await getFileStream();
-                const url = WebSocketServerEndpointService.getDownloadEndpointURL(hostId, resourceId);
-
                 const worker = createDownloadWorker(resolve, reject);
                 worker.postMessage({
                     type: "start",
                     stream: transferableStream,
                     url: url,
+                    config
                 }, [transferableStream]);
             } catch (e) {
                 log.error(e);
