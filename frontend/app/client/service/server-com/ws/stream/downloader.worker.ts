@@ -3,7 +3,7 @@ import log from "loglevel";
 import { HMClientReader, SocketToClientMessageTypes } from "../message/readers";
 import { ClientToSocketMessageTypes, HMClientWriter } from "../message/writers";
 import type { ToDownloader } from "./types";
-import type { HomeNodeFrontendConfig } from "~/config";
+import type { HomeNodeFrontendConfig } from "../../../../../config";
 
 
 

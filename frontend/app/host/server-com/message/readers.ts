@@ -1,5 +1,5 @@
-import { decodePerJson, decodeUUID } from "~/common/server-com/binary"
-import type { HomeNodeFrontendConfig } from "~/config";
+import { decodePerJson, decodeUUID } from "../../../common/server-com/binary";
+import type { HomeNodeFrontendConfig } from "../../../config";
 
 
 export namespace ServerToHostMessage {

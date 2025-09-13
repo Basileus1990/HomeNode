@@ -2,7 +2,7 @@ import log from "loglevel";
 
 import { HMHostWriter, HostToServerMessage } from "../message/writers";
 import type { ChunkReadyMessage, EofReachedMessage, StreamerReadyMessage, StreamWorkerToCoordinator, StreamWorkerErrorMessage } from "../types";
-import type { HomeNodeFrontendConfig } from "~/config";
+import type { HomeNodeFrontendConfig } from "../../../config";
 
 
 export function createStreamWorker(
@@ -72,8 +72,4 @@ async function handleChunk(socket: WebSocket, msg: ChunkReadyMessage, config: Ho
         }
     );
     socket.send(response);
-}
-
-async function handleError(msg: StreamWorkerErrorMessage) {
-    log.warn
 }

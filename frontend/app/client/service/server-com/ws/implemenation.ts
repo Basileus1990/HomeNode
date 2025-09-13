@@ -3,11 +3,11 @@ import log from "loglevel";
 //import streamSaver from "streamsaver";
 
 import { type ClientToServerCommunication } from "../api";
-import { type Items } from "~/common/fs/types";
+import { type Items } from "../../../../common/fs/types";
 import { type FromDownloader } from "./stream/types";
 import { SocketToClientMessageTypes, HMClientReader } from "./message/readers";
 import { WebSocketServerEndpointService } from "./endpoints";
-import { getConfig } from "~/config";
+import { getConfig } from "../../../../config";
 
 
 // WIP

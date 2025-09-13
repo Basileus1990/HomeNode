@@ -1,5 +1,5 @@
-import { encodeUUID, encodePerJson, FlagService } from "~/common/server-com/binary";
-import type { HomeNodeFrontendConfig } from "~/config";
+import { encodeUUID, encodePerJson, FlagService } from "../../../../../common/server-com/binary";
+import type { HomeNodeFrontendConfig } from "../../../../../config";
 
 
 export enum ClientToSocketMessageTypes {

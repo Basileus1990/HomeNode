@@ -1,4 +1,4 @@
-import type { EncryptionData } from "~/common/crypto";
+import type { EncryptionData } from "../../common/crypto";
 
 export type FileUploaderWorkerFilePayload = {
     file: File;

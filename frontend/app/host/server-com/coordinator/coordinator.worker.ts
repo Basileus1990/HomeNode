@@ -4,7 +4,7 @@ import { HMHostReader } from '../message/readers';
 import { HostController } from './controller';
 import { StreamWorkerRegistry } from "./stream-worker-registry";
 import type { UIToCoordinator } from "../types";
-import type { HomeNodeFrontendConfig } from "~/config";
+import type { HomeNodeFrontendConfig } from "../../../config";
 
 let _config: HomeNodeFrontendConfig;
 let _socket: WebSocket;

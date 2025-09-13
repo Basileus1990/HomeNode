@@ -1,4 +1,4 @@
-import type { HomeNodeFrontendConfig } from "~/config";
+import type { HomeNodeFrontendConfig } from "../../../../../config";
 
 export interface StartStreamMessage {
   type: 'start';

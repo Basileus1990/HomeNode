@@ -1,5 +1,5 @@
-import { FlagService, decodePerJson } from "~/common/server-com/binary";
-import type { HomeNodeFrontendConfig } from "~/config";
+import { FlagService, decodePerJson } from "../../../../../common/server-com/binary";
+import type { HomeNodeFrontendConfig } from "../../../../../config";
 
 
 export enum SocketToClientMessageTypes {

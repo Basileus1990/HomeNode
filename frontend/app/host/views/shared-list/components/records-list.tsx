@@ -1,9 +1,9 @@
 import { Link, useFetcher } from "react-router";
 import { useContext } from "react";
 
-import { RecordKind, type Items } from "~/common/fs/types";
-import FileRecordListItem from "~/common/components/file-record-listitem.js";
-import DirectoryRecordListItem from "~/common/components/directory-record-listitem.js";
+import { RecordKind, type Items } from "../../../../common/fs/types";
+import FileRecordListItem from "../../../../common/components/file-record-listitem.js";
+import DirectoryRecordListItem from "../../../../common/components/directory-record-listitem.js";
 import { HostIdContext } from "../../host-id-context";
 
 export default function RecordsList({records}: {records: Items.RecordItem[]}) {
