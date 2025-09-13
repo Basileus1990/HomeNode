@@ -8,6 +8,10 @@ import (
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/ping"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/app/appcontainer"
 	"github.com/gin-gonic/gin"
+	"log"
+	"net/http"
+	"os"
+	"strings"
 )
 
 type Server struct {
@@ -57,6 +61,36 @@ func (s *Server) setUpRoutes() *gin.Engine {
 		ClientConnFactory: s.container.ClientConnFactory,
 	}
 	hostConnectController.SetUpRoutes(hostGroup)
+
+	// Serving the frontend
+	router.StaticFS("/assets", http.Dir("../frontend/build/client/assets"))
+	router.NoRoute(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
+			return
+		}
+
+		log.Println(c.Request.URL.Path)
+		entries, err := os.ReadDir("../")
+		if err != nil {
+			log.Fatalf("Failed to read directory: %v", err)
+		}
+		for _, entry := range entries {
+			info, err := entry.Info()
+			if err != nil {
+				log.Printf("Failed to get info for %s: %v", entry.Name(), err)
+				continue
+			}
+
+			// Print file or directory info
+			if entry.IsDir() {
+				fmt.Printf("[DIR]  %s\n", entry.Name())
+			} else {
+				fmt.Printf("[FILE] %s (%d bytes)\n", entry.Name(), info.Size())
+			}
+		}
+		c.File("../frontend/build/client/index.html")
+	})
 
 	return router
 }
