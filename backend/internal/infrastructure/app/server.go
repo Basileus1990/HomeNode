@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+const frontendBuildLocation = "../frontend/build/client/"
+
 type Server struct {
 	container *appcontainer.Container
 	engine    *gin.Engine
@@ -61,15 +63,15 @@ func (s *Server) setUpRoutes() *gin.Engine {
 	hostConnectController.SetUpRoutes(hostGroup)
 
 	// Serving the frontend
-	router.StaticFS("/assets", http.Dir("../frontend/build/client/assets"))
-	router.StaticFile("/favicon.ico", "../frontend/build/client/favicon.ico")
+	router.StaticFS("/assets", http.Dir(frontendBuildLocation+"assets"))
+	router.StaticFile("/favicon.ico", frontendBuildLocation+"favicon.ico")
 	router.NoRoute(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
 			return
 		}
 
-		c.File("../frontend/build/client/index.html")
+		c.File(frontendBuildLocation + "index.html")
 	})
 
 	return router
