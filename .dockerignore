@@ -1,0 +1,17 @@
+.git
+.gitignore
+.dockerignore
+
+.vscode/
+.idea/
+
+frontend/node_modules
+frontend/build
+frontend/.react-router
+frontend/README.md
+
+backend/README.md
+
+# Secrets / keys / env
+.env
+.env.*
