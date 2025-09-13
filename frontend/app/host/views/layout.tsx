@@ -1,12 +1,18 @@
+import type { Route } from ".react-router/types/app/host/views/+types/layout";
 import { Outlet, Link } from "react-router";
 
 import useCoordinatorWorker from "../server-com/coordinator/use-coordinator";
 import { getHostId } from "../service/id";
 import { HostIdContext } from "./host-id-context";
+import { getConfig } from "~/config";
 
+export async function clientLoader() {
+    console.log("client loads config");
+    return getConfig();
+}
 
-export default function Host() {
-    useCoordinatorWorker();
+export default function Host({loaderData}: Route.ComponentProps) {
+    useCoordinatorWorker(loaderData);
     let hostId = "";
     if (typeof window !== 'undefined') {
         hostId = getHostId() ?? "";

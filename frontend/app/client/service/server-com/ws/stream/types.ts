@@ -1,7 +1,10 @@
+import type { HomeNodeFrontendConfig } from "~/config";
+
 export interface StartStreamMessage {
   type: 'start';
   stream: WritableStream;
   url: string;
+  config: HomeNodeFrontendConfig;
 }
 
 export interface StreamStartedMessage {

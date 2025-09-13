@@ -3,6 +3,7 @@ import log from "loglevel";
 import { HMClientReader, SocketToClientMessageTypes } from "../message/readers";
 import { ClientToSocketMessageTypes, HMClientWriter } from "../message/writers";
 import type { ToDownloader } from "./types";
+import type { HomeNodeFrontendConfig } from "~/config";
 
 
 
@@ -12,6 +13,7 @@ const _writer = new HMClientWriter();
 let _fileWriter: WritableStreamDefaultWriter;
 let _socket: WebSocket;
 let _url: string;
+let _config: HomeNodeFrontendConfig;
 
 let _chunksReceived = 0;
 let _chunksExpected = 0;
@@ -27,7 +29,7 @@ self.onmessage = (e: MessageEvent<ToDownloader>) => {
         case "start": {
             _fileWriter = msg.stream.getWriter();
             _url = msg.url;
-
+            _config = msg.config;
             _socket = getSocket(_url);
             break;
         }
@@ -40,7 +42,7 @@ function getSocket(url: string) {
     socket.binaryType = "arraybuffer";
 
     socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
-        const msg = _reader.read(event.data);
+        const msg = _reader.read(event.data, _config);
 
         if (!msg) {
             log.error("Client unable to interpret data from socket");
@@ -123,7 +125,8 @@ function finishDownload() {
 
     const query = _writer.write(
         ClientToSocketMessageTypes.DownloadCompletionRequest,
-        {}
+        {},
+        _config
     );
     _socket.send(query);
     _socket.close();
@@ -138,7 +141,8 @@ function queryNextChunk(offset: bigint) {
 
     const query = _writer.write(
         ClientToSocketMessageTypes.ChunkRequest,
-        { offset }
+        { offset },
+        _config
     );
     _socket.send(query);
 }
