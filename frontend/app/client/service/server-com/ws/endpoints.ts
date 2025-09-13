@@ -1,5 +1,5 @@
 import { ServerEndpointService } from "../api";
-import type { HomeNodeFrontendConfig } from "~/config";
+import type { HomeNodeFrontendConfig } from "../../../../config";
 
 
 export class WebSocketServerEndpointService extends ServerEndpointService {

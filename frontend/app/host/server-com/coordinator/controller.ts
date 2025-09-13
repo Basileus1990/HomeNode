@@ -5,7 +5,7 @@ import { ServerToHostMessage } from '../message/readers';
 import { createStreamWorker as createStreamWorker } from './handle-stream-worker';
 import type { StreamWorkerRegistry } from "./stream-worker-registry";
 import { HMHostWriter, HostToServerMessage } from "../message/writers";
-import type { HomeNodeFrontendConfig } from "~/config";
+import type { HomeNodeFrontendConfig } from "../../../config";
 
 export class HostController {
     private _socket: WebSocket;

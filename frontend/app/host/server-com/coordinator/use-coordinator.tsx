@@ -4,7 +4,7 @@ import log from "loglevel";
 
 import { saveHostId } from "../../service/id";
 import type { CoorindatorToUI } from "../types";
-import type { HomeNodeFrontendConfig } from "~/config";
+import type { HomeNodeFrontendConfig } from "../../../config";
 
 export default function useCoordinatorWorker(config: HomeNodeFrontendConfig) {
     const workerRef = useRef<Worker | null>(null);
