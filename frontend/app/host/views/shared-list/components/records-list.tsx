@@ -5,6 +5,7 @@ import { RecordKind, type Items } from "../../../../common/fs/types";
 import FileRecordListItem from "../../../../common/components/file-record-listitem.js";
 import DirectoryRecordListItem from "../../../../common/components/directory-record-listitem.js";
 import { HostIdContext } from "../../host-id-context";
+import { getResourceShareURL } from "../../../service/url-service";
 
 export default function RecordsList({records}: {records: Items.RecordItem[]}) {
     const fetcher = useFetcher();
@@ -21,8 +22,7 @@ export default function RecordsList({records}: {records: Items.RecordItem[]}) {
     const shareLinkButton = (item: Items.RecordItem) => (
         <button
             onClick={async () => {
-                // TODO Change this into proper solution - for now link has to be changed manually in the browser
-                const link = `http://localhost:5173/client/${hostId}/${item.recordName}`    // placeholder for dev
+                const link = getResourceShareURL(hostId, item.recordName); 
                 await navigator.clipboard.writeText(link);
             }}
         >
