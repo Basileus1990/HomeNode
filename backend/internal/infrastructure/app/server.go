@@ -8,7 +8,11 @@ import (
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/ping"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/app/appcontainer"
 	"github.com/gin-gonic/gin"
+	"net/http"
+	"strings"
 )
+
+const frontendBuildLocation = "../frontend/build/client/"
 
 type Server struct {
 	container *appcontainer.Container
@@ -57,6 +61,18 @@ func (s *Server) setUpRoutes() *gin.Engine {
 		ClientConnFactory: s.container.ClientConnFactory,
 	}
 	hostConnectController.SetUpRoutes(hostGroup)
+
+	// Serving the frontend
+	router.StaticFS("/assets", http.Dir(frontendBuildLocation+"assets"))
+	router.StaticFile("/favicon.ico", frontendBuildLocation+"favicon.ico")
+	router.NoRoute(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
+			return
+		}
+
+		c.File(frontendBuildLocation + "index.html")
+	})
 
 	return router
 }
