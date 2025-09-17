@@ -14,7 +14,7 @@ type Container struct {
 
 	HostConnFactory hostconn.HostConnFactory
 	HostMap         hostmap.HostMap
-	HostService     host.HostService
+	HostService     host.HostServiceInterface
 
 	ClientConnFactory clientconn.ClientConnFactory
 }
