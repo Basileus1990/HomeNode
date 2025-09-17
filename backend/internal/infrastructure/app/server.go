@@ -19,10 +19,8 @@ type Server struct {
 	engine    *gin.Engine
 }
 
-func NewServer() (*Server, error) {
+func NewServer(ctx context.Context) (*Server, error) {
 	var server Server
-
-	ctx := context.Background()
 
 	container, err := appcontainer.NewContainer(ctx)
 	if err != nil {
