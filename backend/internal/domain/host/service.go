@@ -13,25 +13,25 @@ import (
 	"github.com/google/uuid"
 )
 
-type HostService interface {
+type HostServiceInterface interface {
 	InitialiseNewHostConnection(id uuid.UUID) error
-	GetResourceMetadata(hostUuid, resourceUuid uuid.UUID) ([]byte, error)
-	DownloadResource(clientConn clientconn.ClientConn, hostUuid, resourceUuid uuid.UUID) error
+	GetResourceMetadata(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) ([]byte, error)
+	DownloadResource(clientConn clientconn.ClientConn, hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) error
 }
 
-type defaultConnectionService struct {
+type HostService struct {
 	hostMap         hostmap.HostMap
 	websocketConfig config.WebsocketCfg
 }
 
-func NewHostService(hostMap hostmap.HostMap, websocketCfg config.WebsocketCfg) HostService {
-	return &defaultConnectionService{
+func NewHostService(hostMap hostmap.HostMap, websocketCfg config.WebsocketCfg) HostServiceInterface {
+	return &HostService{
 		hostMap:         hostMap,
 		websocketConfig: websocketCfg,
 	}
 }
 
-func (s *defaultConnectionService) InitialiseNewHostConnection(id uuid.UUID) error {
+func (s *HostService) InitialiseNewHostConnection(id uuid.UUID) error {
 	hostConn, ok := s.hostMap.Get(id)
 	if !ok {
 		return ws_errors.HostNotFoundErr
@@ -53,15 +53,19 @@ func (s *defaultConnectionService) InitialiseNewHostConnection(id uuid.UUID) err
 	return nil
 }
 
-func (s *defaultConnectionService) GetResourceMetadata(hostUuid, resourceUuid uuid.UUID) ([]byte, error) {
+func (s *HostService) GetResourceMetadata(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) ([]byte, error) {
 	hostConn, ok := s.hostMap.Get(hostUuid)
 	if !ok {
 		return nil, ws_errors.HostNotFoundErr
 	}
 
-	query := helpers.UUIDToBinary(resourceUuid)
+	pathToResourceBinary := []byte(helpers.AddNullCharToString(pathToResource))
 
-	response, err := hostConn.Query(message_types.MetadataQuery.Binary(), query)
+	response, err := hostConn.Query(
+		message_types.MetadataQuery.Binary(),
+		helpers.UUIDToBinary(resourceUuid),
+		pathToResourceBinary,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +73,12 @@ func (s *defaultConnectionService) GetResourceMetadata(hostUuid, resourceUuid uu
 	return response, nil
 }
 
-func (s *defaultConnectionService) DownloadResource(clientConn clientconn.ClientConn, hostUUID, resourceUUID uuid.UUID) error {
+func (s *HostService) DownloadResource(
+	clientConn clientconn.ClientConn,
+	hostUUID uuid.UUID,
+	resourceUUID uuid.UUID,
+	pathToResource string,
+) error {
 	hostConn, ok := s.hostMap.Get(hostUUID)
 	if !ok {
 		return ws_errors.HostNotFoundErr
@@ -79,6 +88,7 @@ func (s *defaultConnectionService) DownloadResource(clientConn clientconn.Client
 		message_types.DownloadInitRequest.Binary(),
 		helpers.UUIDToBinary(resourceUUID),
 		helpers.Uint32ToBinary(uint32(s.websocketConfig.BatchSize)),
+		[]byte(helpers.AddNullCharToString(pathToResource)),
 	)
 	if err != nil {
 		return err
@@ -111,7 +121,7 @@ func (s *defaultConnectionService) DownloadResource(clientConn clientconn.Client
 	return s.handleDownloadLoop(hostConn, clientConn, downloadInitRespDto.downloadId)
 }
 
-func (s *defaultConnectionService) handleDownloadLoop(
+func (s *HostService) handleDownloadLoop(
 	hostConn hostconn.HostConn,
 	clientConn clientconn.ClientConn,
 	downloadId uint32,
@@ -147,7 +157,7 @@ func (s *defaultConnectionService) handleDownloadLoop(
 	}
 }
 
-func (s *defaultConnectionService) sendDownloadCompletionQueryToHost(hostConn hostconn.HostConn, downloadId uint32) error {
+func (s *HostService) sendDownloadCompletionQueryToHost(hostConn hostconn.HostConn, downloadId uint32) error {
 	_, err := hostConn.Query(
 		message_types.DownloadCompletionRequest.Binary(),
 		helpers.Uint32ToBinary(downloadId),
@@ -155,7 +165,7 @@ func (s *defaultConnectionService) sendDownloadCompletionQueryToHost(hostConn ho
 	return err
 }
 
-func (s *defaultConnectionService) handleChunkRequest(
+func (s *HostService) handleChunkRequest(
 	hostConn hostconn.HostConn,
 	clientConn clientconn.ClientConn,
 	downloadId uint32,

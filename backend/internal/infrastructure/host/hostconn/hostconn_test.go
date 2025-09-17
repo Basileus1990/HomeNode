@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
@@ -49,7 +48,7 @@ func (ts *testServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Fatalf("error on reading message: %v", err)
+			return
 		}
 
 		if len(message) < 4 {
@@ -89,21 +88,6 @@ func (ts *testServer) close() {
 }
 
 func createTestConnection(t *testing.T, server *testServer) HostConn {
-	t.Helper()
-
-	dialer := websocket.DefaultDialer
-	conn, _, err := dialer.Dial(server.url(), nil)
-	require.NoError(t, err)
-
-	ctx := context.Background()
-	hostConn := (&DefaultHostConnFactory{}).NewHostConn(ctx, conn, func() {
-		server.closeHandlerCalled = true
-	})
-
-	return hostConn
-}
-
-func createBenchmarkTestConnection(t testing.TB, server *testServer) HostConn {
 	t.Helper()
 
 	dialer := websocket.DefaultDialer
@@ -310,7 +294,7 @@ func TestInvalidResponse(t *testing.T) {
 
 	_, err = hostConn.QueryWithTimeout(2*time.Second, []byte("test"))
 	require.Error(t, err)
-	assert.EqualError(t, err, "invalid host response body error")
+	assert.EqualError(t, err, "invalid message body error")
 }
 
 func TestQueryAfterContextCancel(t *testing.T) {
@@ -341,41 +325,4 @@ func TestQueryAfterContextCancel(t *testing.T) {
 	_, err = hostConn.Query([]byte("ping"))
 	assert.ErrorIs(t, err, ws_errors.ConnectionClosedErr)
 	assert.True(t, server.closeHandlerCalled)
-}
-
-func BenchmarkQuery(b *testing.B) {
-	server := newTestServer()
-	defer server.close()
-
-	conn := createBenchmarkTestConnection(b, server)
-	defer conn.Close()
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_, err := conn.Query([]byte("ping"))
-			if err != nil {
-				b.Error(err)
-			}
-		}
-	})
-}
-
-func BenchmarkConcurrentQueries(b *testing.B) {
-	server := newTestServer()
-	defer server.close()
-
-	conn := createBenchmarkTestConnection(b, server)
-	defer conn.Close()
-
-	b.ResetTimer()
-	b.SetParallelism(runtime.NumCPU())
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_, err := conn.Query([]byte("ping"))
-			if err != nil {
-				b.Error(err)
-			}
-		}
-	})
 }

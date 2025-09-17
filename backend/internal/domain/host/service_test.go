@@ -100,13 +100,13 @@ func TestGetResourceMetadata(t *testing.T) {
 
 		mockHostMap.On("Get", hostId).Return(mockConn, true)
 
-		expectedQuery := [][]byte{message_types.MetadataQuery.Binary(), helpers.UUIDToBinary(resourceId)}
+		expectedQuery := [][]byte{message_types.MetadataQuery.Binary(), helpers.UUIDToBinary(resourceId), []byte("abc/cba\000")}
 		mockConn.On("Query", expectedQuery).Return(message_types.ACK.Binary(), nil)
 
 		expectedResponse := message_types.ACK.Binary()
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		resp, err := svc.GetResourceMetadata(hostId, resourceId)
+		resp, err := svc.GetResourceMetadata(hostId, resourceId, "abc/cba")
 
 		assert.NoError(t, err)
 		assert.Equal(t, expectedResponse, resp)
@@ -123,7 +123,7 @@ func TestGetResourceMetadata(t *testing.T) {
 		mockHostMap.On("Get", hostId).Return(nil, false)
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		resp, err := svc.GetResourceMetadata(hostId, resourceId)
+		resp, err := svc.GetResourceMetadata(hostId, resourceId, "aaa")
 
 		require.Error(t, err)
 		assert.Equal(t, "host not found error", err.Error())
@@ -140,11 +140,11 @@ func TestGetResourceMetadata(t *testing.T) {
 
 		mockHostMap.On("Get", hostId).Return(mockConn, true)
 
-		expectedQuery := [][]byte{message_types.MetadataQuery.Binary(), helpers.UUIDToBinary(resourceId)}
+		expectedQuery := [][]byte{message_types.MetadataQuery.Binary(), helpers.UUIDToBinary(resourceId), []byte("bbb\000")}
 		mockConn.On("Query", expectedQuery).Return(nil, errors.New("test error"))
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		resp, err := svc.GetResourceMetadata(hostId, resourceId)
+		resp, err := svc.GetResourceMetadata(hostId, resourceId, "bbb")
 
 		require.Error(t, err)
 		assert.Equal(t, "test error", err.Error())
@@ -154,7 +154,7 @@ func TestGetResourceMetadata(t *testing.T) {
 	})
 }
 
-func TestDownloadResouce(t *testing.T) {
+func TestDownloadResource(t *testing.T) {
 	t.Run("error - host not found", func(t *testing.T) {
 		hostId := uuid.New()
 		resourceId := uuid.New()
@@ -170,7 +170,7 @@ func TestDownloadResouce(t *testing.T) {
 		mockHostMap.On("Get", hostId).Return(nil, false)
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		err := svc.DownloadResource(mockClientConn, hostId, resourceId)
+		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
 		assert.Equal(t, "host not found error", err.Error())
@@ -194,11 +194,12 @@ func TestDownloadResouce(t *testing.T) {
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
 			helpers.Uint32ToBinary(123),
+			[]byte("aaa\000"),
 		}
 		mockHostConn.On("Query", expectedDownloadInitQuery).Return(nil, errors.New("test error"))
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		err := svc.DownloadResource(mockClientConn, hostId, resourceId)
+		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
 		assert.Equal(t, "test error", err.Error())
@@ -222,12 +223,13 @@ func TestDownloadResouce(t *testing.T) {
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
 			helpers.Uint32ToBinary(123),
+			[]byte("aaa\000"),
 		}
 		downloadInitResponse := []byte{1}
 		mockHostConn.On("Query", expectedDownloadInitQuery).Return(downloadInitResponse, nil)
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		err := svc.DownloadResource(mockClientConn, hostId, resourceId)
+		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
 		assert.Equal(t, "invalid message body error", err.Error())
@@ -251,6 +253,7 @@ func TestDownloadResouce(t *testing.T) {
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
 			helpers.Uint32ToBinary(123),
+			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.Error.Binary()
 		mockHostConn.On("Query", expectedDownloadInitQuery).Return(downloadInitResponse, nil)
@@ -258,7 +261,7 @@ func TestDownloadResouce(t *testing.T) {
 		mockClientConn.On("Send", [][]byte{message_types.Error.Binary()}).Return(errors.New("some error from send client"))
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		err := svc.DownloadResource(mockClientConn, hostId, resourceId)
+		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
 		assert.Equal(t, "some error from send client", err.Error())
@@ -282,12 +285,13 @@ func TestDownloadResouce(t *testing.T) {
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
 			helpers.Uint32ToBinary(123),
+			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
 		mockHostConn.On("Query", expectedDownloadInitQuery).Return(downloadInitResponse, nil)
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		err := svc.DownloadResource(mockClientConn, hostId, resourceId)
+		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
 		assert.Equal(t, "invalid message body error", err.Error())
@@ -311,6 +315,7 @@ func TestDownloadResouce(t *testing.T) {
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
 			helpers.Uint32ToBinary(123),
+			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
 		downloadInitResponse = append(downloadInitResponse, helpers.Uint32ToBinary(888)...) // downloadId
@@ -329,7 +334,7 @@ func TestDownloadResouce(t *testing.T) {
 		}).Return(downloadInitResponse, nil)
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		err := svc.DownloadResource(mockClientConn, hostId, resourceId)
+		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
 		assert.Equal(t, "some error from send client", err.Error())
@@ -353,6 +358,7 @@ func TestDownloadResouce(t *testing.T) {
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
 			helpers.Uint32ToBinary(123),
+			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
 		downloadInitResponse = append(downloadInitResponse, helpers.Uint32ToBinary(888)...) // downloadId
@@ -373,7 +379,7 @@ func TestDownloadResouce(t *testing.T) {
 		}).Return(downloadInitResponse, nil)
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		err := svc.DownloadResource(mockClientConn, hostId, resourceId)
+		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
 		assert.Equal(t, "some client listen error", err.Error())
@@ -397,6 +403,7 @@ func TestDownloadResouce(t *testing.T) {
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
 			helpers.Uint32ToBinary(123),
+			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
 		downloadInitResponse = append(downloadInitResponse, helpers.Uint32ToBinary(888)...) // downloadId
@@ -417,7 +424,7 @@ func TestDownloadResouce(t *testing.T) {
 		}).Return(downloadInitResponse, nil)
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		err := svc.DownloadResource(mockClientConn, hostId, resourceId)
+		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
 		assert.Equal(t, "invalid message body error", err.Error())
@@ -441,6 +448,7 @@ func TestDownloadResouce(t *testing.T) {
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
 			helpers.Uint32ToBinary(123),
+			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
 		downloadInitResponse = append(downloadInitResponse, helpers.Uint32ToBinary(888)...) // downloadId
@@ -461,7 +469,7 @@ func TestDownloadResouce(t *testing.T) {
 		}).Return(downloadInitResponse, nil)
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		err := svc.DownloadResource(mockClientConn, hostId, resourceId)
+		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
 		assert.Equal(t, "unexpected message type error", err.Error())
@@ -485,6 +493,7 @@ func TestDownloadResouce(t *testing.T) {
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
 			helpers.Uint32ToBinary(123),
+			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
 		downloadInitResponse = append(downloadInitResponse, helpers.Uint32ToBinary(888)...) // downloadId
@@ -513,7 +522,7 @@ func TestDownloadResouce(t *testing.T) {
 		}).Return(downloadInitResponse, nil)
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		err := svc.DownloadResource(mockClientConn, hostId, resourceId)
+		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
 		assert.Equal(t, "chunk request host error", err.Error())
@@ -537,6 +546,7 @@ func TestDownloadResouce(t *testing.T) {
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
 			helpers.Uint32ToBinary(123),
+			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
 		downloadInitResponse = append(downloadInitResponse, helpers.Uint32ToBinary(888)...) // downloadId
@@ -569,7 +579,7 @@ func TestDownloadResouce(t *testing.T) {
 		}).Return(downloadInitResponse, nil)
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		err := svc.DownloadResource(mockClientConn, hostId, resourceId)
+		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
 		assert.Equal(t, "client send chunk response error", err.Error())
@@ -593,6 +603,7 @@ func TestDownloadResouce(t *testing.T) {
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
 			helpers.Uint32ToBinary(123),
+			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
 		downloadInitResponse = append(downloadInitResponse, helpers.Uint32ToBinary(888)...) // downloadId
@@ -627,7 +638,7 @@ func TestDownloadResouce(t *testing.T) {
 		}).Return(nil, errors.New("downloadCompletionQuerySendError"))
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		err := svc.DownloadResource(mockClientConn, hostId, resourceId)
+		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
 		assert.Equal(t, "downloadCompletionQuerySendError", err.Error())
@@ -651,6 +662,7 @@ func TestDownloadResouce(t *testing.T) {
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
 			helpers.Uint32ToBinary(123),
+			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
 		downloadInitResponse = append(downloadInitResponse, helpers.Uint32ToBinary(888)...) // downloadId
@@ -685,7 +697,7 @@ func TestDownloadResouce(t *testing.T) {
 		}).Return(nil, nil)
 
 		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123})
-		err := svc.DownloadResource(mockClientConn, hostId, resourceId)
+		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		assert.NoError(t, err)
 	})

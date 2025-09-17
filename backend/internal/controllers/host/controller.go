@@ -17,15 +17,15 @@ import (
 
 type Controller struct {
 	HostMap           hostmap.HostMap
-	HostService       host.HostService
+	HostService       host.HostServiceInterface
 	WebsocketCfg      config.WebsocketCfg
 	ClientConnFactory clientconn.ClientConnFactory
 }
 
 func (c *Controller) SetUpRoutes(group *gin.RouterGroup) {
 	group.GET("connect", c.HostConnect)
-	group.GET(":hostUuid/:resourceUuid/metadata", c.GetResourceMetadata)
-	group.GET(":hostUuid/:resourceUuid/download", c.DownloadResource)
+	group.GET("metadata/:hostUuid/:resourceUuid/*pathToResource", c.GetResourceMetadata)
+	group.GET("download/:hostUuid/:resourceUuid/*pathToResource", c.DownloadResource)
 }
 
 // HostConnect
@@ -52,7 +52,7 @@ func (c *Controller) HostConnect(ctx *gin.Context) {
 // GetResourceMetadata
 //
 // Method: GET
-// Path: /api/v1/host/{hostUuid}/{resourceUuid}/metadata
+// Path: /api/v1/host/metadata/{hostUuid}/{resourceUuid}/path/to/resource.exe
 func (c *Controller) GetResourceMetadata(ctx *gin.Context) {
 	upgrader := c.upgrader()
 
@@ -67,12 +67,13 @@ func (c *Controller) GetResourceMetadata(ctx *gin.Context) {
 
 	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))
 	resourceID, resourceErr := uuid.Parse(ctx.Param("resourceUuid"))
+	pathToResource := ctx.Param("pathToResource")
 	if hostErr != nil || resourceErr != nil {
 		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
 		return
 	}
 
-	resp, err := c.HostService.GetResourceMetadata(hostID, resourceID)
+	resp, err := c.HostService.GetResourceMetadata(hostID, resourceID, pathToResource)
 	if err != nil {
 		if errors.Is(err, &ws_errors.WebsocketError{}) {
 			clientConn.SendAndLogError(message_types.Error.Binary(), err.(ws_errors.WebsocketError).Code().Binary())
@@ -89,7 +90,7 @@ func (c *Controller) GetResourceMetadata(ctx *gin.Context) {
 // DownloadResource
 //
 // Method: GET
-// Path: /api/v1/host/{hostUuid}/{resourceUuid}/download
+// Path: /api/v1/host/download/{hostUuid}/{resourceUuid}/path/to/resource.exe
 func (c *Controller) DownloadResource(ctx *gin.Context) {
 	upgrader := c.upgrader()
 
@@ -104,12 +105,13 @@ func (c *Controller) DownloadResource(ctx *gin.Context) {
 
 	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))
 	resourceID, resourceErr := uuid.Parse(ctx.Param("resourceUuid"))
+	pathToResource := ctx.Param("pathToResource")
 	if hostErr != nil || resourceErr != nil {
 		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
 		return
 	}
 
-	err = c.HostService.DownloadResource(clientConn, hostID, resourceID)
+	err = c.HostService.DownloadResource(clientConn, hostID, resourceID, pathToResource)
 	if err != nil {
 		if errors.Is(err, &ws_errors.WebsocketError{}) {
 			clientConn.SendAndLogError(message_types.Error.Binary(), err.(ws_errors.WebsocketError).Code().Binary())
