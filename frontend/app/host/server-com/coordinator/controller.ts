@@ -85,7 +85,7 @@ export class HostController {
         this._streamWorkers.set(newStreamId, { worker: newWorker, lastActive: Date.now() });
         newWorker.postMessage({
             type: "prepare",
-            resourceId: resourcePath,
+            resourcePath,
             chunkSize,
             streamId: newStreamId,
             respondentId

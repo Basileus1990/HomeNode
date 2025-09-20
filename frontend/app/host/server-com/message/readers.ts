@@ -150,7 +150,8 @@ export class HMHostReader {
         const resourceId = decodeUUID(data.slice(0, 16));
         const view = new DataView(data);
         const chunkSize = view.getUint32(16, useLittleEndian);
-        return { resourcePath: resourceId, chunkSize };
+        const path = String.fromCharCode(...new Uint8Array(data.slice(20, -1)));
+        return { resourcePath: resourceId + path, chunkSize };
     }
 
     private static readChunkRequest(data: ArrayBuffer, useLittleEndian: boolean = false): ServerToHostMessage.ChunkRequest {

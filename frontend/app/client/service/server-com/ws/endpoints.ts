@@ -8,7 +8,7 @@ export class WebSocketServerEndpointService extends ServerEndpointService {
         return config.record_info_ws_url.replace("@hostId", hostId).replace("@path", path);
     }
 
-    public static getDownloadEndpointURL(hostId: string, itemId: string, config: HomeNodeFrontendConfig) {
-        return config.record_download_ws_url.replace("@hostId", hostId).replace("@itemId", itemId);
+    public static getDownloadEndpointURL(hostId: string, path: string, config: HomeNodeFrontendConfig) {
+        return config.record_download_ws_url.replace("@hostId", hostId).replace("@path", path);
     }
 }

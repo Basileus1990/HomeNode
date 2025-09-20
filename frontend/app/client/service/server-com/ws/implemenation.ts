@@ -64,7 +64,7 @@ export class HostWebSocketclient implements ClientToServerCommunication {
     /**
      * 
      * @param hostId host identifier
-     * @param resourceId resource identifier
+     * @param resourcePath resource identifier
      * @param filename name the downloaded file will be
      * @param onStart will be called with the size of download in chunks once the stream is ready
      * @param onChunk will be called on each chunk
@@ -74,15 +74,15 @@ export class HostWebSocketclient implements ClientToServerCommunication {
      */
     public static async downloadRecord(
         hostId: string, 
-        resourceId: string, 
         filename: string,
+        resourcePath: string, 
         onStart?: (sizeInChunks?: number) => void,
         onChunk?: (chunkNo?: number) => void,
         onEof?: () => void,
         onError?: () => void) 
     {
         const config = await getConfig();
-        const url = WebSocketServerEndpointService.getDownloadEndpointURL(hostId, resourceId, config);
+        const url = WebSocketServerEndpointService.getDownloadEndpointURL(hostId, resourcePath, config);
         return new Promise(async (resolve, reject) => {
             try {
                 const transferableStream = await getFileStream();

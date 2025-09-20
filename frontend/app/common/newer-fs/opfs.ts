@@ -16,8 +16,8 @@ export async function findHandle(path: string, directory?: boolean): Promise<Fil
     // }
 
     const parts = path.split("/").filter(Boolean);
-    if (!directory)
-        directory = (parts.at(-1)?.includes("."));  // not the most foolproof way, but works most of the time
+    if (directory === undefined)
+        directory = !(parts.at(-1)?.includes("."));  // not the most foolproof way, but works most of the time
 
     let current: FileSystemDirectoryHandle | FileSystemFileHandle = root;
     for (let i = 0; i < parts.length; i++) {

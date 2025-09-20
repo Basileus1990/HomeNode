@@ -1,8 +1,8 @@
 import log from "loglevel";
 
-import type { EncryptionData } from '../../../common/crypto';
-import type { CoordinatorToStreamWorker } from '../types';
-import { RecordChunker } from './chunker';
+import type { EncryptionData } from "../../../common/crypto";
+import type { CoordinatorToStreamWorker } from "../types";
+import { RecordChunker } from "./chunker";
 import { findHandle, getSize } from "~/common/newer-fs/api";
 
 
@@ -15,10 +15,10 @@ let handle: FileSystemHandle | null;
 
 self.onmessage = async (e: MessageEvent<CoordinatorToStreamWorker>) => {
     const msg = e.data;
-    console.log('streamer got msg');
+    console.log("streamer got msg");
 
     // prepare for streaming
-    if (msg.type === 'prepare') {
+    if (msg.type === "prepare") {
         streamId = msg.streamId;
 
         handle = await findHandle(msg.resourcePath);
@@ -34,7 +34,7 @@ self.onmessage = async (e: MessageEvent<CoordinatorToStreamWorker>) => {
         // encryption = recordMetadata.encryptionData;
 
         self.postMessage({
-            type: 'ready',
+            type: "ready",
             streamId: msg.streamId,
             respondentId: msg.respondentId,
             chunkSize: msg.chunkSize,
@@ -45,19 +45,19 @@ self.onmessage = async (e: MessageEvent<CoordinatorToStreamWorker>) => {
     }
 
     // send next chunk
-    if (msg.type === 'next') {
+    if (msg.type === "next") {
         log.debug(`StreamWorker #${streamId} received request for next chunk`);
         const chunk = await chunker.next(msg.offset);
 
         if (!chunk) {       // EOF reached, no chunks to send
             self.postMessage({
-                type: 'eof',
+                type: "eof",
                 respondentId: msg.respondentId,
                 streamId,
             })
         } else {
             self.postMessage({
-                type: 'chunk',
+                type: "chunk",
                 respondentId: msg.respondentId,
                 chunk,
                 encryption,
