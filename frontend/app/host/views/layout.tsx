@@ -6,17 +6,14 @@ import { getHostId } from "../service/id";
 import { HostIdContext } from "./host-id-context";
 import { getConfig } from "../../config";
 
+
 export async function clientLoader() {
-    console.log("client loads config");
     return getConfig();
 }
 
 export default function Host({loaderData}: Route.ComponentProps) {
     useCoordinatorWorker(loaderData);
-    let hostId = "";
-    if (typeof window !== 'undefined') {
-        hostId = getHostId() ?? "";
-    }
+    const hostId = getHostId() ?? "";
 
     return (
         <div>

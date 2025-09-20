@@ -141,10 +141,8 @@ export class HMHostReader {
     }
 
     private static readMetadataRequest(data: ArrayBuffer): ServerToHostMessage.ReadMetadata {
-        //return { resourcePath: decodeUUID(data.slice(0, 16)) };
         const uploadId = decodeUUID(data.slice(0, 16));
         const path = String.fromCharCode(...new Uint8Array(data.slice(16, -1)));
-        console.log('metadata request for', uploadId + path);
         return { resourcePath: uploadId + path };
     }
 

@@ -3,7 +3,7 @@ import { getStorageRoot } from "./root";
 import type { Item } from "./types";
 
 
-export async function findHandle(path: string, directory: boolean): Promise<FileSystemHandle | null> {
+export async function findHandle(path: string, directory?: boolean): Promise<FileSystemHandle | null> {
     console.log("looking for ", path);
     
     const root = await getStorageRoot();
@@ -16,6 +16,8 @@ export async function findHandle(path: string, directory: boolean): Promise<File
     // }
 
     const parts = path.split("/").filter(Boolean);
+    if (!directory)
+        directory = (parts.at(-1)?.includes("."));  // not the most foolproof way, but works most of the time
 
     let current: FileSystemDirectoryHandle | FileSystemFileHandle = root;
     for (let i = 0; i < parts.length; i++) {
@@ -157,28 +159,26 @@ export async function readItem(path: string, directory: boolean) {
     } as Item;
 }
 
-export async function readHandle(handle: FileSystemHandle) {
-    //const path = getPath(handle);
-    const path = "x";
-    const res = [];
+export async function readHandle(handle: FileSystemHandle, path?: string): Promise<Item[]> {
+    const contents: Item[] = [];
     if (handle.kind === "directory") {
         for await (const [name, entry] of (handle as FileSystemDirectoryHandle).entries()) {
-            res.push({
-                path: path + "/" + entry.name,
+            contents.push({
+                path: (path ? (path + "/") : "") + entry.name,
                 name,
                 kind: entry.kind,
                 size: await getSize(entry),
             })
         }
     } else {
-        res.push({
-            path: path,
+        contents.push({
+            path: path ?? "",
             name: handle.name,
             kind: "file",
             size: await getSize(handle),
         })
     }
-    return res;
+    return contents;
 }
 
 export async function removeHandle(path: string) {

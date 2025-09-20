@@ -1,72 +1,39 @@
 import type { Route } from ".react-router/types/app/host/views/shared-list/+types/shared-list";
 import { useRevalidator } from "react-router";
+import log from "loglevel";
 
-// import { FSService } from "../../../common/fs/fs-service";
-// import { RecordHandle } from "../../../common/fs/fs";
-// import type { Items } from "../../../common/fs/types";
 import RecordsList from "./components/records-list";
-import { findHandle, isDirectoryPath, getSize, getStorageRoot, getLeaf, removeHandle, purgeStorage, getPath } from "~/common/newer-fs/api";
+import { findHandle, getStorageRoot, removeHandle, purgeStorage, readHandle } from "~/common/newer-fs/api";
 
-export async function clientLoader({ params, request }: Route.LoaderArgs) {
-    //const rootRecord = await FSService.getRootRecord();
-    const { '*': recordNameToFind} = params;
-    // let res: RecordHandle | null = rootRecord;
 
-    // if (recordNameToFind) {
-    //     const recordToFind = await FSService.findRecordByName(recordNameToFind, rootRecord.getUnderlayingHandle(), true);
-    //     res = recordToFind;
-    // }
-    // return FSService.readRecordIntoItem(res);
-    console.log('host looking for', recordNameToFind);
+export async function clientLoader({ params }: Route.LoaderArgs) {
+    const { "*": resourcePath} = params;
 
-    let handle: FileSystemHandle | null = await getStorageRoot();
-    if (recordNameToFind)
-        handle = await findHandle(recordNameToFind, isDirectoryPath(recordNameToFind));
-
+    let handle: FileSystemHandle | null;
+    if (resourcePath)
+        handle = await findHandle(resourcePath);
+    else
+        handle = await getStorageRoot();
     if (!handle) {
-        console.log("empty handle");
+        log.debug(`No handle found for path: ${resourcePath}`)
         return [];
     }
 
-    const res = [];
-    if (handle.kind === "directory") {
-        for await (const [name, entry] of (handle as FileSystemDirectoryHandle).entries()) {
-            res.push({
-                path: (recordNameToFind ? recordNameToFind + "/" : "") + entry.name,
-                name,
-                kind: entry.kind,
-                size: await getSize(entry),
-            })
-        }
-    } else {
-        res.push({
-            path: recordNameToFind,
-            name: getLeaf(recordNameToFind ?? "") ?? "unkown",
-            kind: "file",
-            size: await getSize(handle),
-        })
-    }
-
-    return res;
+    return readHandle(handle, resourcePath);
 }
 
 export async function clientAction({ request }: Route.ActionArgs) {
     const formData = await request.formData();
-    const itemName = formData.get("itemName") as string;
+    const resourcePath = formData.get("resourcePath") as string;
 
-    if (itemName) {
-        try {
-            // Attempt to delete the record
-            //const res = await FSService.deleteRecordByName(itemName, undefined, true);
-            const res = await removeHandle(itemName);
-            console.log("Delete result:", res);
-        } catch (error) {
-            console.error("Error deleting record:", error);
+    if (resourcePath) {
+        const removed = await removeHandle(resourcePath);
+        if (removed) {
+            log.debug(`Successfully removed resource: ${resourcePath}`)
+        } else {
+            log.warn(`Could not resource: ${resourcePath}`)
         }
-        
     }
-
-    console.log("Deleting item:", itemName);
 }
 
 export default function SharedFilesList({loaderData}: Route.ComponentProps) {

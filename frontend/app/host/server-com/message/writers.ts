@@ -1,6 +1,5 @@
 import { FlagService, encodePerJson, encodeUUID } from "../../../common/server-com/binary";
 import { type EncryptionData, encryptBuffer } from "../../../common/crypto";
-// import { type Items } from "../../../common/fs/types";
 import { type HomeNodeFrontendConfig } from "../../../config";
 import type { Item } from "~/common/newer-fs/types";
 

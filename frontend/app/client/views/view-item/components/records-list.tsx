@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router";
 import { useState } from "react";
 
-// import { RecordKind, type Items } from "~/common/fs/types";
 import FileRecordListItem from "~/common/components/file-record-listitem.js";
 import DirectoryRecordListItem from "~/common/components/directory-record-listitem.js";
 import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenation.js"
@@ -16,12 +15,12 @@ export default function RecordsList({records, hostId}:
         <button 
             onClick={() => {
                 if (!isDownloading) {
-                    console.log(`Downloading ${record.recordName}`);
+                    console.log(`Downloading ${record.name}`);
                     setIsDownloading(true);
                     HostWebSocketclient.downloadRecord(
                         hostId, 
-                        record.recordName,
-                        record.contentName
+                        record.name,
+                        record.path
                     )
                     .then((value) => console.log('resolved'))
                     .catch((e) => console.log('caught: ', e))

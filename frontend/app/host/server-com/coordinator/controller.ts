@@ -1,12 +1,12 @@
 import log from "loglevel";
 
-// import { findRecordByName, readRecordIntoItem } from "../../../common/fs/service";
-import { ServerToHostMessage } from '../message/readers';
-import { createStreamWorker as createStreamWorker } from './handle-stream-worker';
+import { ServerToHostMessage } from "../message/readers";
+import { createStreamWorker as createStreamWorker } from "./handle-stream-worker";
 import type { StreamWorkerRegistry } from "./stream-worker-registry";
 import { HMHostWriter, HostToServerMessage } from "../message/writers";
 import type { HomeNodeFrontendConfig } from "../../../config";
 import { findHandle, isDirectoryPath, readHandle } from "~/common/newer-fs/api";
+
 
 export class HostController {
     private _socket: WebSocket;
@@ -37,7 +37,7 @@ export class HostController {
                 this.handleServerError(payload as ServerToHostMessage.ServerError);
                 break;
             case ServerToHostMessage.Types.ServerACK:
-                log.debug('Host received ACK from server');
+                log.debug("Host received ACK from server");
                 break;
             case ServerToHostMessage.Types.InitWithUuidQuery:
                 await this.handleInitWithUuidQuery(payload as ServerToHostMessage.NewHostIdGrant, respondentId);
@@ -55,14 +55,14 @@ export class HostController {
                 this.handleDownloadCompletionRequest(payload as ServerToHostMessage.DownloadCompletion, respondentId);
                 break;
             default:
-                log.trace('Host received unknown message type:', typeNo, 'with payload:', payload);
-                log.warn('Host received message of unknown type');
+                log.trace("Host received unknown message type:", typeNo, "with payload:", payload);
+                log.warn("Host received message of unknown type");
         }
     }
 
     private async handleServerError(payload: ServerToHostMessage.ServerError) {
         const errorType = payload.errorType;
-        log.warn('Host received error of type:', errorType, 'from server');
+        log.warn("Host received error of type:", errorType, "from server");
     }
 
     private async handleDownloadInitRequest(
@@ -71,12 +71,11 @@ export class HostController {
     ) {
         const resourcePath = payload.resourcePath;
         const chunkSize = payload.chunkSize;
-        // const record = await findRecordByName(resourcePath, undefined, true);
         const handle = await findHandle(resourcePath, isDirectoryPath(resourcePath));
-        log.debug('Host received download request for resource:', resourcePath);
+        log.debug("Host received download request for resource:", resourcePath);
 
         if (!handle) {
-            log.debug('Host couldn\'t find resource:', resourcePath);
+            log.warn("Host couldn't find resource:", resourcePath);
             await this.sendError(respondentId, 400, "resource not found");
             return;
         }
@@ -85,14 +84,14 @@ export class HostController {
         const newWorker = createStreamWorker(this._socket, this._config, (id) => this.setStreamerWorkerLastActiveNow(id));
         this._streamWorkers.set(newStreamId, { worker: newWorker, lastActive: Date.now() });
         newWorker.postMessage({
-            type: 'prepare',
+            type: "prepare",
             resourceId: resourcePath,
             chunkSize,
             streamId: newStreamId,
             respondentId
         });
-        log.debug('Host started preparing for streaming resource:', resourcePath);
-        log.info('created worker');
+        log.debug("Host started preparing for streaming resource:", resourcePath);
+        log.info("created worker");
     }
 
     private handleChunkRequest(
@@ -102,7 +101,7 @@ export class HostController {
         const streamId = payload.streamId;
         const offset = payload.offset;
         const entry = this._streamWorkers.get(streamId);
-        log.info('queried for chunk from ', streamId, entry);
+        log.info("queried for chunk from ", streamId, entry);
 
         if (!entry) {
             this.sendError(respondentId, 400, "unknown respondentId");
@@ -110,11 +109,11 @@ export class HostController {
         }
 
         entry.worker.postMessage({
-            type: 'next',
+            type: "next",
             respondentId,
             offset
         });
-        log.info('requested chunk from streamer');
+        log.info("requested chunk from streamer");
     }
 
     private handleDownloadCompletionRequest(
@@ -123,14 +122,14 @@ export class HostController {
     ) {
         const streamId = payload.streamId;
         const entry = this._streamWorkers.get(streamId);
-        log.info('queried for chunk from ', streamId, entry);
+        log.info("queried for chunk from ", streamId, entry);
 
         if (!entry) {
             this.sendError(respondentId, 400, "unknown respondentId");
             return;
         }
 
-        log.info('stream finished for streamer', streamId, 'terminating');
+        log.info("stream finished for streamer", streamId, "terminating");
         entry.worker.terminate();
         this._streamWorkers.delete(streamId);
     }
@@ -153,23 +152,18 @@ export class HostController {
         payload: ServerToHostMessage.ReadMetadata,
         respondentId: number
     ) {
-        console.log('request for metadata with:', payload);
         const resourcePath = payload.resourcePath;
-        // const record = await findRecordByName(resourceId, undefined, true);
         const handle = await findHandle(resourcePath, isDirectoryPath(resourcePath));
-        log.info('received metadata request for', resourcePath);
 
         if (!handle) {
-            console.log(resourcePath, 'not found');
+            log.warn(`Could not find resource: ${resourcePath}`)
             await this.sendError(respondentId, 400, "resource not found");
             return;
         }
 
-        // const metadata = await readRecordIntoItem(record);
-        console.log('found');
-        const metadata = await readHandle(handle);
-        log.info('sent', metadata);
+        const metadata = await readHandle(handle, resourcePath);
         await this.sendMetadataResponse(respondentId, metadata);
+        log.debug(`Metadata for ${resourcePath} sent`);
     }
 
     private async sendHostAck(respondentId: number) {

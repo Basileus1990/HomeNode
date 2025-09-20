@@ -1,26 +1,24 @@
 import { type ClientToServerCommunication } from "../api";
-import { type Items, RecordKind } from "../../../../common/fs/types";
+import type { Item } from "~/common/newer-fs/types";
 
 
 export class HostWebSocketclient implements ClientToServerCommunication {
-    public static async getRecordItem(hostId: string, itemId: string): Promise<Items.RecordItem[]> {
+    public static async getRecordItem(hostId: string, itemId: string): Promise<Item[]> {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
                 resolve([
                     {
-                        recordName: "Lorem",
-                        contentName: "Ipsum",
-                        kind: RecordKind.file,
-                        dateShared: Date.now() + 1,
-                        lastModified: Date.now() - 1,
+                        name: "LoremIpsum.exe",
+                        path: "lorem/ipsum",
+                        kind: "file",
                         size: 999,
-                    } as Items.FileRecordItem,
+                    },
                     {
-                        recordName: "Dolor",
-                        contentName: "...",
-                        kind: RecordKind.directory,
-                        entriesNo: 1
-                    } as Items.DirectoryRecordItem,
+                        name: "Dolor",
+                        path: "a/b/c/",
+                        kind: "directory",
+                        size: 0,
+                    },
                 ]);
             }, 2000);
         });

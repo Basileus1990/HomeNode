@@ -1,6 +1,3 @@
-import { RecordHandle, FileRecordHandle } from "../../../common/fs/fs";
-import { readFromHandleAsync } from "../../../common/fs/service";
-
 /**
  * abstracts generating chunks from files / folders
  * only files supported for now

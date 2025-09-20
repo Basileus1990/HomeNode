@@ -1,8 +1,8 @@
 import type { FileWithPath } from "react-dropzone";
 
 import { getNewUUID } from "../service/id";
-// import { RecordKind, type RecordMetadata } from "../../common/fs/types";
 import type { EncryptionData } from "../../common/crypto";
+
 
 export async function prepareFilesForUpload(files: FileWithPath[], encryption?: EncryptionData) {
     const tree = rebuildTree(files, encryption);
@@ -10,26 +10,21 @@ export async function prepareFilesForUpload(files: FileWithPath[], encryption?: 
     return tree;
 }
 
-export interface RecordTreeNode {
+export interface TreeNode {
     name: string;
     // metadata: RecordMetadata;
-    children?: RecordTreeNode[];
+    children?: TreeNode[];
     file?: FileWithPath;
     kind: "directory" | "file";
 }
 
-export async function rebuildTree(files: FileWithPath[], encryption?: EncryptionData): Promise<RecordTreeNode> {
+export async function rebuildTree(files: FileWithPath[], encryption?: EncryptionData): Promise<TreeNode> {
     const dateNow = Date.now();
     const uploadId = getNewUUID();
-    const root: RecordTreeNode = { 
+    const root: TreeNode = { 
         name: uploadId, 
         children: [], 
         kind: "directory"
-        // metadata: {
-        //     contentName: "root",
-        //     dateShared: dateNow,
-        //     kind: RecordKind.directory,
-        // }
     };
 
     for (const file of files) {
@@ -48,12 +43,6 @@ export async function rebuildTree(files: FileWithPath[], encryption?: Encryption
                 // Add file node
                 current.children!.push({
                     name: file.name,
-                    // metadata: {
-                    //     contentName: part,
-                    //     dateShared: dateNow,
-                    //     kind: RecordKind.file,
-                    //     encryptionData: encryption
-                    // },
                     file: file,
                     kind: "file"
                 });
@@ -65,12 +54,6 @@ export async function rebuildTree(files: FileWithPath[], encryption?: Encryption
                 if (!dir) {
                     dir = {
                         name: part,
-                        // metadata: {
-                        //     contentName: part,
-                        //     dateShared: dateNow,
-                        //     kind: RecordKind.directory,
-                        //     encryptionData: encryption
-                        // },
                         children: [],
                         kind: "directory"
                     };

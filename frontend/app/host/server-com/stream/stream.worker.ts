@@ -1,14 +1,12 @@
 import log from "loglevel";
 
 import type { EncryptionData } from '../../../common/crypto';
-import { RecordHandle } from "../../../common/fs/fs";
 import type { CoordinatorToStreamWorker } from '../types';
 import { RecordChunker } from './chunker';
-// import { FSService } from '../../../common/fs/fs-service';
-import { findHandle, isDirectoryPath, getSize } from "~/common/newer-fs/api";
+import { findHandle, getSize } from "~/common/newer-fs/api";
+
 
 let streamId: number;     // id of this specific download stream
-let record: RecordHandle | null;   
 let chunker: RecordChunker;
 let chunkSize: number;
 let encryption: EncryptionData | undefined;
@@ -23,8 +21,7 @@ self.onmessage = async (e: MessageEvent<CoordinatorToStreamWorker>) => {
     if (msg.type === 'prepare') {
         streamId = msg.streamId;
 
-        // record = await FSService.findRecordByName(msg.resourcePath, undefined, true);
-        handle = await findHandle(msg.resourcePath, isDirectoryPath(msg.resourcePath));
+        handle = await findHandle(msg.resourcePath);
         if (!handle) {
             log.error(`StreamWorker #${streamId} did not find resource: ${msg.resourcePath}`);
             return;
