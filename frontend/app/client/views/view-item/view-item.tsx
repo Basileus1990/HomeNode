@@ -5,10 +5,13 @@ import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenatio
 
 
 export async function clientLoader({ params }: Route.LoaderArgs) {
-    if (!params.host_id || !params.item_id) {
-        throw new Error("Missing host_id or item_id in route parameters");
+    const { host_id, "*": path} = params;
+
+    if (!params.host_id) {
+        throw new Error("Missing host_id in route parameters");
     }
-    return HostWebSocketclient.getRecordItem(params.host_id, params.item_id);
+
+    return HostWebSocketclient.getRecordItem(host_id, path);
 }
 
 export default function ViewItem({ loaderData, params }: Route.ComponentProps) {

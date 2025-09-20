@@ -24,10 +24,10 @@ export namespace ServerToHostMessage {
         hostId: string;
     }
     export type ReadMetadata = {
-        resourceId: string;
+        resourcePath: string;
     }
     export type StartStream = {
-        resourceId: string;
+        resourcePath: string;
         chunkSize: number;
     }
     export type ChunkRequest = {
@@ -141,14 +141,18 @@ export class HMHostReader {
     }
 
     private static readMetadataRequest(data: ArrayBuffer): ServerToHostMessage.ReadMetadata {
-        return { resourceId: decodeUUID(data.slice(0, 16)) };
+        //return { resourcePath: decodeUUID(data.slice(0, 16)) };
+        const uploadId = decodeUUID(data.slice(0, 16));
+        const path = String.fromCharCode(...new Uint8Array(data.slice(16, -1)));
+        console.log('metadata request for', uploadId + path);
+        return { resourcePath: uploadId + path };
     }
 
     private static readStreamStartRequest(data: ArrayBuffer, useLittleEndian: boolean = false): ServerToHostMessage.StartStream {
         const resourceId = decodeUUID(data.slice(0, 16));
         const view = new DataView(data);
         const chunkSize = view.getUint32(16, useLittleEndian);
-        return { resourceId, chunkSize };
+        return { resourcePath: resourceId, chunkSize };
     }
 
     private static readChunkRequest(data: ArrayBuffer, useLittleEndian: boolean = false): ServerToHostMessage.ChunkRequest {

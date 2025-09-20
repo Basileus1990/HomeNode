@@ -1,11 +1,12 @@
 import log from "loglevel";
 
-import { findRecordByName, readRecordIntoItem } from "../../../common/fs/service";
+// import { findRecordByName, readRecordIntoItem } from "../../../common/fs/service";
 import { ServerToHostMessage } from '../message/readers';
 import { createStreamWorker as createStreamWorker } from './handle-stream-worker';
 import type { StreamWorkerRegistry } from "./stream-worker-registry";
 import { HMHostWriter, HostToServerMessage } from "../message/writers";
 import type { HomeNodeFrontendConfig } from "../../../config";
+import { findHandle, isDirectoryPath, readHandle } from "~/common/newer-fs/api";
 
 export class HostController {
     private _socket: WebSocket;
@@ -68,13 +69,14 @@ export class HostController {
         payload: ServerToHostMessage.StartStream,
         respondentId: number
     ) {
-        const resourceId = payload.resourceId;
+        const resourcePath = payload.resourcePath;
         const chunkSize = payload.chunkSize;
-        const record = await findRecordByName(resourceId, undefined, true);
-        log.debug('Host received download request for resource:', resourceId);
+        // const record = await findRecordByName(resourcePath, undefined, true);
+        const handle = await findHandle(resourcePath, isDirectoryPath(resourcePath));
+        log.debug('Host received download request for resource:', resourcePath);
 
-        if (!record) {
-            log.debug('Host couldn\'t find resource:', resourceId);
+        if (!handle) {
+            log.debug('Host couldn\'t find resource:', resourcePath);
             await this.sendError(respondentId, 400, "resource not found");
             return;
         }
@@ -84,12 +86,12 @@ export class HostController {
         this._streamWorkers.set(newStreamId, { worker: newWorker, lastActive: Date.now() });
         newWorker.postMessage({
             type: 'prepare',
-            resourceId,
+            resourceId: resourcePath,
             chunkSize,
             streamId: newStreamId,
             respondentId
         });
-        log.debug('Host started preparing for streaming resource:', resourceId);
+        log.debug('Host started preparing for streaming resource:', resourcePath);
         log.info('created worker');
     }
 
@@ -151,18 +153,23 @@ export class HostController {
         payload: ServerToHostMessage.ReadMetadata,
         respondentId: number
     ) {
-        const resourceId = payload.resourceId;
-        const record = await findRecordByName(resourceId, undefined, true);
-        log.info('received metadata request for', resourceId);
+        console.log('request for metadata with:', payload);
+        const resourcePath = payload.resourcePath;
+        // const record = await findRecordByName(resourceId, undefined, true);
+        const handle = await findHandle(resourcePath, isDirectoryPath(resourcePath));
+        log.info('received metadata request for', resourcePath);
 
-        if (!record) {
+        if (!handle) {
+            console.log(resourcePath, 'not found');
             await this.sendError(respondentId, 400, "resource not found");
             return;
         }
 
-        const metadata = await readRecordIntoItem(record);
-        await this.sendMetadataResponse(respondentId, metadata);
+        // const metadata = await readRecordIntoItem(record);
+        console.log('found');
+        const metadata = await readHandle(handle);
         log.info('sent', metadata);
+        await this.sendMetadataResponse(respondentId, metadata);
     }
 
     private async sendHostAck(respondentId: number) {
@@ -179,7 +186,7 @@ export class HostController {
             respondentId,
             HostToServerMessage.Types.MetadataResponse,
             this._config,
-            { record: metadata }
+            { item: metadata }
         );
         this._socket.send(response);
     }

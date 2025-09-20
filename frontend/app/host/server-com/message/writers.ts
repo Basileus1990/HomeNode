@@ -1,7 +1,8 @@
 import { FlagService, encodePerJson, encodeUUID } from "../../../common/server-com/binary";
 import { type EncryptionData, encryptBuffer } from "../../../common/crypto";
-import { type Items } from "../../../common/fs/types";
+// import { type Items } from "../../../common/fs/types";
 import { type HomeNodeFrontendConfig } from "../../../config";
+import type { Item } from "~/common/newer-fs/types";
 
 
 export namespace HostToServerMessage {
@@ -22,7 +23,8 @@ export namespace HostToServerMessage {
         hostId: string;
     }
     export type Metadata = {
-        record: Items.RecordItem[];
+        // record: Items.RecordItem[];
+        item: Item
         encryption?: EncryptionData;
     }
     export type StartStream = {
@@ -132,7 +134,7 @@ export class HMHostWriter {
     }
 
     private static async writeMetadataResponse(data: HostToServerMessage.Metadata, config: HomeNodeFrontendConfig) {
-        let encodedMetadata = encodePerJson(data.record);
+        let encodedMetadata = encodePerJson(data.item);
         let buffer;
         let metadataIndex = 1;
         let flags = 0;

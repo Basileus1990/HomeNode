@@ -13,11 +13,9 @@ export class RecordChunker {
     }
 
     // factory method dance, because we can't have async constructor, but don't want uninitialized objects laying around
-    public static async createChunker(record: RecordHandle, chunkSize: number) {
-        if (record.getKind() === "file") {
-            const fileRecord = await readFromHandleAsync(record.getUnderlayingHandle()) as FileRecordHandle;
-            const fileHandle = await fileRecord.getHandle();
-            const file = await fileHandle.getFile();
+    public static async createChunker(handle: FileSystemHandle, chunkSize: number) {
+        if (handle.kind === "file") {
+            const file = await (handle as FileSystemFileHandle).getFile();
             return new RecordChunker(new FileRecordChunker(file, chunkSize));
         } else {
             throw new Error("Not implemented");

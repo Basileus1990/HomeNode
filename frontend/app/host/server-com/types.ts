@@ -5,7 +5,7 @@ export interface PrepareStreamMessage {
   type: "prepare";
   respondentId: number;
   streamId: number;
-  resourceId: string;
+  resourcePath: string;
   chunkSize: number;
 }
 
