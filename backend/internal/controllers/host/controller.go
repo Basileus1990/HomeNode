@@ -2,6 +2,9 @@ package host
 
 import (
 	"errors"
+	"log"
+	"net/http"
+
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/message_types"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_errors"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/host"
@@ -11,8 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"log"
-	"net/http"
 )
 
 type Controller struct {
@@ -25,7 +26,9 @@ type Controller struct {
 func (c *Controller) SetUpRoutes(group *gin.RouterGroup) {
 	group.GET("connect", c.HostConnect)
 	group.GET("metadata/:hostUuid/:resourceUuid/*pathToResource", c.GetResourceMetadata)
+	group.GET("metadata/:hostUuid/:resourceUuid", c.GetResourceMetadata)
 	group.GET("download/:hostUuid/:resourceUuid/*pathToResource", c.DownloadResource)
+	group.GET("download/:hostUuid/:resourceUuid", c.DownloadResource)
 }
 
 // HostConnect
