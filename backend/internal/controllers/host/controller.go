@@ -2,6 +2,9 @@ package host
 
 import (
 	"errors"
+	"log"
+	"net/http"
+
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/message_types"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_errors"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/host"
@@ -11,9 +14,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"log"
-	"net/http"
 )
+
+const hostKeyHeaderKey = "host-key"
 
 type Controller struct {
 	HostMap           hostmap.HostMap
@@ -41,7 +44,40 @@ func (c *Controller) HostConnect(ctx *gin.Context) {
 		return
 	}
 
-	hostId := c.HostMap.Add(ws)
+	hostId := c.HostMap.AddNew(ws)
+
+	err = c.HostService.InitialiseNewHostConnection(hostId)
+	if err != nil {
+		log.Printf("Error during initialisation of a new connection: %v\n", err)
+	}
+}
+
+// HostReconnect
+//
+// Method: GET
+// Path: /api/v1/host/reconnect/{hostUuid}
+// Required header: host-key
+func (c *Controller) HostReconnect(ctx *gin.Context) {
+	upgrader := c.upgrader()
+
+	ws, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+	if err != nil {
+		log.Println("Failed to upgrade to websocket:", err)
+		return
+	}
+
+	hostKey := ctx.GetHeader(hostKeyHeaderKey)
+	if len(hostKey) == 0 {
+		errorMsg := message_types.Error.Binary()
+		errorMsg = append(errorMsg, ws_errors.MissingRequiredHeader.Binary()...)
+		err = ws.WriteMessage(websocket.BinaryMessage, errorMsg)
+		if err != nil {
+			log.Println("Failed to write Missing Required Header message:", err)
+		}
+		return
+	}
+
+	hostId := c.HostMap.AddNew(ws)
 
 	err = c.HostService.InitialiseNewHostConnection(hostId)
 	if err != nil {

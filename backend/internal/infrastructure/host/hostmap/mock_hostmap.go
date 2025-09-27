@@ -11,7 +11,7 @@ type MockHostMap struct {
 	mock.Mock
 }
 
-func (m *MockHostMap) Add(conn *websocket.Conn) uuid.UUID {
+func (m *MockHostMap) AddNew(conn *websocket.Conn) uuid.UUID {
 	args := m.Called(conn)
 	return args.Get(0).(uuid.UUID)
 }

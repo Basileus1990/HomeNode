@@ -16,4 +16,5 @@ const (
 	InvalidUrlParams      WebsocketErrorCode = 4
 	InvalidMessageBody    WebsocketErrorCode = 5
 	UnexpectedMessageType WebsocketErrorCode = 6
+	MissingRequiredHeader WebsocketErrorCode = 7
 )

@@ -3,13 +3,14 @@ package app
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/config"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/host"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/ping"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/app/appcontainer"
 	"github.com/gin-gonic/gin"
-	"net/http"
-	"strings"
 )
 
 const frontendBuildLocation = "../frontend/build/client/"
@@ -38,6 +39,7 @@ func (s *Server) ListenAndServe() error {
 }
 
 func (s *Server) setUpRoutes() *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 
 	api := router.Group("api")

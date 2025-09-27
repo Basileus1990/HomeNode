@@ -2,16 +2,18 @@ package hostmap
 
 import (
 	"context"
-	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostconn"
 	"log"
 	"sync"
+
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostconn"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
 type HostMap interface {
-	Add(conn *websocket.Conn) uuid.UUID
+	AddNew(conn *websocket.Conn) uuid.UUID
+	AddExisting(conn *websocket.Conn, id uuid.UUID, hostKey string) uuid.UUID
 	Remove(id uuid.UUID)
 	Get(id uuid.UUID) (hostconn.HostConn, bool)
 }
@@ -35,7 +37,7 @@ func NewDefaultHostMap(ctx context.Context, hostConnFactory hostconn.HostConnFac
 	}
 }
 
-func (h *defaultHostMap) Add(conn *websocket.Conn) uuid.UUID {
+func (h *defaultHostMap) AddNew(conn *websocket.Conn) uuid.UUID {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -54,6 +56,12 @@ func (h *defaultHostMap) Add(conn *websocket.Conn) uuid.UUID {
 
 	log.Printf("new host \"%v\" has connected\n", id)
 	return id
+}
+
+func (h *defaultHostMap) AddExisting(conn *websocket.Conn, id uuid.UUID, hostKey string) uuid.UUID {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 }
 
 func (h *defaultHostMap) Remove(id uuid.UUID) {

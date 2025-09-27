@@ -3,6 +3,12 @@ package db
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 )
 
 type SqlDatabaseInterface interface {
@@ -21,12 +27,28 @@ type SqlDatabase struct {
 
 var _ SqlDatabaseInterface = &SqlDatabase{}
 
-func NewSqlDatabase(driverName string, dataSourceName string) (SqlDatabaseInterface, error) {
+func NewSqlDatabase(ctx context.Context, driverName string, dataSourceName string, migrationsPath string) (SqlDatabaseInterface, error) {
+	directories := filepath.Dir(dataSourceName)
+	err := os.MkdirAll(directories, 0755)
+	if err != nil {
+		return nil, err
+	}
+
 	db, err := sql.Open(driverName, dataSourceName)
 	if err != nil {
 		return nil, err
 	}
-	return &SqlDatabase{db: db}, err
+
+	dbConn := SqlDatabase{db: db}
+
+	if !dbConn.databaseExists(dataSourceName) {
+		err = dbConn.runMigrations(ctx, migrationsPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &dbConn, nil
 }
 
 func (s *SqlDatabase) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
@@ -55,4 +77,49 @@ func (s *SqlDatabase) PingContext(ctx context.Context) error {
 
 func (s *SqlDatabase) Close() error {
 	return s.db.Close()
+}
+
+func (s *SqlDatabase) databaseExists(dataSourceName string) bool {
+	// For sqlite we check if db file exists
+	_, err := os.Stat(dataSourceName)
+	return !os.IsNotExist(err)
+}
+
+func (s *SqlDatabase) runMigrations(ctx context.Context, migrationsPath string) error {
+	log.Println("Running migrations")
+
+	files, err := os.ReadDir(migrationsPath)
+	if err != nil {
+		return err
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].Name() < files[j].Name()
+	})
+
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), ".sql") {
+			err = s.runSingleMigration(ctx, file, migrationsPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *SqlDatabase) runSingleMigration(ctx context.Context, file os.DirEntry, migrationsPath string) error {
+	sqlBytes, err := os.ReadFile(filepath.Join(migrationsPath, file.Name()))
+	if err != nil {
+		return err
+	}
+
+	query := string(sqlBytes)
+	if _, err = s.ExecContext(ctx, query); err != nil {
+		return fmt.Errorf("error running migration %s: %w", file.Name(), err)
+	}
+
+	log.Println("Applied migration:", file.Name())
+	return nil
 }
