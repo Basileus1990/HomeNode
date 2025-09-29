@@ -10,7 +10,6 @@ import (
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/host"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/app/config"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/client/clientconn"
-	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostmap"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -19,7 +18,6 @@ import (
 const hostKeyHeaderKey = "host-key"
 
 type Controller struct {
-	HostMap           hostmap.HostMap
 	HostService       host.HostService
 	WebsocketCfg      config.WebsocketCfg
 	ClientConnFactory clientconn.ClientConnFactory
@@ -44,10 +42,20 @@ func (c *Controller) HostConnect(ctx *gin.Context) {
 		return
 	}
 
-	hostId := c.HostMap.AddNew(ws)
-
-	err = c.HostService.InitialiseNewHostConnection(hostId)
+	err = c.HostService.InitNewHostConnection(ctx.Request.Context(), ws)
 	if err != nil {
+		if errors.Is(err, &ws_errors.WebsocketError{}) {
+			errorMsg := message_types.Error.Binary()
+			errorMsg = append(errorMsg, err.(ws_errors.WebsocketError).Code().Binary()...)
+			err = ws.WriteMessage(websocket.BinaryMessage, errorMsg)
+			if err != nil {
+				log.Println("Failed to write Invalid Url Params message:", err)
+			}
+
+			_ = ws.Close()
+			return
+		}
+
 		log.Printf("Error during initialisation of a new connection: %v\n", err)
 	}
 }
@@ -69,19 +77,44 @@ func (c *Controller) HostReconnect(ctx *gin.Context) {
 	hostKey := ctx.GetHeader(hostKeyHeaderKey)
 	if len(hostKey) == 0 {
 		errorMsg := message_types.Error.Binary()
-		errorMsg = append(errorMsg, ws_errors.MissingRequiredHeader.Binary()...)
+		errorMsg = append(errorMsg, ws_errors.MissingRequiredHeaders.Binary()...)
 		err = ws.WriteMessage(websocket.BinaryMessage, errorMsg)
 		if err != nil {
 			log.Println("Failed to write Missing Required Header message:", err)
 		}
+
+		_ = ws.Close()
 		return
 	}
 
-	hostId := c.HostMap.AddNew(ws)
+	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))
+	if hostErr != nil {
+		errorMsg := message_types.Error.Binary()
+		errorMsg = append(errorMsg, ws_errors.InvalidUrlParams.Binary()...)
+		err = ws.WriteMessage(websocket.BinaryMessage, errorMsg)
+		if err != nil {
+			log.Println("Failed to write Invalid Url Params message:", err)
+		}
 
-	err = c.HostService.InitialiseNewHostConnection(hostId)
+		_ = ws.Close()
+		return
+	}
+
+	err = c.HostService.InitExistingHostConnection(ctx.Request.Context(), ws, hostID, hostKey)
 	if err != nil {
-		log.Printf("Error during initialisation of a new connection: %v\n", err)
+		if errors.Is(err, &ws_errors.WebsocketError{}) {
+			errorMsg := message_types.Error.Binary()
+			errorMsg = append(errorMsg, err.(ws_errors.WebsocketError).Code().Binary()...)
+			err = ws.WriteMessage(websocket.BinaryMessage, errorMsg)
+			if err != nil {
+				log.Println("Failed to write Invalid Url Params message:", err)
+			}
+
+			_ = ws.Close()
+			return
+		}
+
+		log.Printf("Error during initialisation of an existing connection: %v\n", err)
 	}
 }
 

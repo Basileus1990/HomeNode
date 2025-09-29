@@ -11,9 +11,17 @@ type MockHostMap struct {
 	mock.Mock
 }
 
-func (m *MockHostMap) AddNew(conn *websocket.Conn) uuid.UUID {
-	args := m.Called(conn)
+func (m *MockHostMap) AddNew(ws *websocket.Conn) uuid.UUID {
+	args := m.Called(ws)
 	return args.Get(0).(uuid.UUID)
+}
+
+func (m *MockHostMap) Add(ws *websocket.Conn, id uuid.UUID) error {
+	args := m.Called(ws, id)
+	if args.Get(0) != nil {
+		return args.Get(0).(error)
+	}
+	return nil
 }
 
 func (m *MockHostMap) Remove(id uuid.UUID) {

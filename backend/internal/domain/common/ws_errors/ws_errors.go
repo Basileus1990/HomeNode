@@ -37,3 +37,13 @@ var UnexpectedMessageTypeErr = WebsocketError{
 	code: UnexpectedMessageType,
 	msg:  "unexpected message type error",
 }
+
+var HostAlreadyConnectedErr = WebsocketError{
+	code: HostAlreadyConnected,
+	msg:  "host already connected",
+}
+
+var InvalidHostKeyErr = WebsocketError{
+	code: InvalidHostKey,
+	msg:  "invalid host key error",
+}

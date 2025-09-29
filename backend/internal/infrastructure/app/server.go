@@ -55,7 +55,6 @@ func (s *Server) setUpRoutes() *gin.Engine {
 
 	hostGroup := v1.Group("host")
 	hostConnectController := host.Controller{
-		HostMap:           s.container.HostMap,
 		HostService:       s.container.HostService,
 		WebsocketCfg:      s.container.Config.Websocket,
 		ClientConnFactory: s.container.ClientConnFactory,

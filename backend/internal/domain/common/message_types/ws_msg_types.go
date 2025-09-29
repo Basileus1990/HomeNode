@@ -25,6 +25,7 @@ const (
 	ChunkResponse             WebsocketMessageType = 8
 	EofResponse               WebsocketMessageType = 9
 	DownloadCompletionRequest WebsocketMessageType = 10
+	InitExistingHost          WebsocketMessageType = 11
 )
 
 func GetMsgType(msg []byte) (WebsocketMessageType, error) {

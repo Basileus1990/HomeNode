@@ -26,6 +26,6 @@ func main() {
 		log.Fatal("Exited the app with an error: ", err)
 	}
 
-	// TODO: AddNew a graceful shutdown
+	// TODO: AddOrRenew a graceful shutdown
 	fmt.Println("\nExited successfully")
 }

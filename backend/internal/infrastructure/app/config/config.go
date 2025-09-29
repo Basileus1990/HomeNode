@@ -38,10 +38,15 @@ type FrontendCfg struct {
 	SaltBytes        int `env:"FRONTEND_SALT_BYTES" json:"salt_bytes"`
 }
 
+type SavedConnectionsCfg struct {
+	ValidForInDays int `env:"SAVED_CONNECTIONS_VALID_FOR_DAYS"`
+}
+
 type Config struct {
-	Server    ServerCfg
-	Websocket WebsocketCfg
-	Frontend  FrontendCfg
+	Server           ServerCfg
+	Websocket        WebsocketCfg
+	Frontend         FrontendCfg
+	SavedConnections SavedConnectionsCfg
 }
 
 var cfg *Config
