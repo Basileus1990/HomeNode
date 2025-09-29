@@ -184,10 +184,6 @@ export async function readHandle(handle: FileSystemHandle, path?: string): Promi
 export async function removeHandle(path: string) {
     const root = await getStorageRoot();
 
-    if (!path.startsWith("/")) {
-      throw new Error("Path must be absolute and start with /");
-    }
-
     const parts = path.split("/").filter(Boolean);
 
     let current: FileSystemDirectoryHandle | FileSystemFileHandle = root;

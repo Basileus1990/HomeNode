@@ -13,7 +13,7 @@ export default [
     ...prefix("host", [
         layout("./host/views/layout.tsx", [
             index("./host/views/main/main.tsx"),  // default view - share new item or view shared items
-            route("share", "./host/views/share-new/share.tsx"), // share new item
+            route("share/*", "./host/views/share-new/share.tsx"), // share new item
             route("shared/*", "./host/views/shared-list/shared-list.tsx"),  // view shared items
         ]),
     ]),
