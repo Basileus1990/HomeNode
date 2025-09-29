@@ -1,46 +1,30 @@
-import type { FileWithPath } from "react-dropzone";
+import log from "loglevel";
 
-import { prepareFilesForUpload, type TreeNode } from "./prepare-files";
-import type { FileUploaderWorkerFilePayload } from "./types";
+import { createFileTree, mapPathsBackToFiles, rebuildFileTree } from "./prepare-files";
+import type { UIToUploaderMessages } from "./types";
+import { getStorageRoot } from "~/common/newer-fs/api";
 
 
-self.onmessage = async (event) => {
-    const { type, payload, msg, encryption } = event.data;
+self.onmessage = async (event: MessageEvent<UIToUploaderMessages>) => {
+    const { type, files, encryption } = event.data;
 
-    if (type === "upload") {
-        const files = rebuildPayload(payload);
-        const tree = await prepareFilesForUpload(files, encryption);
-        const root = await navigator.storage.getDirectory();
+    if (type === "start") {
+        const filesWithPaths = mapPathsBackToFiles(files);
+        const tree = await rebuildFileTree(filesWithPaths, encryption);
+
         try {
-            const treeRoot = await root.getDirectoryHandle(tree.name, { create: true });
-            await createRecordsFromTree(tree, treeRoot);
-            console.log("Saved record tree:", tree);
-            self.postMessage({ type: "uploadComplete" });
+            let root = event.data.root;
+            const opfsRoot = await getStorageRoot();
+            if (!root || (await opfsRoot.isSameEntry(root))) {
+                root = await opfsRoot.getDirectoryHandle(tree.name, { create: true });
+            }
+
+            await createFileTree(tree, root);
+            log.debug("Saved record tree:", tree);
+            self.postMessage({ type: "complete" , msg: "All files uploaded successfully" });
         } catch (error) {
-            console.error("Error creating records:", error);
-            self.postMessage({ type: "uploadError", error: error });
-        }
-    }
-}
-
-function rebuildPayload(payload: FileUploaderWorkerFilePayload[]): FileWithPath[] {
-    return payload.map(item => {
-        return Object.assign(item.file, { path: item.path, relativePath: item.relativePath }) as FileWithPath;
-    });
-}
-
-async function createRecordsFromTree(tree: TreeNode, dir: FileSystemDirectoryHandle): Promise<void> {
-    for (const child of tree.children!) {
-        if (child.kind === "file") {
-            const fileHandle = await dir.getFileHandle(child.name, { create: true });
-            const accessHandle = await fileHandle.createSyncAccessHandle(); // Using FileSystemSyncAccessHandle to write file for compatility with Safari
-            const arrayBuffer = await child.file!.arrayBuffer();
-            accessHandle.write(arrayBuffer);
-            accessHandle.flush();
-            accessHandle.close();
-        } else if (child.kind === "directory") {
-            const dirHandle = await dir.getDirectoryHandle(child.name, { create: true });
-            await createRecordsFromTree(child, dirHandle);
+            log.warn("Error creating records:", error);
+            self.postMessage({ type: "fail", msg: error });
         }
     }
 }
