@@ -36,7 +36,7 @@ func NewContainer(ctx context.Context) (*Container, error) {
 	}
 	cfg := config.Get()
 
-	database, err := db.NewSqlDatabase(ctx, sqlDriver, dataSourcePath, migrationsPath)
+	database, err := db.NewSqlDatabase(ctx, cfg.Database.SqlDriver, cfg.Database.DataSourcePath, cfg.Database.MigrationsPath)
 	savedConnectionsRepository := saved_connections_repository.NewSavedConnectionsRepository(
 		database,
 		cfg.SavedConnections,

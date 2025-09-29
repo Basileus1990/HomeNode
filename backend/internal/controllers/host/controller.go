@@ -25,6 +25,7 @@ type Controller struct {
 
 func (c *Controller) SetUpRoutes(group *gin.RouterGroup) {
 	group.GET("connect", c.HostConnect)
+	group.GET("reconnect/:hostUuid", c.HostConnect)
 	group.GET(":hostUuid/:resourceUuid/metadata", c.GetResourceMetadata)
 	group.GET(":hostUuid/:resourceUuid/download", c.DownloadResource)
 }
@@ -44,19 +45,7 @@ func (c *Controller) HostConnect(ctx *gin.Context) {
 
 	err = c.HostService.InitNewHostConnection(ctx.Request.Context(), ws)
 	if err != nil {
-		if errors.Is(err, &ws_errors.WebsocketError{}) {
-			errorMsg := message_types.Error.Binary()
-			errorMsg = append(errorMsg, err.(ws_errors.WebsocketError).Code().Binary()...)
-			err = ws.WriteMessage(websocket.BinaryMessage, errorMsg)
-			if err != nil {
-				log.Println("Failed to write Invalid Url Params message:", err)
-			}
-
-			_ = ws.Close()
-			return
-		}
-
-		log.Printf("Error during initialisation of a new connection: %v\n", err)
+		c.handleConnectionInitError(err, ws)
 	}
 }
 
@@ -76,45 +65,17 @@ func (c *Controller) HostReconnect(ctx *gin.Context) {
 
 	hostKey := ctx.GetHeader(hostKeyHeaderKey)
 	if len(hostKey) == 0 {
-		errorMsg := message_types.Error.Binary()
-		errorMsg = append(errorMsg, ws_errors.MissingRequiredHeaders.Binary()...)
-		err = ws.WriteMessage(websocket.BinaryMessage, errorMsg)
-		if err != nil {
-			log.Println("Failed to write Missing Required Header message:", err)
-		}
-
-		_ = ws.Close()
-		return
+		c.handleConnectionInitError(ws_errors.MissingRequiredHeadersErr, ws)
 	}
 
 	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))
 	if hostErr != nil {
-		errorMsg := message_types.Error.Binary()
-		errorMsg = append(errorMsg, ws_errors.InvalidUrlParams.Binary()...)
-		err = ws.WriteMessage(websocket.BinaryMessage, errorMsg)
-		if err != nil {
-			log.Println("Failed to write Invalid Url Params message:", err)
-		}
-
-		_ = ws.Close()
-		return
+		c.handleConnectionInitError(ws_errors.InvalidUrlParamsErr, ws)
 	}
 
 	err = c.HostService.InitExistingHostConnection(ctx.Request.Context(), ws, hostID, hostKey)
 	if err != nil {
-		if errors.Is(err, &ws_errors.WebsocketError{}) {
-			errorMsg := message_types.Error.Binary()
-			errorMsg = append(errorMsg, err.(ws_errors.WebsocketError).Code().Binary()...)
-			err = ws.WriteMessage(websocket.BinaryMessage, errorMsg)
-			if err != nil {
-				log.Println("Failed to write Invalid Url Params message:", err)
-			}
-
-			_ = ws.Close()
-			return
-		}
-
-		log.Printf("Error during initialisation of an existing connection: %v\n", err)
+		c.handleConnectionInitError(err, ws)
 	}
 }
 
@@ -199,4 +160,19 @@ func (c *Controller) upgrader() websocket.Upgrader {
 			return true
 		},
 	}
+}
+
+func (c *Controller) handleConnectionInitError(err error, ws *websocket.Conn) {
+	if errors.Is(err, &ws_errors.WebsocketError{}) {
+		errorMsg := message_types.Error.Binary()
+		errorMsg = append(errorMsg, err.(ws_errors.WebsocketError).Code().Binary()...)
+		err = ws.WriteMessage(websocket.BinaryMessage, errorMsg)
+		if err != nil {
+			log.Printf("Failed to write %s message: %v\n", err.(ws_errors.WebsocketError).Error(), err)
+		}
+
+	}
+
+	_ = ws.Close()
+	log.Printf("Error during initialisation of a connection: %v\n", err)
 }

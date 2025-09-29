@@ -42,11 +42,18 @@ type SavedConnectionsCfg struct {
 	ValidForInDays int `env:"SAVED_CONNECTIONS_VALID_FOR_DAYS"`
 }
 
+type DatabaseCfg struct {
+	SqlDriver      string `env:"DATABASE_DRIVER"`
+	DataSourcePath string `env:"DATABASE_DATASOURCE_PATH"`
+	MigrationsPath string `env:"DATABASE_MIGRATIONS_PATH"`
+}
+
 type Config struct {
 	Server           ServerCfg
 	Websocket        WebsocketCfg
 	Frontend         FrontendCfg
 	SavedConnections SavedConnectionsCfg
+	Database         DatabaseCfg
 }
 
 var cfg *Config

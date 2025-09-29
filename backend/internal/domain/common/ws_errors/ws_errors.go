@@ -33,9 +33,19 @@ var InvalidMessageBodyErr = WebsocketError{
 	msg:  "invalid message body error",
 }
 
+var InvalidUrlParamsErr = WebsocketError{
+	code: InvalidUrlParams,
+	msg:  "invalid url params error",
+}
+
 var UnexpectedMessageTypeErr = WebsocketError{
 	code: UnexpectedMessageType,
 	msg:  "unexpected message type error",
+}
+
+var MissingRequiredHeadersErr = WebsocketError{
+	code: MissingRequiredHeaders,
+	msg:  "missing required headers",
 }
 
 var HostAlreadyConnectedErr = WebsocketError{
