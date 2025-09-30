@@ -15,7 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const hostKeyHeaderKey = "host-key"
+const hostKeyQueryParam = "hostKey"
 
 type Controller struct {
 	HostService       host.HostService
@@ -52,8 +52,7 @@ func (c *Controller) HostConnect(ctx *gin.Context) {
 // HostReconnect
 //
 // Method: GET
-// Path: /api/v1/host/reconnect/{hostUuid}
-// Required header: host-key
+// Path: /api/v1/host/reconnect/{hostUuid}?hostKey={key}
 func (c *Controller) HostReconnect(ctx *gin.Context) {
 	upgrader := c.upgrader()
 
@@ -63,9 +62,9 @@ func (c *Controller) HostReconnect(ctx *gin.Context) {
 		return
 	}
 
-	hostKey := ctx.GetHeader(hostKeyHeaderKey)
-	if len(hostKey) == 0 {
-		c.handleConnectionInitError(ws_errors.MissingRequiredHeadersErr, ws)
+	hostKey, ok := ctx.GetQuery(hostKeyQueryParam)
+	if !ok || len(hostKey) == 0 {
+		c.handleConnectionInitError(ws_errors.MissingRequiredParamsErr, ws)
 	}
 
 	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))
