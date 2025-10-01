@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
@@ -49,7 +48,7 @@ func (ts *testServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Fatalf("error on reading message: %v", err)
+			return
 		}
 
 		if len(message) < 4 {
@@ -310,7 +309,7 @@ func TestInvalidResponse(t *testing.T) {
 
 	_, err = hostConn.QueryWithTimeout(2*time.Second, []byte("test"))
 	require.Error(t, err)
-	assert.EqualError(t, err, "invalid host response body error")
+	assert.EqualError(t, err, "invalid message body error")
 }
 
 func TestQueryAfterContextCancel(t *testing.T) {

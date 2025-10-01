@@ -10,3 +10,4 @@
 - 8: Chunk Response
 - 9: EOF Response
 - 10: Download Completion Request
+- 11: Init existing host
