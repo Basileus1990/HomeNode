@@ -14,6 +14,7 @@ export class HostController {
     private _streamWorkers: StreamWorkerRegistry;
     private _postMessage: (message: any) => void;
     private _streamCounter = 0;
+    private _connectionStatus: "connected" | "disconncted" = "disconncted";
 
     constructor(
         socket: WebSocket,
@@ -53,6 +54,9 @@ export class HostController {
                 break;
             case ServerToHostMessage.Types.DownloadCompletionRequest:
                 this.handleDownloadCompletionRequest(payload as ServerToHostMessage.DownloadCompletion, respondentId);
+                break;
+            case ServerToHostMessage.Types.InitWithExistingHost:
+                this.handleInitWithExistingHost(respondentId);
                 break;
             default:
                 log.trace("Host received unknown message type:", typeNo, "with payload:", payload);
@@ -138,14 +142,23 @@ export class HostController {
         payload: ServerToHostMessage.NewHostIdGrant,
         respondentId: number
     ) {
+        if (this._connectionStatus === "connected") {
+            log.warn("Host already connected, ignoring another new HostId grant");
+            return;
+        }
+
         const hostId = payload.hostId;
+        const hostKey = payload.hostKey;
+
 
         this._postMessage({
             type: "hostId",
-            hostId
+            hostId,
+            hostKey
         });
 
         await this.sendHostAck(respondentId);
+        this._connectionStatus = "connected";
     }
 
     private async handleMetadataQuery(
@@ -164,6 +177,19 @@ export class HostController {
         const metadata = await readHandle(handle, resourcePath);
         await this.sendMetadataResponse(respondentId, metadata);
         log.debug(`Metadata for ${resourcePath} sent`);
+    }
+
+    private async handleInitWithExistingHost(
+        respondentId: number
+    ) {
+        if (this._connectionStatus === "connected") {
+            log.warn("Host already connected, ignoring another reconnect message");
+            return;
+        }
+
+        log.debug("Host reconnected");
+        await this.sendHostAck(respondentId);
+        this._connectionStatus = "connected";
     }
 
     private async sendHostAck(respondentId: number) {

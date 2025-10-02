@@ -11,6 +11,7 @@ export namespace ServerToHostMessage {
         DownloadInitRequest = 5,
         ChunkRequest = 7,
         DownloadCompletionRequest = 10,
+        InitWithExistingHost = 11
     }
 
     export type ServerError = {
@@ -21,7 +22,8 @@ export namespace ServerToHostMessage {
         ack: boolean;
     }
     export type NewHostIdGrant = {
-        hostId: string;
+        hostId: string; // UUID really
+        hostKey: string;
     }
     export type ReadMetadata = {
         resourcePath: string;
@@ -40,6 +42,8 @@ export namespace ServerToHostMessage {
     export type DownloadCompletion = {
         streamId: number;
     }
+    export type ExistingHostInit = {
+    }
 
     export type Contents =
       | ServerError
@@ -50,6 +54,7 @@ export namespace ServerToHostMessage {
       | ChunkRequest
       | EndStream
       | DownloadCompletion
+      | ExistingHostInit
 }
 
 export type HMHostReaderOut = { 
@@ -108,6 +113,8 @@ export class HMHostReader {
                     return this.readChunkRequest(data, useLittleEndian);
                 case ServerToHostMessage.Types.DownloadCompletionRequest:
                     return this.readEndStreamRequest(data, useLittleEndian);
+                case ServerToHostMessage.Types.InitWithExistingHost:
+                    return {};
                 default:
                     return null;
             }
@@ -137,7 +144,10 @@ export class HMHostReader {
     }
 
     private static readNewHostIDGrant(data: ArrayBuffer): ServerToHostMessage.NewHostIdGrant {
-        return { hostId: decodeUUID(data.slice(0, 16)) };
+        const hostId = decodeUUID(data.slice(0, 16));
+        const decoder = new TextDecoder();
+        const hostKey = decoder.decode(data.slice(16, -1));
+        return { hostId, hostKey };
     }
 
     private static readMetadataRequest(data: ArrayBuffer): ServerToHostMessage.ReadMetadata {
