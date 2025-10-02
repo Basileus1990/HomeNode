@@ -20,7 +20,7 @@ export class HostWebSocketclient implements ClientToServerCommunication {
     public static async getRecordItem(hostId: string, path: string): Promise<Item[]> {
         const config = await getConfig();
         const url = WebSocketServerEndpointService.getMetadataEndpointURL(hostId, path, config);
-        console.log(url, url.at(-1));
+        
         return new Promise((resolve, reject) => {            
             const socket = new WebSocket(url);
             socket.binaryType = "arraybuffer";
@@ -45,7 +45,6 @@ export class HostWebSocketclient implements ClientToServerCommunication {
                         return;
                     }
 
-                    console.log(msg.payload);
                     resolve(msg.payload);
                 } catch (error) {
                     reject(new Error(`Error reading message: ${error}`));
