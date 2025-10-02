@@ -1,5 +1,5 @@
 //import type { Items } from "../fs/types";
-import type { Item } from "../newer-fs/types";
+import type { Item } from "../fs/types";
 
 export default function FileRecordListItem({rec, children}: {rec: Item, children?: React.ReactNode}) {
     return (

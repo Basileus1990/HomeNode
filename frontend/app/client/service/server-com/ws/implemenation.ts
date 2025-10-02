@@ -4,7 +4,7 @@ import log from "loglevel";
 
 import type{ ClientToServerCommunication } from "../api";
 import type{ FromDownloader } from "./stream/types";
-import type { Item } from "~/common/newer-fs/types";
+import type { Item } from "~/common/fs/types";
 import { SocketToClientMessageTypes, HMClientReader } from "./message/readers";
 import { WebSocketServerEndpointService } from "./endpoints";
 import { getConfig } from "../../../../config";

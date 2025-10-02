@@ -3,7 +3,7 @@ import log from "loglevel";
 import type { EncryptionData } from "../../../common/crypto";
 import type { CoordinatorToStreamWorker } from "../types";
 import { RecordChunker } from "./chunker";
-import { findHandle, getSize } from "~/common/newer-fs/api";
+import { findHandle, getSize } from "~/common/fs/api";
 
 
 let streamId: number;     // id of this specific download stream

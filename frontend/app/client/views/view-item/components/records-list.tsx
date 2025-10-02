@@ -4,7 +4,7 @@ import { useState } from "react";
 import FileRecordListItem from "~/common/components/file-record-listitem.js";
 import DirectoryRecordListItem from "~/common/components/directory-record-listitem.js";
 import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenation.js"
-import type { Item } from "~/common/newer-fs/types";
+import type { Item } from "~/common/fs/types";
 
 export default function RecordsList({records, hostId}: 
     {records: Item[], hostId: string}) {

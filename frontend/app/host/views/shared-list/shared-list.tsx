@@ -3,7 +3,7 @@ import { useRevalidator } from "react-router";
 import log from "loglevel";
 
 import RecordsList from "./components/records-list";
-import { findHandle, getStorageRoot, removeHandle, purgeStorage, readHandle } from "~/common/newer-fs/api";
+import { findHandle, getStorageRoot, removeHandle, purgeStorage, readHandle } from "~/common/fs/api";
 
 
 export async function clientLoader({ params }: Route.LoaderArgs) {

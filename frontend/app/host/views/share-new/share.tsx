@@ -2,7 +2,7 @@ import type { Route } from ".react-router/types/app/host/views/share-new/+types/
 import log from "loglevel";
 
 import Uploader from "./components/uploader";
-import { getStorageRoot, findHandle } from "~/common/newer-fs/api";
+import { getStorageRoot, findHandle } from "~/common/fs/api";
 
 
 export async function clientLoader({ params }: Route.LoaderArgs) {

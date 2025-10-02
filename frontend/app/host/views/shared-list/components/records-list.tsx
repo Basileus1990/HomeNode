@@ -5,7 +5,7 @@ import FileRecordListItem from "../../../../common/components/file-record-listit
 import DirectoryRecordListItem from "../../../../common/components/directory-record-listitem.js";
 import { HostIdContext } from "../../host-id-context";
 import { getResourceShareURL } from "../../../service/url-service";
-import type { Item } from "~/common/newer-fs/types.js";
+import type { Item } from "~/common/fs/types.js";
 
 
 export default function RecordsList({records}: {records: Item[]}) {

@@ -1,5 +1,5 @@
 import { type ClientToServerCommunication } from "../api";
-import type { Item } from "~/common/newer-fs/types";
+import type { Item } from "~/common/fs/types";
 
 
 export class HostWebSocketclient implements ClientToServerCommunication {

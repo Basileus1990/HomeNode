@@ -1,4 +1,4 @@
-import type { Item } from "~/common/newer-fs/types";
+import type { Item } from "~/common/fs/types";
 import type { HomeNodeFrontendConfig } from "../../../config";
 
 export abstract class ClientToServerCommunication {
