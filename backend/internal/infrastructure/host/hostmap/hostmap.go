@@ -2,16 +2,19 @@ package hostmap
 
 import (
 	"context"
-	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostconn"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_errors"
 	"log"
 	"sync"
+
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostconn"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
 type HostMap interface {
-	Add(conn *websocket.Conn) uuid.UUID
+	AddNew(ws *websocket.Conn) uuid.UUID
+	Add(ws *websocket.Conn, id uuid.UUID) error
 	Remove(id uuid.UUID)
 	Get(id uuid.UUID) (hostconn.HostConn, bool)
 }
@@ -35,7 +38,7 @@ func NewDefaultHostMap(ctx context.Context, hostConnFactory hostconn.HostConnFac
 	}
 }
 
-func (h *defaultHostMap) Add(conn *websocket.Conn) uuid.UUID {
+func (h *defaultHostMap) AddNew(ws *websocket.Conn) uuid.UUID {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -47,13 +50,30 @@ func (h *defaultHostMap) Add(conn *websocket.Conn) uuid.UUID {
 		}
 	}
 
-	hostConn := h.hostConnFactory.NewHostConn(h.ctx, conn, func() {
+	hostConn := h.hostConnFactory.NewHostConn(h.ctx, ws, func() {
 		h.removeWithoutClosing(id)
 	})
 	h.hosts[id] = hostConn
 
 	log.Printf("new host \"%v\" has connected\n", id)
 	return id
+}
+
+func (h *defaultHostMap) Add(ws *websocket.Conn, id uuid.UUID) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if _, ok := h.hosts[id]; ok {
+		return ws_errors.HostAlreadyConnectedErr
+	}
+
+	hostConn := h.hostConnFactory.NewHostConn(h.ctx, ws, func() {
+		h.removeWithoutClosing(id)
+	})
+	h.hosts[id] = hostConn
+
+	log.Printf("host \"%v\" has reconnected\n", id)
+	return nil
 }
 
 func (h *defaultHostMap) Remove(id uuid.UUID) {
