@@ -48,7 +48,7 @@ func TestDefaultHostMap_Add(t *testing.T) {
 
 		hostMap := NewDefaultHostMap(ctx, factory)
 
-		id := hostMap.Add(mockWebSocketConn)
+		id := hostMap.AddNew(mockWebSocketConn)
 
 		assert.NotEqual(t, uuid.Nil, id)
 
@@ -72,8 +72,8 @@ func TestDefaultHostMap_Add(t *testing.T) {
 
 		hostMap := NewDefaultHostMap(ctx, factory)
 
-		id1 := hostMap.Add(mockWebSocketConn1)
-		id2 := hostMap.Add(mockWebSocketConn2)
+		id1 := hostMap.AddNew(mockWebSocketConn1)
+		id2 := hostMap.AddNew(mockWebSocketConn2)
 
 		assert.NotEqual(t, id1, id2)
 		assert.NotEqual(t, uuid.Nil, id1)
@@ -95,7 +95,7 @@ func TestDefaultHostMap_Remove(t *testing.T) {
 
 		hostMap := NewDefaultHostMap(ctx, factory)
 
-		id := hostMap.Add(mockWebSocketConn)
+		id := hostMap.AddNew(mockWebSocketConn)
 
 		// Verify it exists before removal
 		_, exists := hostMap.Get(id)
@@ -122,7 +122,7 @@ func TestDefaultHostMap_Remove(t *testing.T) {
 
 		hostMap := NewDefaultHostMap(ctx, factory)
 
-		id := hostMap.Add(mockWebSocketConn)
+		id := hostMap.AddNew(mockWebSocketConn)
 
 		hostMap.Remove(id)
 
@@ -163,7 +163,7 @@ func TestDefaultHostMap_Get(t *testing.T) {
 
 		hostMap := NewDefaultHostMap(ctx, factory)
 
-		id := hostMap.Add(mockWebSocketConn)
+		id := hostMap.AddNew(mockWebSocketConn)
 
 		conn, exists := hostMap.Get(id)
 		assert.True(t, exists)
@@ -200,7 +200,7 @@ func TestDefaultHostMap_OnCloseCallback(t *testing.T) {
 
 		hostMap := NewDefaultHostMap(ctx, factory)
 
-		id := hostMap.Add(mockWebSocketConn)
+		id := hostMap.AddNew(mockWebSocketConn)
 
 		// Verify connection exists
 		_, exists := hostMap.Get(id)
@@ -229,7 +229,7 @@ func TestDefaultHostMap_EdgeCases(t *testing.T) {
 
 		hostMap := NewDefaultHostMap(ctx, factory).(*defaultHostMap)
 
-		id := hostMap.Add(mockWebSocketConn)
+		id := hostMap.AddNew(mockWebSocketConn)
 
 		hostMap.Remove(id)
 		hostMap.Remove(id)

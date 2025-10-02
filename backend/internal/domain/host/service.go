@@ -2,44 +2,61 @@ package host
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/message_types"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_errors"
+	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/host/saved_connections_repository"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/helpers"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/app/config"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/client/clientconn"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostconn"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostmap"
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 )
 
-type HostServiceInterface interface {
-	InitialiseNewHostConnection(id uuid.UUID) error
+type HostService interface {
+	InitNewHostConnection(ctx context.Context, ws *websocket.Conn) error
+	InitExistingHostConnection(ctx context.Context, ws *websocket.Conn, hostId uuid.UUID, hostKey string) error
 	GetResourceMetadata(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) ([]byte, error)
 	DownloadResource(clientConn clientconn.ClientConn, hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) error
 }
 
-type HostService struct {
-	hostMap         hostmap.HostMap
-	websocketConfig config.WebsocketCfg
+type defaultConnectionService struct {
+	hostMap                    hostmap.HostMap
+	websocketConfig            config.WebsocketCfg
+	savedConnectionsRepository saved_connections_repository.SavedConnectionsRepositoryInterface
 }
 
-func NewHostService(hostMap hostmap.HostMap, websocketCfg config.WebsocketCfg) HostServiceInterface {
-	return &HostService{
-		hostMap:         hostMap,
-		websocketConfig: websocketCfg,
+func NewHostService(
+	hostMap hostmap.HostMap,
+	websocketCfg config.WebsocketCfg,
+	savedConnectionsRepository saved_connections_repository.SavedConnectionsRepositoryInterface,
+) HostService {
+	return &defaultConnectionService{
+		hostMap:                    hostMap,
+		websocketConfig:            websocketCfg,
+		savedConnectionsRepository: savedConnectionsRepository,
 	}
 }
 
-func (s *HostService) InitialiseNewHostConnection(id uuid.UUID) error {
-	hostConn, ok := s.hostMap.Get(id)
+func (s *defaultConnectionService) InitNewHostConnection(ctx context.Context, ws *websocket.Conn) error {
+	hostId := s.hostMap.AddNew(ws)
+	hostConn, ok := s.hostMap.Get(hostId)
 	if !ok {
 		return ws_errors.HostNotFoundErr
 	}
 
-	query := helpers.UUIDToBinary(id)
+	hostKey := helpers.GetRandomKey()
+	keyHash := helpers.HashString(hostKey)
 
-	response, err := hostConn.Query(message_types.InitWithUuidQuery.Binary(), query)
+	response, err := hostConn.Query(
+		message_types.InitWithUuidQuery.Binary(),
+		helpers.UUIDToBinary(hostId),
+		[]byte(helpers.AddNullCharToString(hostKey)),
+	)
 	if err != nil {
 		hostConn.Close()
 		return fmt.Errorf("error on quering newly connected host: %w", err)
@@ -47,13 +64,78 @@ func (s *HostService) InitialiseNewHostConnection(id uuid.UUID) error {
 
 	if !bytes.Equal(response, message_types.ACK.Binary()) {
 		hostConn.Close()
-		return fmt.Errorf("unexpected first response from host %s: %q", id.String(), response)
+		return fmt.Errorf("unexpected first response from host %s: %q", hostId.String(), response)
+	}
+
+	err = s.savedConnectionsRepository.AddOrRenew(ctx, saved_connections_repository.SavedConnection{
+		Id:      hostId,
+		KeyHash: keyHash,
+	})
+	if err != nil {
+		hostConn.Close()
+		return err
 	}
 
 	return nil
 }
 
-func (s *HostService) GetResourceMetadata(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) ([]byte, error) {
+func (s *defaultConnectionService) InitExistingHostConnection(
+	ctx context.Context,
+	ws *websocket.Conn,
+	hostId uuid.UUID,
+	hostKey string,
+) error {
+	_, ok := s.hostMap.Get(hostId)
+	if ok {
+		return ws_errors.HostAlreadyConnectedErr
+	}
+
+	savedConnection, err := s.savedConnectionsRepository.GetById(ctx, hostId)
+	if err != nil {
+		return err
+	}
+
+	keyHash := helpers.HashString(hostKey)
+	if savedConnection != nil && savedConnection.KeyHash != keyHash {
+		return ws_errors.InvalidHostKeyErr
+	}
+
+	err = s.hostMap.Add(ws, hostId)
+	if err != nil {
+		return err
+	}
+
+	hostConn, ok := s.hostMap.Get(hostId)
+	if !ok {
+		return ws_errors.HostNotFoundErr
+	}
+
+	response, err := hostConn.Query(
+		message_types.InitExistingHost.Binary(),
+	)
+	if err != nil {
+		hostConn.Close()
+		return fmt.Errorf("error on quering newly connected host: %w", err)
+	}
+
+	if !bytes.Equal(response, message_types.ACK.Binary()) {
+		hostConn.Close()
+		return fmt.Errorf("unexpected first response from host %s: %q", hostId.String(), response)
+	}
+
+	err = s.savedConnectionsRepository.AddOrRenew(ctx, saved_connections_repository.SavedConnection{
+		Id:      hostId,
+		KeyHash: keyHash,
+	})
+	if err != nil {
+		hostConn.Close()
+		return err
+	}
+
+	return nil
+}
+
+func (s *defaultConnectionService) GetResourceMetadata(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) ([]byte, error) {
 	hostConn, ok := s.hostMap.Get(hostUuid)
 	if !ok {
 		return nil, ws_errors.HostNotFoundErr
@@ -73,7 +155,7 @@ func (s *HostService) GetResourceMetadata(hostUuid uuid.UUID, resourceUuid uuid.
 	return response, nil
 }
 
-func (s *HostService) DownloadResource(
+func (s *defaultConnectionService) DownloadResource(
 	clientConn clientconn.ClientConn,
 	hostUUID uuid.UUID,
 	resourceUUID uuid.UUID,
@@ -121,7 +203,7 @@ func (s *HostService) DownloadResource(
 	return s.handleDownloadLoop(hostConn, clientConn, downloadInitRespDto.downloadId)
 }
 
-func (s *HostService) handleDownloadLoop(
+func (s *defaultConnectionService) handleDownloadLoop(
 	hostConn hostconn.HostConn,
 	clientConn clientconn.ClientConn,
 	downloadId uint32,
@@ -157,7 +239,7 @@ func (s *HostService) handleDownloadLoop(
 	}
 }
 
-func (s *HostService) sendDownloadCompletionQueryToHost(hostConn hostconn.HostConn, downloadId uint32) error {
+func (s *defaultConnectionService) sendDownloadCompletionQueryToHost(hostConn hostconn.HostConn, downloadId uint32) error {
 	_, err := hostConn.Query(
 		message_types.DownloadCompletionRequest.Binary(),
 		helpers.Uint32ToBinary(downloadId),
@@ -165,7 +247,7 @@ func (s *HostService) sendDownloadCompletionQueryToHost(hostConn hostconn.HostCo
 	return err
 }
 
-func (s *HostService) handleChunkRequest(
+func (s *defaultConnectionService) handleChunkRequest(
 	hostConn hostconn.HostConn,
 	clientConn clientconn.ClientConn,
 	downloadId uint32,

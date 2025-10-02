@@ -21,9 +21,11 @@ RUN npm run build
 #######################
 FROM golang:1.23-alpine AS backend
 
+ENV CGO_ENABLED=1
+
 WORKDIR /app
 
-#RUN apk add --no-cache git
+RUN apk add --no-cache gcc musl-dev
 
 COPY ./backend/go.mod ./backend/go.sum ./
 RUN go mod download
@@ -40,6 +42,7 @@ FROM alpine:3.20
 WORKDIR /app/backend
 
 COPY --from=backend /app/main ./main
+COPY --from=backend /app/migrations ./migrations
 COPY --from=frontend /app/build ../frontend/build
 
 EXPOSE 3000

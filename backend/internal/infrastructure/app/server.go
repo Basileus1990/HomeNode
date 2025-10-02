@@ -3,13 +3,14 @@ package app
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/config"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/host"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/controllers/ping"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/app/appcontainer"
 	"github.com/gin-gonic/gin"
-	"net/http"
-	"strings"
 )
 
 const frontendBuildLocation = "../frontend/build/client/"
@@ -19,10 +20,8 @@ type Server struct {
 	engine    *gin.Engine
 }
 
-func NewServer() (*Server, error) {
+func NewServer(ctx context.Context) (*Server, error) {
 	var server Server
-
-	ctx := context.Background()
 
 	container, err := appcontainer.NewContainer(ctx)
 	if err != nil {
@@ -40,6 +39,7 @@ func (s *Server) ListenAndServe() error {
 }
 
 func (s *Server) setUpRoutes() *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 
 	api := router.Group("api")
@@ -55,7 +55,6 @@ func (s *Server) setUpRoutes() *gin.Engine {
 
 	hostGroup := v1.Group("host")
 	hostConnectController := host.Controller{
-		HostMap:           s.container.HostMap,
 		HostService:       s.container.HostService,
 		WebsocketCfg:      s.container.Config.Websocket,
 		ClientConnFactory: s.container.ClientConnFactory,
