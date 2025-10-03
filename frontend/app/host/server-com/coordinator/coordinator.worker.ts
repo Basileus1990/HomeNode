@@ -1,10 +1,12 @@
 import log from "loglevel";
+log.setLevel("DEBUG");
 
 import { HMHostReader } from '../message/readers';
 import { HostController } from './controller';
 import { StreamWorkerRegistry } from "./stream-worker-registry";
 import type { UIToCoordinator } from "../types";
 import type { HomeNodeFrontendConfig } from "../../../config";
+import { getHostConnectionURL } from "~/host/service/url-service";
 
 let _config: HomeNodeFrontendConfig;
 let _socket: WebSocket;
@@ -14,20 +16,22 @@ let _controller: HostController;
 
 self.onmessage = (event: MessageEvent<UIToCoordinator>) => {
     switch (event.data.type) {
-        case "start":
+        case "start": {
             _config = event.data.config;
-            _socket = openSocket(_config.server_ws_url);
+            const url = getHostConnectionURL(_config, event.data.hostId, event.data.hostKey);
+            _socket = openSocket(url);
             _controller = new HostController(_socket, _config, streamWorkers, (message: any) => self.postMessage(message));
             setInterval(cleanInactiveWorkers, _config.streamer_cleanup_interval);
             log.log("Coordinator initialized");
             break;
-
-        case "stop": 
+        }
+        case "stop": {
             log.log("Coordinator worker closing");
             _socket.close();
             log.debug("Host closed socket");
             self.close();
             break;
+        }
     }
 }
 

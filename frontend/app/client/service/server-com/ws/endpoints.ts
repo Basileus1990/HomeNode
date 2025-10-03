@@ -3,12 +3,12 @@ import type { HomeNodeFrontendConfig } from "../../../../config";
 
 
 export class WebSocketServerEndpointService extends ServerEndpointService {
-    public static getMetadataEndpointURL(hostId: string, itemId: string, config: HomeNodeFrontendConfig) {
+    public static getMetadataEndpointURL(hostId: string, path: string, config: HomeNodeFrontendConfig) {
         console.log(config);
-        return config.record_info_ws_url.replace("@hostId", hostId).replace("@itemId", itemId);
+        return config.client_metadata_ws_url_template.replace("@hostId", hostId).replace("@path", path);
     }
 
-    public static getDownloadEndpointURL(hostId: string, itemId: string, config: HomeNodeFrontendConfig) {
-        return config.record_download_ws_url.replace("@hostId", hostId).replace("@itemId", itemId);
+    public static getDownloadEndpointURL(hostId: string, path: string, config: HomeNodeFrontendConfig) {
+        return config.client_download_ws_url_template.replace("@hostId", hostId).replace("@path", path);
     }
 }

@@ -1,13 +1,8 @@
-/**
- * get root of OPFS
- */
-export async function getStorageRoot(): Promise<FileSystemDirectoryHandle> {
+
+export async function getStorageRoot() {
     return await navigator.storage.getDirectory();
 }
 
-/**
- * clear entire OPFS
- */
 export async function purgeStorage() {
     const root = await navigator.storage.getDirectory();
         for await (const key of root.keys()) {

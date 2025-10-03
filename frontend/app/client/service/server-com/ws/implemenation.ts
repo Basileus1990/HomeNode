@@ -2,9 +2,9 @@ import { showSaveFilePicker } from "native-file-system-adapter";
 import log from "loglevel";
 //import streamSaver from "streamsaver";
 
-import { type ClientToServerCommunication } from "../api";
-import { type Items } from "../../../../common/fs/types";
-import { type FromDownloader } from "./stream/types";
+import type{ ClientToServerCommunication } from "../api";
+import type{ FromDownloader } from "./stream/types";
+import type { Item } from "~/common/fs/types";
 import { SocketToClientMessageTypes, HMClientReader } from "./message/readers";
 import { WebSocketServerEndpointService } from "./endpoints";
 import { getConfig } from "../../../../config";
@@ -17,9 +17,10 @@ import { getConfig } from "../../../../config";
 // }
 
 export class HostWebSocketclient implements ClientToServerCommunication {
-    public static async getRecordItem(hostId: string, resourceId: string): Promise<Items.RecordItem[]> {
+    public static async getRecordItem(hostId: string, path: string): Promise<Item[]> {
         const config = await getConfig();
-        const url = WebSocketServerEndpointService.getMetadataEndpointURL(hostId, resourceId, config);
+        const url = WebSocketServerEndpointService.getMetadataEndpointURL(hostId, path, config);
+        
         return new Promise((resolve, reject) => {            
             const socket = new WebSocket(url);
             socket.binaryType = "arraybuffer";
@@ -62,7 +63,7 @@ export class HostWebSocketclient implements ClientToServerCommunication {
     /**
      * 
      * @param hostId host identifier
-     * @param resourceId resource identifier
+     * @param resourcePath resource identifier
      * @param filename name the downloaded file will be
      * @param onStart will be called with the size of download in chunks once the stream is ready
      * @param onChunk will be called on each chunk
@@ -72,15 +73,15 @@ export class HostWebSocketclient implements ClientToServerCommunication {
      */
     public static async downloadRecord(
         hostId: string, 
-        resourceId: string, 
         filename: string,
+        resourcePath: string, 
         onStart?: (sizeInChunks?: number) => void,
         onChunk?: (chunkNo?: number) => void,
         onEof?: () => void,
         onError?: () => void) 
     {
         const config = await getConfig();
-        const url = WebSocketServerEndpointService.getDownloadEndpointURL(hostId, resourceId, config);
+        const url = WebSocketServerEndpointService.getDownloadEndpointURL(hostId, resourcePath, config);
         return new Promise(async (resolve, reject) => {
             try {
                 const transferableStream = await getFileStream();

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/message_types"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_errors"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/host/saved_connections_repository"
@@ -19,8 +20,8 @@ import (
 type HostService interface {
 	InitNewHostConnection(ctx context.Context, ws *websocket.Conn) error
 	InitExistingHostConnection(ctx context.Context, ws *websocket.Conn, hostId uuid.UUID, hostKey string) error
-	GetResourceMetadata(hostUuid, resourceUuid uuid.UUID) ([]byte, error)
-	DownloadResource(clientConn clientconn.ClientConn, hostUuid, resourceUuid uuid.UUID) error
+	GetResourceMetadata(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) ([]byte, error)
+	DownloadResource(clientConn clientconn.ClientConn, hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) error
 }
 
 type defaultConnectionService struct {
@@ -134,15 +135,19 @@ func (s *defaultConnectionService) InitExistingHostConnection(
 	return nil
 }
 
-func (s *defaultConnectionService) GetResourceMetadata(hostUuid, resourceUuid uuid.UUID) ([]byte, error) {
+func (s *defaultConnectionService) GetResourceMetadata(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) ([]byte, error) {
 	hostConn, ok := s.hostMap.Get(hostUuid)
 	if !ok {
 		return nil, ws_errors.HostNotFoundErr
 	}
 
-	query := helpers.UUIDToBinary(resourceUuid)
+	pathToResourceBinary := []byte(helpers.AddNullCharToString(pathToResource))
 
-	response, err := hostConn.Query(message_types.MetadataQuery.Binary(), query)
+	response, err := hostConn.Query(
+		message_types.MetadataQuery.Binary(),
+		helpers.UUIDToBinary(resourceUuid),
+		pathToResourceBinary,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +155,12 @@ func (s *defaultConnectionService) GetResourceMetadata(hostUuid, resourceUuid uu
 	return response, nil
 }
 
-func (s *defaultConnectionService) DownloadResource(clientConn clientconn.ClientConn, hostUUID, resourceUUID uuid.UUID) error {
+func (s *defaultConnectionService) DownloadResource(
+	clientConn clientconn.ClientConn,
+	hostUUID uuid.UUID,
+	resourceUUID uuid.UUID,
+	pathToResource string,
+) error {
 	hostConn, ok := s.hostMap.Get(hostUUID)
 	if !ok {
 		return ws_errors.HostNotFoundErr
@@ -160,6 +170,7 @@ func (s *defaultConnectionService) DownloadResource(clientConn clientconn.Client
 		message_types.DownloadInitRequest.Binary(),
 		helpers.UUIDToBinary(resourceUUID),
 		helpers.Uint32ToBinary(uint32(s.websocketConfig.BatchSize)),
+		[]byte(helpers.AddNullCharToString(pathToResource)),
 	)
 	if err != nil {
 		return err

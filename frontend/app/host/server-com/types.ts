@@ -5,7 +5,7 @@ export interface PrepareStreamMessage {
   type: "prepare";
   respondentId: number;
   streamId: number;
-  resourceId: string;
+  resourcePath: string;
   chunkSize: number;
 }
 
@@ -58,6 +58,7 @@ export type StreamWorkerToCoordinator =
 export interface HostIdReceived {
   type: "hostId";
   hostId: string;
+  hostKey: string;
 }
 
 export type CoorindatorToUI =
@@ -67,6 +68,8 @@ export type CoorindatorToUI =
 export interface StartCoordinatorMessage {
   type: "start";
   config: HomeNodeFrontendConfig;
+  hostId?: string;
+  hostKey?: string;
 }
 
 export interface StopCoordinatorMessage {

@@ -1,11 +1,12 @@
 import log from "loglevel";
 
-import { findRecordByName, readRecordIntoItem } from "../../../common/fs/service";
-import { ServerToHostMessage } from '../message/readers';
-import { createStreamWorker as createStreamWorker } from './handle-stream-worker';
+import { ServerToHostMessage } from "../message/readers";
+import { createStreamWorker as createStreamWorker } from "./handle-stream-worker";
 import type { StreamWorkerRegistry } from "./stream-worker-registry";
 import { HMHostWriter, HostToServerMessage } from "../message/writers";
 import type { HomeNodeFrontendConfig } from "../../../config";
+import { findHandle, isDirectoryPath, readHandle } from "~/common/fs/api";
+
 
 export class HostController {
     private _socket: WebSocket;
@@ -13,6 +14,7 @@ export class HostController {
     private _streamWorkers: StreamWorkerRegistry;
     private _postMessage: (message: any) => void;
     private _streamCounter = 0;
+    private _connectionStatus: "connected" | "disconncted" = "disconncted";
 
     constructor(
         socket: WebSocket,
@@ -36,7 +38,7 @@ export class HostController {
                 this.handleServerError(payload as ServerToHostMessage.ServerError);
                 break;
             case ServerToHostMessage.Types.ServerACK:
-                log.debug('Host received ACK from server');
+                log.debug("Host received ACK from server");
                 break;
             case ServerToHostMessage.Types.InitWithUuidQuery:
                 await this.handleInitWithUuidQuery(payload as ServerToHostMessage.NewHostIdGrant, respondentId);
@@ -53,28 +55,31 @@ export class HostController {
             case ServerToHostMessage.Types.DownloadCompletionRequest:
                 this.handleDownloadCompletionRequest(payload as ServerToHostMessage.DownloadCompletion, respondentId);
                 break;
+            case ServerToHostMessage.Types.InitWithExistingHost:
+                this.handleInitWithExistingHost(respondentId);
+                break;
             default:
-                log.trace('Host received unknown message type:', typeNo, 'with payload:', payload);
-                log.warn('Host received message of unknown type');
+                log.trace("Host received unknown message type:", typeNo, "with payload:", payload);
+                log.warn("Host received message of unknown type");
         }
     }
 
     private async handleServerError(payload: ServerToHostMessage.ServerError) {
         const errorType = payload.errorType;
-        log.warn('Host received error of type:', errorType, 'from server');
+        log.warn("Host received error of type:", errorType, "from server");
     }
 
     private async handleDownloadInitRequest(
         payload: ServerToHostMessage.StartStream,
         respondentId: number
     ) {
-        const resourceId = payload.resourceId;
+        const resourcePath = payload.resourcePath;
         const chunkSize = payload.chunkSize;
-        const record = await findRecordByName(resourceId, undefined, true);
-        log.debug('Host received download request for resource:', resourceId);
+        const handle = await findHandle(resourcePath, isDirectoryPath(resourcePath));
+        log.debug("Host received download request for resource:", resourcePath);
 
-        if (!record) {
-            log.debug('Host couldn\'t find resource:', resourceId);
+        if (!handle) {
+            log.warn("Host couldn't find resource:", resourcePath);
             await this.sendError(respondentId, 400, "resource not found");
             return;
         }
@@ -83,14 +88,14 @@ export class HostController {
         const newWorker = createStreamWorker(this._socket, this._config, (id) => this.setStreamerWorkerLastActiveNow(id));
         this._streamWorkers.set(newStreamId, { worker: newWorker, lastActive: Date.now() });
         newWorker.postMessage({
-            type: 'prepare',
-            resourceId,
+            type: "prepare",
+            resourcePath,
             chunkSize,
             streamId: newStreamId,
             respondentId
         });
-        log.debug('Host started preparing for streaming resource:', resourceId);
-        log.info('created worker');
+        log.debug("Host started preparing for streaming resource:", resourcePath);
+        log.info("created worker");
     }
 
     private handleChunkRequest(
@@ -100,7 +105,7 @@ export class HostController {
         const streamId = payload.streamId;
         const offset = payload.offset;
         const entry = this._streamWorkers.get(streamId);
-        log.info('queried for chunk from ', streamId, entry);
+        log.info("queried for chunk from ", streamId, entry);
 
         if (!entry) {
             this.sendError(respondentId, 400, "unknown respondentId");
@@ -108,11 +113,11 @@ export class HostController {
         }
 
         entry.worker.postMessage({
-            type: 'next',
+            type: "next",
             respondentId,
             offset
         });
-        log.info('requested chunk from streamer');
+        log.info("requested chunk from streamer");
     }
 
     private handleDownloadCompletionRequest(
@@ -121,14 +126,14 @@ export class HostController {
     ) {
         const streamId = payload.streamId;
         const entry = this._streamWorkers.get(streamId);
-        log.info('queried for chunk from ', streamId, entry);
+        log.info("queried for chunk from ", streamId, entry);
 
         if (!entry) {
             this.sendError(respondentId, 400, "unknown respondentId");
             return;
         }
 
-        log.info('stream finished for streamer', streamId, 'terminating');
+        log.info("stream finished for streamer", streamId, "terminating");
         entry.worker.terminate();
         this._streamWorkers.delete(streamId);
     }
@@ -137,32 +142,54 @@ export class HostController {
         payload: ServerToHostMessage.NewHostIdGrant,
         respondentId: number
     ) {
+        if (this._connectionStatus === "connected") {
+            log.warn("Host already connected, ignoring another new HostId grant");
+            return;
+        }
+
         const hostId = payload.hostId;
+        const hostKey = payload.hostKey;
+
 
         this._postMessage({
             type: "hostId",
-            hostId
+            hostId,
+            hostKey
         });
 
         await this.sendHostAck(respondentId);
+        this._connectionStatus = "connected";
     }
 
     private async handleMetadataQuery(
         payload: ServerToHostMessage.ReadMetadata,
         respondentId: number
     ) {
-        const resourceId = payload.resourceId;
-        const record = await findRecordByName(resourceId, undefined, true);
-        log.info('received metadata request for', resourceId);
+        const resourcePath = payload.resourcePath;
+        const handle = await findHandle(resourcePath, isDirectoryPath(resourcePath));
 
-        if (!record) {
+        if (!handle) {
+            log.warn(`Could not find resource: ${resourcePath}`)
             await this.sendError(respondentId, 400, "resource not found");
             return;
         }
 
-        const metadata = await readRecordIntoItem(record);
+        const metadata = await readHandle(handle, resourcePath);
         await this.sendMetadataResponse(respondentId, metadata);
-        log.info('sent', metadata);
+        log.debug(`Metadata for ${resourcePath} sent`);
+    }
+
+    private async handleInitWithExistingHost(
+        respondentId: number
+    ) {
+        if (this._connectionStatus === "connected") {
+            log.warn("Host already connected, ignoring another reconnect message");
+            return;
+        }
+
+        log.debug("Host reconnected");
+        await this.sendHostAck(respondentId);
+        this._connectionStatus = "connected";
     }
 
     private async sendHostAck(respondentId: number) {
@@ -179,7 +206,7 @@ export class HostController {
             respondentId,
             HostToServerMessage.Types.MetadataResponse,
             this._config,
-            { record: metadata }
+            { item: metadata }
         );
         this._socket.send(response);
     }

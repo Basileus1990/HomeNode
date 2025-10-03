@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useRevalidator } from "react-router";
 import log from "loglevel";
 
-import { saveHostId } from "../../service/id";
+import { getHostId, getHostKey, saveHostId, saveHostKey } from "../../service/id";
 import type { CoorindatorToUI } from "../types";
 import type { HomeNodeFrontendConfig } from "../../../config";
 
@@ -27,17 +27,21 @@ export default function useCoordinatorWorker(config: HomeNodeFrontendConfig) {
         workerRef.current.onmessage = (event: MessageEvent<CoorindatorToUI>) => {
 
             switch (event.data.type) {
-                case ("hostId"):
-                    log.log("Host received new ID from server")
+                case ("hostId"): {
+                    log.log("Host received new ID from server", event.data.hostId, event.data.hostKey);
                     saveHostId(event.data.hostId);
+                    saveHostKey(event.data.hostKey);
                     revalidator.revalidate();   // refresh UI to display the UUID
                     break;
+                }
             }
         };
 
         workerRef.current.postMessage({
             type: "start",
-            config
+            config,
+            hostKey: getHostKey(),
+            hostId: getHostId()
         })
 
         // Cleanup the worker when the component unmounts

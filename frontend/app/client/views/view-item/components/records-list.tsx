@@ -1,25 +1,26 @@
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { useState } from "react";
 
-import { RecordKind, type Items } from "~/common/fs/types";
 import FileRecordListItem from "~/common/components/file-record-listitem.js";
 import DirectoryRecordListItem from "~/common/components/directory-record-listitem.js";
 import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenation.js"
+import type { Item } from "~/common/fs/types";
 
 export default function RecordsList({records, hostId}: 
-    {records: Items.RecordItem[], hostId: string}) {
+    {records: Item[], hostId: string}) {
     const [ isDownloading, setIsDownloading ] = useState(false);
+    const location = useLocation();
 
-    const downloadButton = (record: Items.RecordItem) => (
+    const downloadButton = (record: Item) => (
         <button 
             onClick={() => {
                 if (!isDownloading) {
-                    console.log(`Downloading ${record.recordName}`);
+                    console.log(`Downloading ${record.name}`);
                     setIsDownloading(true);
                     HostWebSocketclient.downloadRecord(
                         hostId, 
-                        record.recordName,
-                        record.contentName
+                        record.name,
+                        record.path
                     )
                     .then((value) => console.log('resolved'))
                     .catch((e) => console.log('caught: ', e))
@@ -34,17 +35,17 @@ export default function RecordsList({records, hostId}:
         </button>
     )
 
-    const buildListItem = (record: Items.RecordItem) => {
-        if (record.kind === RecordKind.file) {
-            return FileRecordListItem({rec: record as Items.FileRecordItem, children:
+    const buildListItem = (record: Item) => {
+        if (record.kind === "file") {
+            return FileRecordListItem({rec: record as Item, children:
                 <>
                     {downloadButton(record)}
                 </>
             });
-        } else if (record.kind === RecordKind.directory) {
-            return DirectoryRecordListItem({rec: record as Items.DirectoryRecordItem, children:
+        } else if (record.kind === "directory") {
+            return DirectoryRecordListItem({rec: record as Item, children:
                 <>
-                    <Link to={`/client/${hostId}/${record.recordName}`}>View</Link>
+                    <Link to={`${location.pathname}/${record.name}`}>View</Link>
                 </>
             });
         }
@@ -55,7 +56,7 @@ export default function RecordsList({records, hostId}:
             <h3>Records List</h3>
             <ul>
                 {records.length === 0 && <p>No records found.</p>}
-                {records.sort((a, b) => { return a.contentName.localeCompare(b.contentName) }).map(buildListItem)}
+                {records.map(buildListItem)}
             </ul>
         </div>
     );

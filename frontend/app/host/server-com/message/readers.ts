@@ -11,6 +11,7 @@ export namespace ServerToHostMessage {
         DownloadInitRequest = 5,
         ChunkRequest = 7,
         DownloadCompletionRequest = 10,
+        InitWithExistingHost = 11
     }
 
     export type ServerError = {
@@ -21,13 +22,14 @@ export namespace ServerToHostMessage {
         ack: boolean;
     }
     export type NewHostIdGrant = {
-        hostId: string;
+        hostId: string; // UUID really
+        hostKey: string;
     }
     export type ReadMetadata = {
-        resourceId: string;
+        resourcePath: string;
     }
     export type StartStream = {
-        resourceId: string;
+        resourcePath: string;
         chunkSize: number;
     }
     export type ChunkRequest = {
@@ -40,6 +42,8 @@ export namespace ServerToHostMessage {
     export type DownloadCompletion = {
         streamId: number;
     }
+    export type ExistingHostInit = {
+    }
 
     export type Contents =
       | ServerError
@@ -50,6 +54,7 @@ export namespace ServerToHostMessage {
       | ChunkRequest
       | EndStream
       | DownloadCompletion
+      | ExistingHostInit
 }
 
 export type HMHostReaderOut = { 
@@ -108,6 +113,8 @@ export class HMHostReader {
                     return this.readChunkRequest(data, useLittleEndian);
                 case ServerToHostMessage.Types.DownloadCompletionRequest:
                     return this.readEndStreamRequest(data, useLittleEndian);
+                case ServerToHostMessage.Types.InitWithExistingHost:
+                    return {};
                 default:
                     return null;
             }
@@ -137,18 +144,24 @@ export class HMHostReader {
     }
 
     private static readNewHostIDGrant(data: ArrayBuffer): ServerToHostMessage.NewHostIdGrant {
-        return { hostId: decodeUUID(data.slice(0, 16)) };
+        const hostId = decodeUUID(data.slice(0, 16));
+        const decoder = new TextDecoder();
+        const hostKey = decoder.decode(data.slice(16, -1));
+        return { hostId, hostKey };
     }
 
     private static readMetadataRequest(data: ArrayBuffer): ServerToHostMessage.ReadMetadata {
-        return { resourceId: decodeUUID(data.slice(0, 16)) };
+        const uploadId = decodeUUID(data.slice(0, 16));
+        const path = String.fromCharCode(...new Uint8Array(data.slice(16, -1)));
+        return { resourcePath: uploadId + path };
     }
 
     private static readStreamStartRequest(data: ArrayBuffer, useLittleEndian: boolean = false): ServerToHostMessage.StartStream {
         const resourceId = decodeUUID(data.slice(0, 16));
         const view = new DataView(data);
         const chunkSize = view.getUint32(16, useLittleEndian);
-        return { resourceId, chunkSize };
+        const path = String.fromCharCode(...new Uint8Array(data.slice(20, -1)));
+        return { resourcePath: resourceId + path, chunkSize };
     }
 
     private static readChunkRequest(data: ArrayBuffer, useLittleEndian: boolean = false): ServerToHostMessage.ChunkRequest {

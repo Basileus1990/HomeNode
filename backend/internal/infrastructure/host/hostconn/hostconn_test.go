@@ -102,21 +102,6 @@ func createTestConnection(t *testing.T, server *testServer) HostConn {
 	return hostConn
 }
 
-func createBenchmarkTestConnection(t testing.TB, server *testServer) HostConn {
-	t.Helper()
-
-	dialer := websocket.DefaultDialer
-	conn, _, err := dialer.Dial(server.url(), nil)
-	require.NoError(t, err)
-
-	ctx := context.Background()
-	hostConn := (&DefaultHostConnFactory{}).NewHostConn(ctx, conn, func() {
-		server.closeHandlerCalled = true
-	})
-
-	return hostConn
-}
-
 func TestSuccessfulQuery(t *testing.T) {
 	server := newTestServer()
 	defer server.close()
@@ -340,41 +325,4 @@ func TestQueryAfterContextCancel(t *testing.T) {
 	_, err = hostConn.Query([]byte("ping"))
 	assert.ErrorIs(t, err, ws_errors.ConnectionClosedErr)
 	assert.True(t, server.closeHandlerCalled)
-}
-
-func BenchmarkQuery(b *testing.B) {
-	server := newTestServer()
-	defer server.close()
-
-	conn := createBenchmarkTestConnection(b, server)
-	defer conn.Close()
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_, err := conn.Query([]byte("ping"))
-			if err != nil {
-				b.Error(err)
-			}
-		}
-	})
-}
-
-func BenchmarkConcurrentQueries(b *testing.B) {
-	server := newTestServer()
-	defer server.close()
-
-	conn := createBenchmarkTestConnection(b, server)
-	defer conn.Close()
-
-	b.ResetTimer()
-	b.SetParallelism(runtime.NumCPU())
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_, err := conn.Query([]byte("ping"))
-			if err != nil {
-				b.Error(err)
-			}
-		}
-	})
 }

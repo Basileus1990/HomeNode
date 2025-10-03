@@ -1,8 +1,8 @@
-import type { Items } from "../../../common/fs/types";
+import type { Item } from "~/common/fs/types";
 import type { HomeNodeFrontendConfig } from "../../../config";
 
 export abstract class ClientToServerCommunication {
-    public static async getRecordItem(hostId: string, itemId: string, config: HomeNodeFrontendConfig): Promise<Items.RecordItem[]> {
+    public static async getRecordItem(hostId: string, itemId: string, config: HomeNodeFrontendConfig): Promise<Item[]> {
         throw new Error("Method not implemented.");
     };
 }

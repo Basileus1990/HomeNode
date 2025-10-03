@@ -1,28 +1,29 @@
 import { Link, useFetcher } from "react-router";
 import { useContext } from "react";
 
-import { RecordKind, type Items } from "../../../../common/fs/types";
 import FileRecordListItem from "../../../../common/components/file-record-listitem.js";
 import DirectoryRecordListItem from "../../../../common/components/directory-record-listitem.js";
 import { HostIdContext } from "../../host-id-context";
 import { getResourceShareURL } from "../../../service/url-service";
+import type { Item } from "~/common/fs/types.js";
 
-export default function RecordsList({records}: {records: Items.RecordItem[]}) {
+
+export default function RecordsList({records}: {records: Item[]}) {
     const fetcher = useFetcher();
-    const sortedRecords = records.sort(r => r.dateShared);
+    const sortedRecords = records;
     const hostId = useContext(HostIdContext);
 
-    const deleteItemFetcher = (item: Items.RecordItem) => (
+    const deleteItemFetcher = (resource: Item) => (
         <fetcher.Form method="post">
-            <input type="hidden" name="itemName" value={item.recordName} />
+            <input type="hidden" name="resourcePath" value={resource.path} />
             <button type="submit">Delete</button>
         </fetcher.Form>
     )
 
-    const shareLinkButton = (item: Items.RecordItem) => (
+    const shareLinkButton = (resource: Item) => (
         <button
             onClick={async () => {
-                const link = getResourceShareURL(hostId, item.recordName); 
+                const link = getResourceShareURL(hostId, resource.path); 
                 await navigator.clipboard.writeText(link);
             }}
         >
@@ -30,22 +31,25 @@ export default function RecordsList({records}: {records: Items.RecordItem[]}) {
             </button>
     )
 
-    const buildListItem = (record: Items.RecordItem) => {
-        if (record.kind === RecordKind.file) {
-            return FileRecordListItem({rec: record as Items.FileRecordItem, children: 
+    const buildListItem = (resource: Item) => {
+        if (resource.kind === "file") {
+            return FileRecordListItem({rec: resource, children: 
                 <>
-                    {deleteItemFetcher(record)}
                     <br/>
-                    {shareLinkButton(record)}
+                    {deleteItemFetcher(resource)}
+                    <br/>
+                    {shareLinkButton(resource)}
                 </>
             });
-        } else if (record.kind === RecordKind.directory) {
-            return DirectoryRecordListItem({rec: record as Items.DirectoryRecordItem, children:
+        } else if (resource.kind === "directory") {
+            return DirectoryRecordListItem({rec: resource, children:
                 <>
-                    {deleteItemFetcher(record)}
-                    <Link to={`/host/shared/${(record as Items.DirectoryRecordItem).recordName}`}>View</Link>
                     <br/>
-                    {shareLinkButton(record)}
+                    {deleteItemFetcher(resource)}
+                    <br/>
+                    <Link to={`/host/shared/${resource.path}`}>View</Link>
+                    <br/>
+                    {shareLinkButton(resource)}
                 </>
             });
         }

@@ -1,43 +1,30 @@
-import type { FileWithPath } from "react-dropzone";
+import log from "loglevel";
 
-import { RecordKind } from "../../common/fs/types";
-import type { DirectoryRecordHandle } from "../../common/fs/fs";
-import { FSService } from "../../common/fs/fs-service";
-import { prepareFilesForUpload, type RecordTreeNode } from "./prepare-files";
-import type { FileUploaderWorkerFilePayload } from "./types";
+import { createFileTree, mapPathsBackToFiles, rebuildFileTree } from "./prepare-files";
+import type { UIToUploaderMessages } from "./types";
+import { getStorageRoot } from "~/common/fs/api";
 
 
-self.onmessage = async (event) => {
-    const { type, payload, msg, encryption } = event.data;
+self.onmessage = async (event: MessageEvent<UIToUploaderMessages>) => {
+    const { type, files, encryption } = event.data;
 
-    if (type === "upload") {
-        const files = rebuildPayload(payload);
-        const tree = await prepareFilesForUpload(files, encryption);
-        const rootRecord = await FSService.getRootRecord();
+    if (type === "start") {
+        const filesWithPaths = mapPathsBackToFiles(files);
+        const tree = await rebuildFileTree(filesWithPaths, encryption);
+
         try {
-            await createRecordsFromTree(tree, rootRecord as DirectoryRecordHandle);
-            console.log("Saved record tree:", tree);
-            self.postMessage({ type: "uploadComplete" });
+            let root = event.data.root;
+            const opfsRoot = await getStorageRoot();
+            if (!root || (await opfsRoot.isSameEntry(root))) {
+                root = await opfsRoot.getDirectoryHandle(tree.name, { create: true });
+            }
+
+            await createFileTree(tree, root);
+            log.debug("Saved record tree:", tree);
+            self.postMessage({ type: "complete" , msg: "All files uploaded successfully" });
         } catch (error) {
-            console.error("Error creating records:", error);
-            self.postMessage({ type: "uploadError", error: error });
-        }
-    }
-}
-
-function rebuildPayload(payload: FileUploaderWorkerFilePayload[]): FileWithPath[] {
-    return payload.map(item => {
-        return Object.assign(item.file, { path: item.path, relativePath: item.relativePath }) as FileWithPath;
-    });
-}
-
-async function createRecordsFromTree(tree: RecordTreeNode, dir: DirectoryRecordHandle): Promise<void> {
-    for (const child of tree.children!) {
-        if (child.metadata.kind === RecordKind.file) {
-            await dir.createFileRecord(child.recordName, child.file!, child.metadata, true);    // Using FileSystemSyncAccessHandle to write file for compatility with Safari
-        } else if (child.metadata.kind === RecordKind.directory) {
-            const newDir = await dir.createDirectoryRecord(child.recordName, child.metadata);
-            await createRecordsFromTree(child, newDir);
+            log.warn("Error creating records:", error);
+            self.postMessage({ type: "fail", msg: error });
         }
     }
 }

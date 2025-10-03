@@ -1,21 +1,42 @@
-import { useState } from "react";
-import type { FileWithPath } from "react-dropzone";
+import type { Route } from ".react-router/types/app/host/views/share-new/+types/share";
+import log from "loglevel";
 
-import Dropzone from "./components/dropzone";
-import SelectedFilesList from "./components/selected-files-list";
-import ShareButton from "./components/share-button";
+import Uploader from "./components/uploader";
+import { getStorageRoot, findHandle } from "~/common/fs/api";
 
-export default function Share() {
-    const [selectedFiles, setSelectedFiles] = useState<FileWithPath[]>([]);
-    const [error, setError] = useState<string | null>(null);
+
+export async function clientLoader({ params }: Route.LoaderArgs) {
+    const { "*": resourcePath} = params;
+
+    let handle: FileSystemHandle | null;
+    let error: string = "";
+    if (resourcePath) {
+        handle = await findHandle(resourcePath);
+        if (!handle) {
+            error = "Path not found";
+            handle = await getStorageRoot();
+        } else if (handle.kind !== "directory") {
+            error = "Not a directory";
+        }
+    }
+    else
+        handle = await getStorageRoot();
+
+    return { handle, error };
+}
+
+export default function Share({loaderData}: Route.ComponentProps) {
+    const { handle, error } = loaderData;
+
+    if (error) {
+        return (
+            <p>Error: {error}!</p>
+        );
+    }
 
     return (
         <article>
-            <h1>Share a file</h1>
-            <Dropzone setSelectedFiles={setSelectedFiles} />
-            <SelectedFilesList selectedFiles={selectedFiles} setSelectedFiles={setSelectedFiles} />
-            {error && <p style={{ color: "red" }}>{error}</p>}
-            <ShareButton selectedFiles={selectedFiles} setError={setError} />
+            <Uploader root={handle as FileSystemDirectoryHandle} />
         </article>
     );
 }
