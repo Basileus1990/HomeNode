@@ -2,7 +2,7 @@ import log from "loglevel";
 
 import { createFileTree, mapPathsBackToFiles, rebuildFileTree } from "./prepare-files";
 import type { UIToUploaderMessages } from "./types";
-import { getStorageRoot } from "~/common/fs/api";
+import { getStorageRoot } from "../../common/fs/api";
 
 
 self.onmessage = async (event: MessageEvent<UIToUploaderMessages>) => {
