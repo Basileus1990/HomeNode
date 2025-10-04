@@ -1,4 +1,3 @@
-export * from "./cache";
 export * from "./opfs"
 export * from "./types"
 export * from "./path"

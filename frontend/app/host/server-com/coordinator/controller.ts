@@ -5,7 +5,7 @@ import { createStreamWorker as createStreamWorker } from "./handle-stream-worker
 import type { StreamWorkerRegistry } from "./stream-worker-registry";
 import { HMHostWriter, HostToServerMessage } from "../message/writers";
 import type { HomeNodeFrontendConfig } from "../../../config";
-import { findHandle, isDirectoryPath, readHandle } from "~/common/fs/api";
+import { findHandle, isDirectoryPath, readHandle } from "../../../common/fs/api";
 
 
 export class HostController {
