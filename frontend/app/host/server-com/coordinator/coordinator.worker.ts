@@ -6,7 +6,7 @@ import { HostController } from './controller';
 import { StreamWorkerRegistry } from "./stream-worker-registry";
 import type { UIToCoordinator } from "../types";
 import type { HomeNodeFrontendConfig } from "../../../config";
-import { getHostConnectionURL } from "~/host/service/url-service";
+import { getHostConnectionURL } from "../../service/url-service";
 
 let _config: HomeNodeFrontendConfig;
 let _socket: WebSocket;
