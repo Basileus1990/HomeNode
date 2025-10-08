@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"encoding/binary"
+
 	"github.com/google/uuid"
 )
 
@@ -28,5 +29,11 @@ func BinaryToUint32(data []byte) uint32 {
 func UUIDToBinary(u uuid.UUID) []byte {
 	b := make([]byte, 16)
 	copy(b, u[:])
+	return b
+}
+
+func ByteToBinary(v uint8) []byte {
+	b := make([]byte, 1)
+	b[0] = v
 	return b
 }

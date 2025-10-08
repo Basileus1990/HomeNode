@@ -2,7 +2,7 @@ import log from "loglevel";
 
 import { ServerToHostMessage } from "../message/readers";
 import { createStreamWorker as createStreamWorker } from "./handle-stream-worker";
-import type { StreamWorkerRegistry } from "./stream-worker-registry";
+import type { WorkerRegistry } from "./stream-worker-registry";
 import { HMHostWriter, HostToServerMessage } from "../message/writers";
 import type { HomeNodeFrontendConfig } from "../../../config";
 import { findHandle, isDirectoryPath, readHandle } from "../../../common/fs/api";
@@ -11,7 +11,8 @@ import { findHandle, isDirectoryPath, readHandle } from "../../../common/fs/api"
 export class HostController {
     private _socket: WebSocket;
     private _config: HomeNodeFrontendConfig;
-    private _streamWorkers: StreamWorkerRegistry;
+    private _streamWorkers: WorkerRegistry;
+    private _downloadWorkers: WorkerRegistry;
     private _postMessage: (message: any) => void;
     private _streamCounter = 0;
     private _connectionStatus: "connected" | "disconncted" = "disconncted";
@@ -19,12 +20,14 @@ export class HostController {
     constructor(
         socket: WebSocket,
         config: HomeNodeFrontendConfig,
-        streamWorkers: StreamWorkerRegistry,
+        streamWorkers: WorkerRegistry,
+        downloadWorkers: WorkerRegistry,
         postMessage: (message: any) => void
     ) {
         this._socket = socket;
         this._config = config;
         this._streamWorkers = streamWorkers;
+        this._downloadWorkers = downloadWorkers;
         this._postMessage = postMessage;
     }
 
@@ -58,6 +61,10 @@ export class HostController {
             case ServerToHostMessage.Types.InitWithExistingHost:
                 this.handleInitWithExistingHost(respondentId);
                 break;
+            case ServerToHostMessage.Types.ClientStartsUpload: {
+                
+                break;
+            }
             default:
                 log.trace("Host received unknown message type:", typeNo, "with payload:", payload);
                 log.warn("Host received message of unknown type");
@@ -85,7 +92,7 @@ export class HostController {
         }
 
         const newStreamId = this._streamCounter++;
-        const newWorker = createStreamWorker(this._socket, this._config, (id) => this.setStreamerWorkerLastActiveNow(id));
+        const newWorker = createStreamWorker(this._socket, this._config, (id) => this.setWorkerLastActiveNow(id));
         this._streamWorkers.set(newStreamId, { worker: newWorker, lastActive: Date.now() });
         newWorker.postMessage({
             type: "prepare",
@@ -224,7 +231,7 @@ export class HostController {
         this._socket.send(response);
     }
 
-    private setStreamerWorkerLastActiveNow(streamId: number) {
+    private setWorkerLastActiveNow(streamId: number) {
         const entry = this._streamWorkers.get(streamId);
         if (entry) {
             entry.lastActive = Date.now();

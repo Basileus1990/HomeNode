@@ -6,6 +6,7 @@ import type{ ClientToServerCommunication } from "../api";
 import type{ FromDownloader } from "./stream/types";
 import type { Item } from "~/common/fs/types";
 import { SocketToClientMessageTypes, HMClientReader } from "./message/readers";
+import { ClientToSocketMessageTypes, HMClientWriter } from "./message/writers";
 import { WebSocketServerEndpointService } from "./endpoints";
 import { getConfig } from "../../../../config";
 
@@ -160,4 +161,66 @@ export class HostWebSocketclient implements ClientToServerCommunication {
             return worker;
         }
     }
+
+    public static async uploadFile(
+        hostId: string,
+        path: string,
+        file: File,
+        onStart?: (sizeInChunks?: number) => void,
+        onChunk?: (chunkNo?: number) => void,
+        onEof?: () => void,
+        onError?: () => void) 
+    {
+        const config = await getConfig();
+        const url = "";
+        //const url = WebSocketServerEndpointService.getUploadEndpointURL(hostId, path, config);
+        return new Promise(async (resolve, reject) => {
+            try {
+                const reader = new HMClientReader();
+                const writer = new HMClientWriter();
+                const socket = new WebSocket(url);
+                socket.binaryType = "arraybuffer";
+
+                socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
+                    try {
+                        const msg = reader.read(event.data, config);
+                        if (!msg) {
+                            reject(new Error("Unable to interpret data from socket"));
+                            return;
+                        }
+
+                        if (msg.typeNo == SocketToClientMessageTypes.ChunkResponse) {
+                            if (onChunk) {
+                                onChunk(msg.payload.chunkNo);
+                            }
+                            const offset = msg.payload.offset;
+                            const chunk = file.slice(offset, offset + config.chunkSize!);
+                            const resp = await writer.write(ClientToSocketMessageTypes.ChunkUploadRequest, { chunk }, config);
+                            socket.send(resp);
+                        } else if (msg.typeNo == SocketToClientMessageTypes.UploadEOFResponse) {
+                            if (onEof) {
+                                onEof();
+                            }
+                            resolve(true);
+                        } else if (msg.typeNo == SocketToClientMessageTypes.ServerError) {
+                            if (onError) {
+                                onError();
+                            }
+                            reject(new Error(`Server error ${msg.payload.errorType}`));
+                        }
+
+                    } catch (error) {
+                        reject(new Error(`Error reading message: ${error}`));
+                    } finally {
+                        socket.close();
+                    }
+                }
+                
+            } catch (e) {
+                log.error(e);
+                reject(e);
+            }
+        });
+    }
+    
 }

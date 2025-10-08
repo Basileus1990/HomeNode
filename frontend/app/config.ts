@@ -7,7 +7,7 @@ type HomeNodeFrontendConfig = {
     streamer_inactivity_timeout: number;
     streamer_cleanup_interval: number;
 
-    //chunkSize: number;
+    chunkSize?: number;
     use_little_endian: boolean;
 
     host_connect_ws_url: string;

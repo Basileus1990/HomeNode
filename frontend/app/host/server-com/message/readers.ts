@@ -11,7 +11,10 @@ export namespace ServerToHostMessage {
         DownloadInitRequest = 5,
         ChunkRequest = 7,
         DownloadCompletionRequest = 10,
-        InitWithExistingHost = 11
+        InitWithExistingHost = 11,
+
+        ClientStartsUpload = 20,
+        ChunkFromClient = 21
     }
 
     export type ServerError = {
@@ -43,6 +46,12 @@ export namespace ServerToHostMessage {
         streamId: number;
     }
     export type ExistingHostInit = {
+    }
+    export type ClientStartsUpload = {
+        path: string;
+    }
+    export type ClientChunk = {
+        chunk: ArrayBuffer;
     }
 
     export type Contents =
@@ -115,6 +124,14 @@ export class HMHostReader {
                     return this.readEndStreamRequest(data, useLittleEndian);
                 case ServerToHostMessage.Types.InitWithExistingHost:
                     return {};
+                case ServerToHostMessage.Types.ClientStartsUpload: {
+                    const decoder = new TextDecoder();
+                    const path = decoder.decode(data);
+                    return { path };
+                }
+                case ServerToHostMessage.Types.ChunkFromClient: {
+                    return { chunk: data };
+                }
                 default:
                     return null;
             }

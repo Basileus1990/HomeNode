@@ -2,6 +2,7 @@ import { FlagService, encodePerJson, encodeUUID } from "../../../common/server-c
 import { type EncryptionData, encryptBuffer } from "../../../common/crypto";
 import { type HomeNodeFrontendConfig } from "../../../config";
 import type { Item } from "~/common/fs/types";
+import Host from "~/host/views/layout";
 
 
 export namespace HostToServerMessage {
@@ -12,7 +13,10 @@ export namespace HostToServerMessage {
         MetadataResponse = 4,
         DownloadInitResponse = 6,
         ChunkResponse = 8,
-        EOFResponse = 9
+        EOFResponse = 9,
+
+        RequestChunk = 22,
+        UploadEOF = 23
     }
     export type HostError = {
         errorType: number;
@@ -102,6 +106,7 @@ export class HMHostWriter {
                 return this.writeChunkResponse(data as HostToServerMessage.Chunk, config);
             case HostToServerMessage.Types.EOFResponse:
                 return this.writeEOFResponse();
+            case HostToServerMessage.Types.RequestChunk:
             default:
                 throw new Error(`Unknown message type: ${typeNo}`);
         }

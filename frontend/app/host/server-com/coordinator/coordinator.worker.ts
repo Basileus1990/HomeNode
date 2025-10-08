@@ -3,14 +3,14 @@ log.setLevel("DEBUG");
 
 import { HMHostReader } from '../message/readers';
 import { HostController } from './controller';
-import { StreamWorkerRegistry } from "./stream-worker-registry";
+import { WorkerRegistry } from "./stream-worker-registry";
 import type { UIToCoordinator } from "../types";
 import type { HomeNodeFrontendConfig } from "../../../config";
 import { getHostConnectionURL } from "../../service/url-service";
 
 let _config: HomeNodeFrontendConfig;
 let _socket: WebSocket;
-const streamWorkers = new StreamWorkerRegistry();
+const streamWorkers = new WorkerRegistry();
 let _controller: HostController;
 
 

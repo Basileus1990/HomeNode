@@ -16,6 +16,8 @@ import (
 )
 
 const hostKeyQueryParam = "hostKey"
+const uploadNameQueryParam = "name"
+const uploadTypeQueryParam = "type"
 
 type Controller struct {
 	HostService       host.HostService
@@ -143,6 +145,54 @@ func (c *Controller) DownloadResource(ctx *gin.Context) {
 	}
 
 	err = c.HostService.DownloadResource(clientConn, hostID, resourceID, pathToResource)
+	if err != nil {
+		if errors.Is(err, &ws_errors.WebsocketError{}) {
+			clientConn.SendAndLogError(message_types.Error.Binary(), err.(ws_errors.WebsocketError).Code().Binary())
+			return
+		}
+
+		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.UnknownError.Binary())
+		return
+	}
+}
+
+// UploadResource
+//
+// Method: GET
+// Path: /api/v1/host/upload/{hostUuid}/{resourceUuid}/path/to/resource.exe?name={name}&type={type}
+func (c *Controller) UploadResource(ctx *gin.Context) {
+	upgrader := c.upgrader()
+
+	ws, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+	if err != nil {
+		log.Println("Failed to upgrade to websocket:", err)
+		return
+	}
+
+	clientConn := c.ClientConnFactory.NewClientConn(ws, clientconn.DefaultClientConnTimeout)
+	defer clientConn.Close()
+
+	uploadName, ok := ctx.GetQuery(uploadNameQueryParam)
+	if !ok || len(uploadName) == 0 {
+		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
+		return
+	}
+
+	uploadType, ok := ctx.GetQuery(uploadTypeQueryParam)
+	if !ok || len(uploadType) == 0 || !(uploadType == "file" || uploadType == "dir") {
+		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
+		return
+	}
+
+	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))
+	resourceID, resourceErr := uuid.Parse(ctx.Param("resourceUuid"))
+	pathToResource := ctx.Param("pathToResource")
+	if hostErr != nil || resourceErr != nil {
+		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
+		return
+	}
+
+	err = c.HostService.UploadResource(clientConn, hostID, resourceID, pathToResource)
 	if err != nil {
 		if errors.Is(err, &ws_errors.WebsocketError{}) {
 			clientConn.SendAndLogError(message_types.Error.Binary(), err.(ws_errors.WebsocketError).Code().Binary())

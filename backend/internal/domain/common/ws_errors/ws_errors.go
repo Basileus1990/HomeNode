@@ -57,3 +57,8 @@ var InvalidHostKeyErr = WebsocketError{
 	code: InvalidHostKey,
 	msg:  "invalid host key error",
 }
+
+var InvalidUploadTypeErr = WebsocketError{
+	code: InvalidHostKey,
+	msg:  "upload type can be 'file' or 'dir'",
+}

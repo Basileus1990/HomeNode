@@ -6,7 +6,10 @@ export enum ClientToSocketMessageTypes {
     ClientError = 0,
     ClientACK = 1,
     ChunkRequest = 7,
-    DownloadCompletionRequest = 10
+    DownloadCompletionRequest = 10,
+
+    UploadInitRequest = 20,
+    ChunkUploadRequest = 21
 }
 
 export class HMClientWriter {
@@ -46,8 +49,29 @@ export class HMClientWriter {
                 return this.writeChunkRequest(data, useLittleEndian);
             case ClientToSocketMessageTypes.DownloadCompletionRequest:
                 return this.writeEndStreamRequest(data);
+            case ClientToSocketMessageTypes.UploadInitRequest: 
+                return this.writeUploadInitRequest(data);
+            case ClientToSocketMessageTypes.ChunkUploadRequest: 
+                return this.writeChunkUploadRequest(data);
             default:
                 throw new Error(`Unknown client message type: ${typeNo}`);
+        }
+    }
+
+    private writeChunkUploadRequest(data: any) {
+        {
+            const payload = data.chunk as ArrayBuffer;
+            return { flags: 0, payload };
+        }
+    }
+
+    private writeUploadInitRequest(data: any) {
+        {
+            const path = data.path;
+            const encoder = new TextEncoder();
+            const buffer = encoder.encode(path);
+            const payload = buffer.buffer;
+            return { flags: 0, payload };
         }
     }
 

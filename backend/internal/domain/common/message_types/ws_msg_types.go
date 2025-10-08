@@ -26,6 +26,11 @@ const (
 	EofResponse               WebsocketMessageType = 9
 	DownloadCompletionRequest WebsocketMessageType = 10
 	InitExistingHost          WebsocketMessageType = 11
+
+	UploadInitRequest  WebsocketMessageType = 20
+	UploadChunk        WebsocketMessageType = 21
+	ConfirmUploadChunk WebsocketMessageType = 22
+	UploadEOF          WebsocketMessageType = 23
 )
 
 func GetMsgType(msg []byte) (WebsocketMessageType, error) {
