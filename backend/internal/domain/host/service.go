@@ -22,6 +22,7 @@ type HostService interface {
 	InitExistingHostConnection(ctx context.Context, ws *websocket.Conn, hostId uuid.UUID, hostKey string) error
 	GetResourceMetadata(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) ([]byte, error)
 	DownloadResource(clientConn clientconn.ClientConn, hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) error
+	CreateDirectory(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToDirectory string) ([]byte, error)
 }
 
 type defaultConnectionService struct {
@@ -157,18 +158,18 @@ func (s *defaultConnectionService) GetResourceMetadata(hostUuid uuid.UUID, resou
 
 func (s *defaultConnectionService) DownloadResource(
 	clientConn clientconn.ClientConn,
-	hostUUID uuid.UUID,
-	resourceUUID uuid.UUID,
+	hostUuid uuid.UUID,
+	resourceUuid uuid.UUID,
 	pathToResource string,
 ) error {
-	hostConn, ok := s.hostMap.Get(hostUUID)
+	hostConn, ok := s.hostMap.Get(hostUuid)
 	if !ok {
 		return ws_errors.HostNotFoundErr
 	}
 
 	downloadInitResp, err := hostConn.Query(
 		message_types.DownloadInitRequest.Binary(),
-		helpers.UUIDToBinary(resourceUUID),
+		helpers.UUIDToBinary(resourceUuid),
 		helpers.Uint32ToBinary(uint32(s.websocketConfig.BatchSize)),
 		[]byte(helpers.AddNullCharToString(pathToResource)),
 	)
@@ -201,6 +202,28 @@ func (s *defaultConnectionService) DownloadResource(
 	}
 
 	return s.handleDownloadLoop(hostConn, clientConn, downloadInitRespDto.downloadId)
+}
+
+func (s *defaultConnectionService) CreateDirectory(
+	hostUuid uuid.UUID,
+	resourceUuid uuid.UUID,
+	pathToDirectory string,
+) ([]byte, error) {
+	hostConn, ok := s.hostMap.Get(hostUuid)
+	if !ok {
+		return nil, ws_errors.HostNotFoundErr
+	}
+
+	resp, err := hostConn.Query(
+		message_types.CreateDirectory.Binary(),
+		helpers.UUIDToBinary(resourceUuid),
+		[]byte(helpers.AddNullCharToString(pathToDirectory)),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 func (s *defaultConnectionService) handleDownloadLoop(

@@ -1045,3 +1045,89 @@ func TestDownloadResource(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func TestCreateDirectory(t *testing.T) {
+	t.Run("success: host replies OK", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+
+		mockHostMap := &hostmap.MockHostMap{}
+		mockConn := &hostconn.MockConn{}
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockConn, true)
+
+		expectedQuery := [][]byte{
+			message_types.CreateDirectory.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(uint32(123)),
+			[]byte("path/to/dir\000"),
+		}
+		mockConn.On("Query", expectedQuery).Return(message_types.ACK.Binary(), nil)
+
+		expectedResponse := message_types.ACK.Binary()
+
+		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		resp, err := svc.CreateDirectory(hostId, resourceId, "path/to/dir")
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, resp)
+	})
+
+	t.Run("error: host not found", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockHostMap := &hostmap.MockHostMap{}
+		mockConn := &hostconn.MockConn{}
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(nil, false)
+
+		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		resp, err := svc.CreateDirectory(hostId, resourceId, "some/path")
+
+		require.Error(t, err)
+		assert.Equal(t, "host not found error", err.Error())
+		assert.Nil(t, resp)
+	})
+
+	t.Run("error: host query error", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockHostMap := &hostmap.MockHostMap{}
+		mockConn := &hostconn.MockConn{}
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockConn, true)
+
+		expectedQuery := [][]byte{
+			message_types.CreateDirectory.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(uint32(123)),
+			[]byte("another/path\000"),
+		}
+		mockConn.On("Query", expectedQuery).Return(nil, errors.New("test error"))
+
+		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		resp, err := svc.CreateDirectory(hostId, resourceId, "another/path")
+
+		require.Error(t, err)
+		assert.Equal(t, "test error", err.Error())
+		assert.Nil(t, resp)
+	})
+}
