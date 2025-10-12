@@ -217,7 +217,6 @@ func (s *defaultConnectionService) CreateDirectory(
 	resp, err := hostConn.Query(
 		message_types.CreateDirectory.Binary(),
 		helpers.UUIDToBinary(resourceUuid),
-		helpers.Uint32ToBinary(uint32(s.websocketConfig.BatchSize)),
 		[]byte(helpers.AddNullCharToString(pathToDirectory)),
 	)
 	if err != nil {
