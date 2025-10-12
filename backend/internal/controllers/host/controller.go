@@ -30,6 +30,7 @@ func (c *Controller) SetUpRoutes(group *gin.RouterGroup) {
 	group.GET("metadata/:hostUuid/:resourceUuid", c.GetResourceMetadata)
 	group.GET("download/:hostUuid/:resourceUuid/*pathToResource", c.DownloadResource)
 	group.GET("download/:hostUuid/:resourceUuid", c.DownloadResource)
+	group.GET("directory/create/:hostUuid/:resourceUuid/*pathToResource", c.CreateDirectory)
 }
 
 // HostConnect
