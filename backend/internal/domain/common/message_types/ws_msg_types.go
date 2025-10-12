@@ -26,6 +26,7 @@ const (
 	EofResponse               WebsocketMessageType = 9
 	DownloadCompletionRequest WebsocketMessageType = 10
 	InitExistingHost          WebsocketMessageType = 11
+	CreateDirectory           WebsocketMessageType = 12
 )
 
 func GetMsgType(msg []byte) (WebsocketMessageType, error) {

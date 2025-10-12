@@ -154,6 +154,44 @@ func (c *Controller) DownloadResource(ctx *gin.Context) {
 	}
 }
 
+// CreateDirectory
+//
+// Method: GET
+// Path: /api/v1/host/directory/create/{hostUuid}/{resourceUuid}/path/to/directory
+func (c *Controller) CreateDirectory(ctx *gin.Context) {
+	upgrader := c.upgrader()
+
+	ws, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+	if err != nil {
+		log.Println("Failed to upgrade to websocket:", err)
+		return
+	}
+
+	clientConn := c.ClientConnFactory.NewClientConn(ws, clientconn.DefaultClientConnTimeout)
+	defer clientConn.Close()
+
+	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))
+	resourceID, resourceErr := uuid.Parse(ctx.Param("resourceUuid"))
+	pathToDirectory := ctx.Param("pathToDirectory")
+	if hostErr != nil || resourceErr != nil {
+		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
+		return
+	}
+
+	resp, err := c.HostService.CreateDirectory(hostID, resourceID, pathToDirectory)
+	if err != nil {
+		if errors.Is(err, &ws_errors.WebsocketError{}) {
+			clientConn.SendAndLogError(message_types.Error.Binary(), err.(ws_errors.WebsocketError).Code().Binary())
+			return
+		}
+
+		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.UnknownError.Binary())
+		return
+	}
+
+	clientConn.SendAndLogError(resp)
+}
+
 func (c *Controller) upgrader() websocket.Upgrader {
 	return websocket.Upgrader{
 		ReadBufferSize:  c.WebsocketCfg.BatchSize,
