@@ -28,11 +28,13 @@ type FrontendCfg struct {
 	UseLittleEndian           bool `env:"FRONTEND_USE_LITTLE_ENDIAN" json:"use_little_endian"`
 
 	// Websocket endpoints
-	HostConnectWSURL             string `env:"FRONTEND_HOST_CONNECT_WS_URL" json:"host_connect_ws_url"`
-	HostReconnectWSURLTemplate   string `env:"FRONTEND_HOST_RECONNECT_WS_URL_TEMPLATE" json:"host_reconnect_ws_url_template"`
-	ClientMetadataWSURLTemplate  string `env:"FRONTEND_CLIENT_CONNECT_WS_URL_TEMPLATE" json:"client_metadata_ws_url_template"`
-	ClientDownloadWSURLTemplate  string `env:"FRONTEND_CLIENT_DOWNLOAD_WS_URL_TEMPLATE" json:"client_download_ws_url_template"`
-	ClientCreateDirWSURLTemplate string `env:"FRONTEND_CLIENT_CREATE_DIR_WS_URL_TEMPLATE" json:"client_create_dir_ws_url_template"`
+	HostConnectWSURL              string `env:"FRONTEND_HOST_CONNECT_WS_URL" json:"host_connect_ws_url"`
+	HostReconnectWSURLTemplate    string `env:"FRONTEND_HOST_RECONNECT_WS_URL_TEMPLATE" json:"host_reconnect_ws_url_template"`
+	ClientMetadataWSURLTemplate   string `env:"FRONTEND_CLIENT_CONNECT_WS_URL_TEMPLATE" json:"client_metadata_ws_url_template"`
+	ClientDownloadWSURLTemplate   string `env:"FRONTEND_CLIENT_DOWNLOAD_WS_URL_TEMPLATE" json:"client_download_ws_url_template"`
+	ClientCreateDirWSURLTemplate  string `env:"FRONTEND_CLIENT_CREATE_DIR_WS_URL_TEMPLATE" json:"client_create_dir_ws_url_template"`
+	ClientDeleteDirWSURLTemplate  string `env:"FRONTEND_CLIENT_DELETE_DIR_WS_URL_TEMPLATE" json:"client_delete_dir_wsurl_template"`
+	ClientDeleteFileWSURLTemplate string `env:"FRONTEND_CLIENT_DELETE_FILE_WS_URL_TEMPLATE" json:"client_delete_file_ws_url_template"`
 
 	// Cryptography
 	PBKDF2Iterations int `env:"FRONTEND_PBKDF2_ITERATIONS" json:"pbkdf2_iterations"`

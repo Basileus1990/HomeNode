@@ -23,6 +23,8 @@ type HostService interface {
 	GetResourceMetadata(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) ([]byte, error)
 	DownloadResource(clientConn clientconn.ClientConn, hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) error
 	CreateDirectory(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToDirectory string) ([]byte, error)
+	DeleteDirectory(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToDirectory string) ([]byte, error)
+	DeleteFile(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToFile string) ([]byte, error)
 }
 
 type defaultConnectionService struct {
@@ -137,23 +139,8 @@ func (s *defaultConnectionService) InitExistingHostConnection(
 }
 
 func (s *defaultConnectionService) GetResourceMetadata(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) ([]byte, error) {
-	hostConn, ok := s.hostMap.Get(hostUuid)
-	if !ok {
-		return nil, ws_errors.HostNotFoundErr
-	}
+	return s.queryHostResource(hostUuid, resourceUuid, pathToResource, message_types.MetadataQuery)
 
-	pathToResourceBinary := []byte(helpers.AddNullCharToString(pathToResource))
-
-	response, err := hostConn.Query(
-		message_types.MetadataQuery.Binary(),
-		helpers.UUIDToBinary(resourceUuid),
-		pathToResourceBinary,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
 }
 
 func (s *defaultConnectionService) DownloadResource(
@@ -209,21 +196,23 @@ func (s *defaultConnectionService) CreateDirectory(
 	resourceUuid uuid.UUID,
 	pathToDirectory string,
 ) ([]byte, error) {
-	hostConn, ok := s.hostMap.Get(hostUuid)
-	if !ok {
-		return nil, ws_errors.HostNotFoundErr
-	}
+	return s.queryHostResource(hostUuid, resourceUuid, pathToDirectory, message_types.CreateDirectory)
+}
 
-	resp, err := hostConn.Query(
-		message_types.CreateDirectory.Binary(),
-		helpers.UUIDToBinary(resourceUuid),
-		[]byte(helpers.AddNullCharToString(pathToDirectory)),
-	)
-	if err != nil {
-		return nil, err
-	}
+func (s *defaultConnectionService) DeleteDirectory(
+	hostUuid uuid.UUID,
+	resourceUuid uuid.UUID,
+	pathToDirectory string,
+) ([]byte, error) {
+	return s.queryHostResource(hostUuid, resourceUuid, pathToDirectory, message_types.DeleteDirectory)
+}
 
-	return resp, nil
+func (s *defaultConnectionService) DeleteFile(
+	hostUuid uuid.UUID,
+	resourceUuid uuid.UUID,
+	pathToDirectory string,
+) ([]byte, error) {
+	return s.queryHostResource(hostUuid, resourceUuid, pathToDirectory, message_types.DeleteFile)
 }
 
 func (s *defaultConnectionService) handleDownloadLoop(
@@ -286,4 +275,27 @@ func (s *defaultConnectionService) handleChunkRequest(
 	}
 
 	return clientConn.Send(hostResp)
+}
+
+func (s *defaultConnectionService) queryHostResource(
+	hostUuid uuid.UUID,
+	resourceUuid uuid.UUID,
+	path string,
+	msgType message_types.WebsocketMessageType,
+) ([]byte, error) {
+	hostConn, ok := s.hostMap.Get(hostUuid)
+	if !ok {
+		return nil, ws_errors.HostNotFoundErr
+	}
+
+	resp, err := hostConn.Query(
+		msgType.Binary(),
+		helpers.UUIDToBinary(resourceUuid),
+		[]byte(helpers.AddNullCharToString(path)),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }

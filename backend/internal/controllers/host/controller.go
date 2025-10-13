@@ -30,7 +30,9 @@ func (c *Controller) SetUpRoutes(group *gin.RouterGroup) {
 	group.GET("metadata/:hostUuid/:resourceUuid", c.GetResourceMetadata)
 	group.GET("download/:hostUuid/:resourceUuid/*pathToResource", c.DownloadResource)
 	group.GET("download/:hostUuid/:resourceUuid", c.DownloadResource)
-	group.GET("directory/create/:hostUuid/:resourceUuid/*pathToResource", c.CreateDirectory)
+	group.GET("directory/create/:hostUuid/:resourceUuid/*pathToDirectory", c.CreateDirectory)
+	group.GET("directory/delete/:hostUuid/:resourceUuid/*pathToDirectory", c.DeleteDirectory)
+	group.GET("file/delete/:hostUuid/:resourceUuid/*pathToFile", c.DeleteFile)
 }
 
 // HostConnect
@@ -180,6 +182,82 @@ func (c *Controller) CreateDirectory(ctx *gin.Context) {
 	}
 
 	resp, err := c.HostService.CreateDirectory(hostID, resourceID, pathToDirectory)
+	if err != nil {
+		if errors.Is(err, &ws_errors.WebsocketError{}) {
+			clientConn.SendAndLogError(message_types.Error.Binary(), err.(ws_errors.WebsocketError).Code().Binary())
+			return
+		}
+
+		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.UnknownError.Binary())
+		return
+	}
+
+	clientConn.SendAndLogError(resp)
+}
+
+// DeleteDirectory
+//
+// Method: GET
+// Path: /api/v1/host/directory/delete/{hostUuid}/{resourceUuid}/path/to/directory
+func (c *Controller) DeleteDirectory(ctx *gin.Context) {
+	upgrader := c.upgrader()
+
+	ws, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+	if err != nil {
+		log.Println("Failed to upgrade to websocket:", err)
+		return
+	}
+
+	clientConn := c.ClientConnFactory.NewClientConn(ws, clientconn.DefaultClientConnTimeout)
+	defer clientConn.Close()
+
+	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))
+	resourceID, resourceErr := uuid.Parse(ctx.Param("resourceUuid"))
+	pathToDirectory := ctx.Param("pathToDirectory")
+	if hostErr != nil || resourceErr != nil {
+		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
+		return
+	}
+
+	resp, err := c.HostService.DeleteDirectory(hostID, resourceID, pathToDirectory)
+	if err != nil {
+		if errors.Is(err, &ws_errors.WebsocketError{}) {
+			clientConn.SendAndLogError(message_types.Error.Binary(), err.(ws_errors.WebsocketError).Code().Binary())
+			return
+		}
+
+		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.UnknownError.Binary())
+		return
+	}
+
+	clientConn.SendAndLogError(resp)
+}
+
+// DeleteFile
+//
+// Method: GET
+// Path: /api/v1/host/file/delete/{hostUuid}/{resourceUuid}/path/to/file.exe
+func (c *Controller) DeleteFile(ctx *gin.Context) {
+	upgrader := c.upgrader()
+
+	ws, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+	if err != nil {
+		log.Println("Failed to upgrade to websocket:", err)
+		return
+	}
+
+	clientConn := c.ClientConnFactory.NewClientConn(ws, clientconn.DefaultClientConnTimeout)
+	defer clientConn.Close()
+
+	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))
+	resourceID, resourceErr := uuid.Parse(ctx.Param("resourceUuid"))
+	pathToFile := ctx.Param("pathToFile")
+	if hostErr != nil || resourceErr != nil {
+		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
+		return
+	}
+
+	resp, err := c.HostService.DeleteFile(hostID, resourceID, pathToFile)
 	if err != nil {
 		if errors.Is(err, &ws_errors.WebsocketError{}) {
 			clientConn.SendAndLogError(message_types.Error.Binary(), err.(ws_errors.WebsocketError).Code().Binary())
