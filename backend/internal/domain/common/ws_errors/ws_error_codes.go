@@ -9,14 +9,14 @@ func (c WebsocketErrorCode) Binary() []byte {
 }
 
 const (
-	UnknownError          WebsocketErrorCode = 0
-	ConnectionClosed      WebsocketErrorCode = 1
-	Timeout               WebsocketErrorCode = 2
-	HostNotFound          WebsocketErrorCode = 3
-	InvalidUrlParams      WebsocketErrorCode = 4
-	InvalidMessageBody    WebsocketErrorCode = 5
-	UnexpectedMessageType WebsocketErrorCode = 6
-	MissingRequiredParams WebsocketErrorCode = 7
-	HostAlreadyConnected  WebsocketErrorCode = 8
-	InvalidHostKey        WebsocketErrorCode = 9
+	UnknownError                   WebsocketErrorCode = 0
+	ConnectionClosed               WebsocketErrorCode = 1
+	Timeout                        WebsocketErrorCode = 2
+	HostNotFound                   WebsocketErrorCode = 3
+	InvalidUrlParams               WebsocketErrorCode = 4
+	InvalidMessageBody             WebsocketErrorCode = 5
+	UnexpectedMessageType          WebsocketErrorCode = 6
+	MissingOrInvalidRequiredParams WebsocketErrorCode = 7
+	HostAlreadyConnected           WebsocketErrorCode = 8
+	InvalidHostKey                 WebsocketErrorCode = 9
 )

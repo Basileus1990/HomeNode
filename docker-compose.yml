@@ -27,8 +27,8 @@ services:
       - FRONTEND_CLIENT_CONNECT_WS_URL_TEMPLATE=/api/v1/host/metadata/@hostId/@path
       - FRONTEND_CLIENT_DOWNLOAD_WS_URL_TEMPLATE=/api/v1/host/download/@hostId/@path
       - FRONTEND_CLIENT_CREATE_DIR_WS_URL_TEMPLATE=/api/v1/host/directory/create/@hostId/@path
-      - FRONTEND_CLIENT_DELETE_DIR_WS_URL_TEMPLATE=/api/v1/host/directory/delete/@hostId/@path
-      - FRONTEND_CLIENT_DELETE_FILE_WS_URL_TEMPLATE=/api/v1/host/file/delete/@hostId/@path
+      - FRONTEND_CLIENT_CREATE_FILE_WS_URL_TEMPLATE=/api/v1/host/file/create/@hostId/@path
+      - FRONTEND_CLIENT_DELETE_RESOURCE_WS_URL_TEMPLATE=/api/v1/host/resource/delete/@hostId/@path
 
       - FRONTEND_PBKDF2_ITERATIONS=100000
       - FRONTEND_AES_KEY_LENGTH=256

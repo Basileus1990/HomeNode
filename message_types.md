@@ -12,5 +12,8 @@
 - 10: Download Completion Request
 - 11: Init existing host
 - 12: Create Directory
-- 13: Delete Directory
-- 14: Delete File
+- 13: Delete Resource
+- 14: Create File Init Request
+- 15: Create File Init Response
+- 16: Create File Stream End
+- 17: Create File Host Chunk Request

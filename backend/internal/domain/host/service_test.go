@@ -33,7 +33,7 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 		mockConn.On("Query", mock.Anything).Return(message_types.ACK.Binary(), nil)
 		mockSavedConnectionsRepo.On("AddOrRenew", mock.Anything, mock.Anything).Return(nil)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.InitNewHostConnection(context.Background(), mockWs)
 
 		assert.NoError(t, err)
@@ -51,7 +51,7 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 		mockHostMap.On("AddNew", mockWs).Return(id)
 		mockHostMap.On("Get", id).Return(nil, false)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.InitNewHostConnection(context.Background(), mockWs)
 
 		assert.Error(t, err)
@@ -74,7 +74,7 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 		mockConn.On("Query", mock.Anything).Return(nil, queryErr)
 		mockConn.On("Close").Return()
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.InitNewHostConnection(context.Background(), mockWs)
 
 		require.Error(t, err)
@@ -99,7 +99,7 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 
 		mockConn.On("Query", mock.Anything).Return([]byte("NO"), nil)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.InitNewHostConnection(context.Background(), mockWs)
 
 		require.Error(t, err)
@@ -123,7 +123,7 @@ func TestInitialiseNewHostConnection(t *testing.T) {
 		mockConn.On("Query", mock.Anything).Return(message_types.ACK.Binary(), nil)
 		mockSavedConnectionsRepo.On("AddOrRenew", mock.Anything, mock.Anything).Return(errors.New("test error"))
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.InitNewHostConnection(context.Background(), mockWs)
 
 		require.Error(t, err)
@@ -152,7 +152,7 @@ func TestInitExistingHostConnection(t *testing.T) {
 
 		mockHostMap.On("Get", hostId).Return(mockConn, true)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.InitExistingHostConnection(context.Background(), mockWs, hostId, hostKey)
 
 		require.Error(t, err)
@@ -176,7 +176,7 @@ func TestInitExistingHostConnection(t *testing.T) {
 		mockHostMap.On("Get", hostId).Return(nil, false)
 		mockSavedConnectionsRepo.On("GetById", mock.Anything, hostId).Return(nil, errors.New("test error"))
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.InitExistingHostConnection(context.Background(), mockWs, hostId, hostKey)
 
 		require.Error(t, err)
@@ -204,7 +204,7 @@ func TestInitExistingHostConnection(t *testing.T) {
 		mockHostMap.On("Get", hostId).Return(nil, false)
 		mockSavedConnectionsRepo.On("GetById", mock.Anything, hostId).Return(&savedConnection, nil)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.InitExistingHostConnection(context.Background(), mockWs, hostId, hostKey)
 
 		require.Error(t, err)
@@ -233,7 +233,7 @@ func TestInitExistingHostConnection(t *testing.T) {
 		mockSavedConnectionsRepo.On("GetById", mock.Anything, hostId).Return(&savedConnection, nil)
 		mockHostMap.On("Add", mockWs, hostId).Return(errors.New("test error"))
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.InitExistingHostConnection(context.Background(), mockWs, hostId, hostKey)
 
 		require.Error(t, err)
@@ -263,7 +263,7 @@ func TestInitExistingHostConnection(t *testing.T) {
 		mockHostMap.On("Add", mockWs, hostId).Return(nil).Once()
 		mockHostMap.On("Get", hostId).Return(nil, false).Once()
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.InitExistingHostConnection(context.Background(), mockWs, hostId, hostKey)
 
 		require.Error(t, err)
@@ -295,7 +295,7 @@ func TestInitExistingHostConnection(t *testing.T) {
 		mockConn.On("Query", mock.Anything).Return([]byte{66}, errors.New("test error")).Once()
 		mockConn.On("Close").Return()
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.InitExistingHostConnection(context.Background(), mockWs, hostId, hostKey)
 
 		require.Error(t, err)
@@ -327,7 +327,7 @@ func TestInitExistingHostConnection(t *testing.T) {
 		mockConn.On("Query", mock.Anything).Return([]byte{66}, nil)
 		mockConn.On("Close").Return()
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.InitExistingHostConnection(context.Background(), mockWs, hostId, hostKey)
 
 		require.Error(t, err)
@@ -360,7 +360,7 @@ func TestInitExistingHostConnection(t *testing.T) {
 		mockSavedConnectionsRepo.On("AddOrRenew", mock.Anything, mock.Anything).Return(errors.New("test error")).Once()
 		mockConn.On("Close").Return().Once()
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.InitExistingHostConnection(context.Background(), mockWs, hostId, hostKey)
 
 		require.Error(t, err)
@@ -392,7 +392,7 @@ func TestInitExistingHostConnection(t *testing.T) {
 		mockConn.On("Query", mock.Anything).Return(message_types.ACK.Binary(), nil).Once()
 		mockSavedConnectionsRepo.On("AddOrRenew", mock.Anything, mock.Anything).Return(nil).Once()
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.InitExistingHostConnection(context.Background(), mockWs, hostId, hostKey)
 
 		assert.NoError(t, err)
@@ -415,7 +415,7 @@ func TestGetResourceMetadata(t *testing.T) {
 
 		expectedResponse := message_types.ACK.Binary()
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		resp, err := svc.GetResourceMetadata(hostId, resourceId, "abc/cba")
 
 		assert.NoError(t, err)
@@ -435,7 +435,7 @@ func TestGetResourceMetadata(t *testing.T) {
 
 		mockHostMap.On("Get", hostId).Return(nil, false)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		resp, err := svc.GetResourceMetadata(hostId, resourceId, "aaa")
 
 		require.Error(t, err)
@@ -459,7 +459,7 @@ func TestGetResourceMetadata(t *testing.T) {
 		expectedQuery := [][]byte{message_types.MetadataQuery.Binary(), helpers.UUIDToBinary(resourceId), []byte("bbb\000")}
 		mockConn.On("Query", expectedQuery).Return(nil, errors.New("test error"))
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		resp, err := svc.GetResourceMetadata(hostId, resourceId, "bbb")
 
 		require.Error(t, err)
@@ -488,7 +488,7 @@ func TestDownloadResource(t *testing.T) {
 
 		mockHostMap.On("Get", hostId).Return(nil, false)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
@@ -519,7 +519,7 @@ func TestDownloadResource(t *testing.T) {
 		}
 		mockHostConn.On("Query", expectedDownloadInitQuery).Return(nil, errors.New("test error"))
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
@@ -551,7 +551,7 @@ func TestDownloadResource(t *testing.T) {
 		downloadInitResponse := []byte{1}
 		mockHostConn.On("Query", expectedDownloadInitQuery).Return(downloadInitResponse, nil)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
@@ -585,7 +585,7 @@ func TestDownloadResource(t *testing.T) {
 
 		mockClientConn.On("Send", [][]byte{message_types.Error.Binary()}).Return(errors.New("some error from send client"))
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
@@ -617,7 +617,7 @@ func TestDownloadResource(t *testing.T) {
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
 		mockHostConn.On("Query", expectedDownloadInitQuery).Return(downloadInitResponse, nil)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
@@ -662,7 +662,7 @@ func TestDownloadResource(t *testing.T) {
 			helpers.Uint32ToBinary(888),
 		}).Return(downloadInitResponse, nil)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
@@ -709,7 +709,7 @@ func TestDownloadResource(t *testing.T) {
 			helpers.Uint32ToBinary(888),
 		}).Return(downloadInitResponse, nil)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
@@ -756,7 +756,7 @@ func TestDownloadResource(t *testing.T) {
 			helpers.Uint32ToBinary(888),
 		}).Return(downloadInitResponse, nil)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
@@ -803,7 +803,7 @@ func TestDownloadResource(t *testing.T) {
 			helpers.Uint32ToBinary(888),
 		}).Return(downloadInitResponse, nil)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
@@ -858,7 +858,7 @@ func TestDownloadResource(t *testing.T) {
 			helpers.Uint32ToBinary(888),
 		}).Return(downloadInitResponse, nil)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
@@ -917,7 +917,7 @@ func TestDownloadResource(t *testing.T) {
 			helpers.Uint32ToBinary(888),
 		}).Return(downloadInitResponse, nil)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
@@ -978,7 +978,7 @@ func TestDownloadResource(t *testing.T) {
 			helpers.Uint32ToBinary(888),
 		}).Return(nil, errors.New("downloadCompletionQuerySendError"))
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		require.Error(t, err)
@@ -1039,7 +1039,7 @@ func TestDownloadResource(t *testing.T) {
 			helpers.Uint32ToBinary(888),
 		}).Return(nil, nil)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		err := svc.DownloadResource(mockClientConn, hostId, resourceId, "aaa")
 
 		assert.NoError(t, err)
@@ -1071,7 +1071,7 @@ func TestCreateDirectory(t *testing.T) {
 
 		expectedResponse := message_types.ACK.Binary()
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		resp, err := svc.CreateDirectory(hostId, resourceId, "path/to/dir")
 
 		assert.NoError(t, err)
@@ -1092,7 +1092,7 @@ func TestCreateDirectory(t *testing.T) {
 
 		mockHostMap.On("Get", hostId).Return(nil, false)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		resp, err := svc.CreateDirectory(hostId, resourceId, "some/path")
 
 		require.Error(t, err)
@@ -1121,7 +1121,7 @@ func TestCreateDirectory(t *testing.T) {
 		}
 		mockConn.On("Query", expectedQuery).Return(nil, errors.New("test error"))
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{BatchSize: 123}, &mockSavedConnectionsRepo)
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
 		resp, err := svc.CreateDirectory(hostId, resourceId, "another/path")
 
 		require.Error(t, err)
@@ -1147,7 +1147,7 @@ func TestDeleteDirectory(t *testing.T) {
 		mockHostMap.On("Get", hostId).Return(mockConn, true)
 
 		expectedQuery := [][]byte{
-			message_types.DeleteDirectory.Binary(),
+			message_types.DeleteResource.Binary(),
 			helpers.UUIDToBinary(resourceId),
 			[]byte("path/to/dir\000"),
 		}
@@ -1155,43 +1155,721 @@ func TestDeleteDirectory(t *testing.T) {
 
 		expectedResponse := message_types.ACK.Binary()
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{}, &mockSavedConnectionsRepo)
-		resp, err := svc.DeleteDirectory(hostId, resourceId, "path/to/dir")
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		resp, err := svc.DeleteResource(hostId, resourceId, "path/to/dir")
 
 		assert.NoError(t, err)
 		assert.Equal(t, expectedResponse, resp)
 	})
 }
 
-func TestDeleteFile(t *testing.T) {
-	t.Run("success: host replies OK", func(t *testing.T) {
+func TestCreateFile(t *testing.T) {
+	t.Run("error - host not found", func(t *testing.T) {
 		hostId := uuid.New()
 		resourceId := uuid.New()
-
-		mockHostMap := &hostmap.MockHostMap{}
-		mockConn := &hostconn.MockConn{}
 		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
 		defer func() {
 			mockHostMap.AssertExpectations(t)
-			mockConn.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
 			mockSavedConnectionsRepo.AssertExpectations(t)
 		}()
 
-		mockHostMap.On("Get", hostId).Return(mockConn, true)
+		mockHostMap.On("Get", hostId).Return(nil, false)
 
-		expectedQuery := [][]byte{
-			message_types.DeleteFile.Binary(),
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		require.Error(t, err)
+		assert.Equal(t, "host not found error", err.Error())
+	})
+
+	t.Run("error - create file init query error", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
-			[]byte("path/to/dir\000"),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
 		}
-		mockConn.On("Query", expectedQuery).Return(message_types.ACK.Binary(), nil)
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(nil, errors.New("test error"))
 
-		expectedResponse := message_types.ACK.Binary()
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
 
-		svc := NewHostService(mockHostMap, config.WebsocketCfg{}, &mockSavedConnectionsRepo)
-		resp, err := svc.DeleteFile(hostId, resourceId, "path/to/dir")
+		require.Error(t, err)
+		assert.Equal(t, "test error", err.Error())
+	})
+
+	t.Run("error - invalid create file init host response", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := []byte{1}
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		require.Error(t, err)
+		assert.Equal(t, "invalid message body error", err.Error())
+	})
+
+	t.Run("error - create file init error message type send with error", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := message_types.Error.Binary()
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		mockClientConn.On("Send", [][]byte{message_types.Error.Binary()}).Return(errors.New("some error from send client"))
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		require.Error(t, err)
+		assert.Equal(t, "some error from send client", err.Error())
+	})
+
+	t.Run("error - invalid host response - too small for stream id", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := message_types.CreateFileInitResponse.Binary()
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		require.Error(t, err)
+		assert.Equal(t, "invalid message body error", err.Error())
+	})
+
+	t.Run("error - create file init response - send to client error", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := message_types.CreateFileInitResponse.Binary()
+		createFileInitResponse = append(createFileInitResponse, helpers.Uint32ToBinary(777)...) // streamId
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		mockClientConn.On("Send", [][]byte{createFileInitResponse}).Return(errors.New("some error from send client"))
+		mockClientConn.On("Send", [][]byte{message_types.CreateFileStreamEnd.Binary()}).Return(nil)
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		require.Error(t, err)
+		assert.Equal(t, "some error from send client", err.Error())
+	})
+
+	t.Run("error - handleUploadLoop - host chunk request query error", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := message_types.CreateFileInitResponse.Binary()
+		createFileInitResponse = append(createFileInitResponse, helpers.Uint32ToBinary(777)...) // streamId
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		mockClientConn.On("Send", [][]byte{createFileInitResponse}).Return(nil)
+
+		mockHostConn.On("Query", [][]byte{
+			message_types.CreateFileHostChunkRequest.Binary(),
+			helpers.Uint32ToBinary(777),
+		}).Return(nil, errors.New("host chunk request error"))
+
+		mockClientConn.On("Send", [][]byte{message_types.CreateFileStreamEnd.Binary()}).Return(nil)
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		require.Error(t, err)
+		assert.Equal(t, "host chunk request error", err.Error())
+	})
+
+	t.Run("error - handleUploadLoop - host chunk request invalid message type", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := message_types.CreateFileInitResponse.Binary()
+		createFileInitResponse = append(createFileInitResponse, helpers.Uint32ToBinary(777)...) // streamId
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		mockClientConn.On("Send", [][]byte{createFileInitResponse}).Return(nil)
+
+		mockHostConn.On("Query", [][]byte{
+			message_types.CreateFileHostChunkRequest.Binary(),
+			helpers.Uint32ToBinary(777),
+		}).Return([]byte{1}, nil)
+
+		mockClientConn.On("Send", [][]byte{message_types.CreateFileStreamEnd.Binary()}).Return(nil)
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		require.Error(t, err)
+		assert.Equal(t, "invalid message body error", err.Error())
+	})
+
+	t.Run("error - handleUploadLoop - host signals error", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := message_types.CreateFileInitResponse.Binary()
+		createFileInitResponse = append(createFileInitResponse, helpers.Uint32ToBinary(777)...) // streamId
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		mockClientConn.On("Send", [][]byte{createFileInitResponse}).Return(nil)
+
+		hostErrorResp := message_types.Error.Binary()
+		mockHostConn.On("Query", [][]byte{
+			message_types.CreateFileHostChunkRequest.Binary(),
+			helpers.Uint32ToBinary(777),
+		}).Return(hostErrorResp, nil)
+
+		mockClientConn.On("Send", [][]byte{hostErrorResp}).Return(nil)
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
 
 		assert.NoError(t, err)
-		assert.Equal(t, expectedResponse, resp)
+	})
+
+	t.Run("error - handleUploadLoop - host signals completion", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := message_types.CreateFileInitResponse.Binary()
+		createFileInitResponse = append(createFileInitResponse, helpers.Uint32ToBinary(777)...) // streamId
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		mockClientConn.On("Send", [][]byte{createFileInitResponse}).Return(nil)
+
+		hostCompletionResp := message_types.CreateFileStreamEnd.Binary()
+		mockHostConn.On("Query", [][]byte{
+			message_types.CreateFileHostChunkRequest.Binary(),
+			helpers.Uint32ToBinary(777),
+		}).Return(hostCompletionResp, nil)
+
+		mockClientConn.On("Send", [][]byte{hostCompletionResp}).Return(nil)
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - handleUploadLoop - forward chunk request to client error", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := message_types.CreateFileInitResponse.Binary()
+		createFileInitResponse = append(createFileInitResponse, helpers.Uint32ToBinary(777)...) // streamId
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		mockClientConn.On("Send", [][]byte{createFileInitResponse}).Return(nil).Once()
+
+		hostChunkReq := message_types.CreateFileHostChunkRequest.Binary()
+		hostChunkReq = append(hostChunkReq, []byte{1, 2, 3}...)
+		mockHostConn.On("Query", [][]byte{
+			message_types.CreateFileHostChunkRequest.Binary(),
+			helpers.Uint32ToBinary(777),
+		}).Return(hostChunkReq, nil)
+
+		mockClientConn.On("Send", [][]byte{hostChunkReq}).Return(errors.New("client send error"))
+		mockClientConn.On("Send", [][]byte{message_types.CreateFileStreamEnd.Binary()}).Return(nil)
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		require.Error(t, err)
+		assert.Equal(t, "client send error", err.Error())
+	})
+
+	t.Run("error - handleUploadLoop - client listen error", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := message_types.CreateFileInitResponse.Binary()
+		createFileInitResponse = append(createFileInitResponse, helpers.Uint32ToBinary(777)...) // streamId
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		mockClientConn.On("Send", [][]byte{createFileInitResponse}).Return(nil).Once()
+
+		hostChunkReq := message_types.CreateFileHostChunkRequest.Binary()
+		hostChunkReq = append(hostChunkReq, []byte{1, 2, 3}...)
+		mockHostConn.On("Query", [][]byte{
+			message_types.CreateFileHostChunkRequest.Binary(),
+			helpers.Uint32ToBinary(777),
+		}).Return(hostChunkReq, nil)
+
+		mockClientConn.On("Send", [][]byte{hostChunkReq}).Return(nil)
+		mockClientConn.On("Listen").Return(nil, errors.New("client listen error"))
+		mockClientConn.On("Send", [][]byte{message_types.CreateFileStreamEnd.Binary()}).Return(nil)
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		require.Error(t, err)
+		assert.Equal(t, "client listen error", err.Error())
+	})
+
+	t.Run("error - handleUploadLoop - forward chunk to host error", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := message_types.CreateFileInitResponse.Binary()
+		createFileInitResponse = append(createFileInitResponse, helpers.Uint32ToBinary(777)...) // streamId
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		mockClientConn.On("Send", [][]byte{createFileInitResponse}).Return(nil).Once()
+
+		hostChunkReq := message_types.CreateFileHostChunkRequest.Binary()
+		hostChunkReq = append(hostChunkReq, []byte{1, 2, 3}...)
+		mockHostConn.On("Query", [][]byte{
+			message_types.CreateFileHostChunkRequest.Binary(),
+			helpers.Uint32ToBinary(777),
+		}).Return(hostChunkReq, nil).Once()
+
+		clientChunkData := []byte{4, 5, 6}
+		mockClientConn.On("Send", [][]byte{hostChunkReq}).Return(nil)
+		mockClientConn.On("Listen").Return(clientChunkData, nil)
+		mockHostConn.On("Query", [][]byte{clientChunkData}).Return(nil, errors.New("host query chunk error"))
+		mockClientConn.On("Send", [][]byte{message_types.CreateFileStreamEnd.Binary()}).Return(nil)
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		require.Error(t, err)
+		assert.Equal(t, "host query chunk error", err.Error())
+	})
+
+	t.Run("error - handleUploadLoop - host chunk processing invalid message type", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := message_types.CreateFileInitResponse.Binary()
+		createFileInitResponse = append(createFileInitResponse, helpers.Uint32ToBinary(777)...) // streamId
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		mockClientConn.On("Send", [][]byte{createFileInitResponse}).Return(nil).Once()
+
+		hostChunkReq := message_types.CreateFileHostChunkRequest.Binary()
+		hostChunkReq = append(hostChunkReq, []byte{1, 2, 3}...)
+		mockHostConn.On("Query", [][]byte{
+			message_types.CreateFileHostChunkRequest.Binary(),
+			helpers.Uint32ToBinary(777),
+		}).Return(hostChunkReq, nil).Once()
+
+		clientChunkData := []byte{4, 5, 6}
+		mockClientConn.On("Send", [][]byte{hostChunkReq}).Return(nil)
+		mockClientConn.On("Listen").Return(clientChunkData, nil)
+		mockHostConn.On("Query", [][]byte{clientChunkData}).Return([]byte{1}, nil)
+		mockClientConn.On("Send", [][]byte{message_types.CreateFileStreamEnd.Binary()}).Return(nil)
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		require.Error(t, err)
+		assert.Equal(t, "invalid message body error", err.Error())
+	})
+
+	t.Run("error - handleUploadLoop - host signals error after chunk processing", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := message_types.CreateFileInitResponse.Binary()
+		createFileInitResponse = append(createFileInitResponse, helpers.Uint32ToBinary(777)...) // streamId
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		mockClientConn.On("Send", [][]byte{createFileInitResponse}).Return(nil).Once()
+
+		hostChunkReq := message_types.CreateFileHostChunkRequest.Binary()
+		hostChunkReq = append(hostChunkReq, []byte{1, 2, 3}...)
+		mockHostConn.On("Query", [][]byte{
+			message_types.CreateFileHostChunkRequest.Binary(),
+			helpers.Uint32ToBinary(777),
+		}).Return(hostChunkReq, nil).Once()
+
+		clientChunkData := []byte{4, 5, 6}
+		hostErrorResp := message_types.Error.Binary()
+		mockClientConn.On("Send", [][]byte{hostChunkReq}).Return(nil)
+		mockClientConn.On("Listen").Return(clientChunkData, nil)
+		mockHostConn.On("Query", [][]byte{clientChunkData}).Return(hostErrorResp, nil)
+		mockClientConn.On("Send", [][]byte{hostErrorResp}).Return(nil)
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - handleUploadLoop - host signals completion after chunk processing", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := message_types.CreateFileInitResponse.Binary()
+		createFileInitResponse = append(createFileInitResponse, helpers.Uint32ToBinary(777)...) // streamId
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		mockClientConn.On("Send", [][]byte{createFileInitResponse}).Return(nil).Once()
+
+		hostChunkReq := message_types.CreateFileHostChunkRequest.Binary()
+		hostChunkReq = append(hostChunkReq, []byte{1, 2, 3}...)
+		mockHostConn.On("Query", [][]byte{
+			message_types.CreateFileHostChunkRequest.Binary(),
+			helpers.Uint32ToBinary(777),
+		}).Return(hostChunkReq, nil).Once()
+
+		clientChunkData := []byte{4, 5, 6}
+		hostCompletionResp := message_types.CreateFileStreamEnd.Binary()
+		mockClientConn.On("Send", [][]byte{hostChunkReq}).Return(nil)
+		mockClientConn.On("Listen").Return(clientChunkData, nil)
+		mockHostConn.On("Query", [][]byte{clientChunkData}).Return(hostCompletionResp, nil)
+		mockClientConn.On("Send", [][]byte{hostCompletionResp}).Return(nil)
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("success - full upload cycle with multiple chunks", func(t *testing.T) {
+		hostId := uuid.New()
+		resourceId := uuid.New()
+		mockSavedConnectionsRepo := saved_connections_repository.MockSavedConnectionsRepository{}
+		mockHostMap := &hostmap.MockHostMap{}
+		mockHostConn := &hostconn.MockConn{}
+		mockClientConn := &clientconn.MockClientConn{}
+		defer func() {
+			mockHostMap.AssertExpectations(t)
+			mockHostConn.AssertExpectations(t)
+			mockClientConn.AssertExpectations(t)
+			mockSavedConnectionsRepo.AssertExpectations(t)
+		}()
+
+		mockHostMap.On("Get", hostId).Return(mockHostConn, true)
+
+		expectedCreateFileInitQuery := [][]byte{
+			message_types.CreateFileInitRequest.Binary(),
+			helpers.UUIDToBinary(resourceId),
+			helpers.Uint32ToBinary(1024),
+			[]byte("test.txt\000"),
+		}
+		createFileInitResponse := message_types.CreateFileInitResponse.Binary()
+		createFileInitResponse = append(createFileInitResponse, helpers.Uint32ToBinary(777)...) // streamId
+		mockHostConn.On("Query", expectedCreateFileInitQuery).Return(createFileInitResponse, nil)
+
+		mockClientConn.On("Send", [][]byte{createFileInitResponse}).Return(nil).Once()
+
+		// First chunk
+		hostChunkReq1 := message_types.CreateFileHostChunkRequest.Binary()
+		hostChunkReq1 = append(hostChunkReq1, []byte{1, 2, 3}...)
+		mockHostConn.On("Query", [][]byte{
+			message_types.CreateFileHostChunkRequest.Binary(),
+			helpers.Uint32ToBinary(777),
+		}).Return(hostChunkReq1, nil).Once()
+
+		clientChunkData1 := []byte{4, 5, 6}
+		hostAckResp1 := message_types.ACK.Binary()
+		mockClientConn.On("Send", [][]byte{hostChunkReq1}).Return(nil).Once()
+		mockClientConn.On("Listen").Return(clientChunkData1, nil).Once()
+		mockHostConn.On("Query", [][]byte{clientChunkData1}).Return(hostAckResp1, nil).Once()
+
+		// Second chunk
+		hostChunkReq2 := message_types.CreateFileHostChunkRequest.Binary()
+		hostChunkReq2 = append(hostChunkReq2, []byte{7, 8, 9}...)
+		mockHostConn.On("Query", [][]byte{
+			message_types.CreateFileHostChunkRequest.Binary(),
+			helpers.Uint32ToBinary(777),
+		}).Return(hostChunkReq2, nil).Once()
+
+		clientChunkData2 := []byte{10, 11, 12}
+		hostAckResp2 := message_types.ACK.Binary()
+		mockClientConn.On("Send", [][]byte{hostChunkReq2}).Return(nil).Once()
+		mockClientConn.On("Listen").Return(clientChunkData2, nil).Once()
+		mockHostConn.On("Query", [][]byte{clientChunkData2}).Return(hostAckResp2, nil).Once()
+
+		// Completion
+		hostCompletionResp := message_types.CreateFileStreamEnd.Binary()
+		mockHostConn.On("Query", [][]byte{
+			message_types.CreateFileHostChunkRequest.Binary(),
+			helpers.Uint32ToBinary(777),
+		}).Return(hostCompletionResp, nil).Once()
+		mockClientConn.On("Send", [][]byte{hostCompletionResp}).Return(nil)
+
+		svc := NewHostService(mockHostMap, &mockSavedConnectionsRepo)
+		err := svc.CreateFile(mockClientConn, hostId, resourceId, "test.txt", 1024)
+
+		assert.NoError(t, err)
 	})
 }

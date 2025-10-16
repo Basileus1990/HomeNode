@@ -6,6 +6,6 @@
 - 4: Invalid Url Params
 - 5: Invalid Message Body 
 - 6: Unexpected Message Type
-- 7: Missing Required Params
+- 7: Missing Or Invalid Required Params
 - 8: Host Already Connected
 - 9: Invalid Host Key

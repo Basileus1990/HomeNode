@@ -26,15 +26,16 @@ type FrontendCfg struct {
 	StreamerInactivityTimeout int  `env:"FRONTEND_STREAMER_INACTIVITY_TIMEOUT" json:"streamer_inactivity_timeout"`
 	StreamerCleanupInterval   int  `env:"FRONTEND_STREAMER_CLEANUP_INTERVAL" json:"streamer_cleanup_interval"`
 	UseLittleEndian           bool `env:"FRONTEND_USE_LITTLE_ENDIAN" json:"use_little_endian"`
+	BatchSize                 int  `env:"-" json:"batch_size"`
 
 	// Websocket endpoints
-	HostConnectWSURL              string `env:"FRONTEND_HOST_CONNECT_WS_URL" json:"host_connect_ws_url"`
-	HostReconnectWSURLTemplate    string `env:"FRONTEND_HOST_RECONNECT_WS_URL_TEMPLATE" json:"host_reconnect_ws_url_template"`
-	ClientMetadataWSURLTemplate   string `env:"FRONTEND_CLIENT_CONNECT_WS_URL_TEMPLATE" json:"client_metadata_ws_url_template"`
-	ClientDownloadWSURLTemplate   string `env:"FRONTEND_CLIENT_DOWNLOAD_WS_URL_TEMPLATE" json:"client_download_ws_url_template"`
-	ClientCreateDirWSURLTemplate  string `env:"FRONTEND_CLIENT_CREATE_DIR_WS_URL_TEMPLATE" json:"client_create_dir_ws_url_template"`
-	ClientDeleteDirWSURLTemplate  string `env:"FRONTEND_CLIENT_DELETE_DIR_WS_URL_TEMPLATE" json:"client_delete_dir_wsurl_template"`
-	ClientDeleteFileWSURLTemplate string `env:"FRONTEND_CLIENT_DELETE_FILE_WS_URL_TEMPLATE" json:"client_delete_file_ws_url_template"`
+	HostConnectWSURL                  string `env:"FRONTEND_HOST_CONNECT_WS_URL" json:"host_connect_ws_url"`
+	HostReconnectWSURLTemplate        string `env:"FRONTEND_HOST_RECONNECT_WS_URL_TEMPLATE" json:"host_reconnect_ws_url_template"`
+	ClientMetadataWSURLTemplate       string `env:"FRONTEND_CLIENT_CONNECT_WS_URL_TEMPLATE" json:"client_metadata_ws_url_template"`
+	ClientDownloadWSURLTemplate       string `env:"FRONTEND_CLIENT_DOWNLOAD_WS_URL_TEMPLATE" json:"client_download_ws_url_template"`
+	ClientCreateDirWSURLTemplate      string `env:"FRONTEND_CLIENT_CREATE_DIR_WS_URL_TEMPLATE" json:"client_create_dir_ws_url_template"`
+	ClientDeleteResourceWSURLTemplate string `env:"FRONTEND_CLIENT_DELETE_RESOURCE_WS_URL_TEMPLATE" json:"client_delete_resource_ws_url_template"`
+	ClientCreateFileWSURLTemplate     string `env:"FRONTEND_CLIENT_CREATE_FILE_WS_URL_TEMPLATE" json:"client_create_file_ws_url_template"`
 
 	// Cryptography
 	PBKDF2Iterations int `env:"FRONTEND_PBKDF2_ITERATIONS" json:"pbkdf2_iterations"`
@@ -78,7 +79,13 @@ func LoadConfig() error {
 
 	_ = godotenv.Load()
 
-	return loadFromEnv(nil)
+	err := loadFromEnv(nil)
+	if err != nil {
+		return err
+	}
+
+	cfg.Frontend.BatchSize = cfg.Websocket.BatchSize
+	return nil
 }
 
 func loadFromEnv(value *reflect.Value) error {
@@ -108,6 +115,10 @@ func loadFromEnv(value *reflect.Value) error {
 		envField := value.Type().Field(i).Tag.Get(envTag)
 		if envField == "" {
 			return errors.New("\"env\" tag has to be set")
+		}
+
+		if envField == "-" {
+			continue
 		}
 
 		envValue := os.Getenv(envField)

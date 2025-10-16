@@ -48,7 +48,7 @@ func NewContainer(ctx context.Context) (*Container, error) {
 
 	clientConnFactory := &clientconn.DefaultClientConnFactory{}
 
-	hostService := host.NewHostService(hostMap, cfg.Websocket, savedConnectionsRepository)
+	hostService := host.NewHostService(hostMap, savedConnectionsRepository)
 
 	if err != nil {
 		return nil, err

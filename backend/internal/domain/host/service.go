@@ -9,7 +9,6 @@ import (
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_errors"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/host/saved_connections_repository"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/helpers"
-	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/app/config"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/client/clientconn"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostconn"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostmap"
@@ -23,24 +22,21 @@ type HostService interface {
 	GetResourceMetadata(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) ([]byte, error)
 	DownloadResource(clientConn clientconn.ClientConn, hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) error
 	CreateDirectory(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToDirectory string) ([]byte, error)
-	DeleteDirectory(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToDirectory string) ([]byte, error)
-	DeleteFile(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToFile string) ([]byte, error)
+	DeleteResource(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) ([]byte, error)
+	CreateFile(clientConn clientconn.ClientConn, hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToFile string, fileSize uint32) error
 }
 
 type defaultConnectionService struct {
 	hostMap                    hostmap.HostMap
-	websocketConfig            config.WebsocketCfg
 	savedConnectionsRepository saved_connections_repository.SavedConnectionsRepositoryInterface
 }
 
 func NewHostService(
 	hostMap hostmap.HostMap,
-	websocketCfg config.WebsocketCfg,
 	savedConnectionsRepository saved_connections_repository.SavedConnectionsRepositoryInterface,
 ) HostService {
 	return &defaultConnectionService{
 		hostMap:                    hostMap,
-		websocketConfig:            websocketCfg,
 		savedConnectionsRepository: savedConnectionsRepository,
 	}
 }
@@ -157,7 +153,6 @@ func (s *defaultConnectionService) DownloadResource(
 	downloadInitResp, err := hostConn.Query(
 		message_types.DownloadInitRequest.Binary(),
 		helpers.UUIDToBinary(resourceUuid),
-		helpers.Uint32ToBinary(uint32(s.websocketConfig.BatchSize)),
 		[]byte(helpers.AddNullCharToString(pathToResource)),
 	)
 	if err != nil {
@@ -173,22 +168,21 @@ func (s *defaultConnectionService) DownloadResource(
 		return clientConn.Send(downloadInitResp)
 	}
 
-	downloadInitRespDto, err := newHostDownloadInitResponseDto(downloadInitResp)
+	downloadInitRespDto, err := newHostStreamInitResponseDto(downloadInitResp)
 	if err != nil {
 		return err
 	}
 
 	err = clientConn.Send(
 		message_types.DownloadInitResponse.Binary(),
-		helpers.Uint32ToBinary(uint32(s.websocketConfig.BatchSize)),
 		downloadInitRespDto.payload,
 	)
 	if err != nil {
-		_ = s.sendDownloadCompletionQueryToHost(hostConn, downloadInitRespDto.downloadId)
+		_ = s.sendDownloadCompletionQueryToHost(hostConn, downloadInitRespDto.streamId)
 		return err
 	}
 
-	return s.handleDownloadLoop(hostConn, clientConn, downloadInitRespDto.downloadId)
+	return s.handleDownloadLoop(hostConn, clientConn, downloadInitRespDto.streamId)
 }
 
 func (s *defaultConnectionService) CreateDirectory(
@@ -199,20 +193,60 @@ func (s *defaultConnectionService) CreateDirectory(
 	return s.queryHostResource(hostUuid, resourceUuid, pathToDirectory, message_types.CreateDirectory)
 }
 
-func (s *defaultConnectionService) DeleteDirectory(
+func (s *defaultConnectionService) DeleteResource(
 	hostUuid uuid.UUID,
 	resourceUuid uuid.UUID,
-	pathToDirectory string,
+	pathToResource string,
 ) ([]byte, error) {
-	return s.queryHostResource(hostUuid, resourceUuid, pathToDirectory, message_types.DeleteDirectory)
+	return s.queryHostResource(hostUuid, resourceUuid, pathToResource, message_types.DeleteResource)
 }
 
-func (s *defaultConnectionService) DeleteFile(
+func (s *defaultConnectionService) CreateFile(
+	clientConn clientconn.ClientConn,
 	hostUuid uuid.UUID,
 	resourceUuid uuid.UUID,
-	pathToDirectory string,
-) ([]byte, error) {
-	return s.queryHostResource(hostUuid, resourceUuid, pathToDirectory, message_types.DeleteFile)
+	pathToFile string,
+	fileSize uint32,
+) error {
+	hostConn, ok := s.hostMap.Get(hostUuid)
+	if !ok {
+		return ws_errors.HostNotFoundErr
+	}
+
+	// Request host to prepare for file creation with specified size and path
+	createFileInitResp, err := hostConn.Query(
+		message_types.CreateFileInitRequest.Binary(),
+		helpers.UUIDToBinary(resourceUuid),
+		helpers.Uint32ToBinary(fileSize),
+		[]byte(helpers.AddNullCharToString(pathToFile)),
+	)
+	if err != nil {
+		return err
+	}
+
+	msgType, err := message_types.GetMsgType(createFileInitResp)
+	if err != nil {
+		return err
+	}
+
+	// Forward any host errors directly to the client
+	if msgType == message_types.Error {
+		return clientConn.Send(createFileInitResp)
+	}
+
+	createFileInitRespDto, err := newHostStreamInitResponseDto(createFileInitResp)
+	if err != nil {
+		return err
+	}
+
+	// Notify client that upload can begin
+	err = clientConn.Send(createFileInitResp)
+	if err != nil {
+		_ = clientConn.Send(message_types.CreateFileStreamEnd.Binary())
+		return err
+	}
+
+	return s.handleUploadLoop(hostConn, clientConn, createFileInitRespDto.streamId)
 }
 
 func (s *defaultConnectionService) handleDownloadLoop(
@@ -232,7 +266,7 @@ func (s *defaultConnectionService) handleDownloadLoop(
 			return err
 		}
 
-		chunkReqDto, err := newClientChunkRequestDto(clientRequest)
+		chunkReqDto, err := newMsgTypeWithPayloadDto(clientRequest)
 		if err != nil {
 			return err
 		}
@@ -251,6 +285,70 @@ func (s *defaultConnectionService) handleDownloadLoop(
 	}
 }
 
+func (s *defaultConnectionService) handleUploadLoop(
+	hostConn hostconn.HostConn,
+	clientConn clientconn.ClientConn,
+	streamId uint32,
+) (err error) {
+	// Ensure the client is notified of stream termination on any error
+	defer func() {
+		if err != nil {
+			_ = clientConn.Send(message_types.CreateFileStreamEnd.Binary())
+		}
+	}()
+
+	for {
+		// Query host for new chunk request
+		hostResp, err := hostConn.Query(
+			message_types.CreateFileHostChunkRequest.Binary(),
+			helpers.Uint32ToBinary(streamId),
+		)
+		if err != nil {
+			return err
+		}
+
+		hostChunkReqMsgType, err := message_types.GetMsgType(hostResp)
+		if err != nil {
+			return err
+		}
+
+		// Host signals completion or error - forward to client and exit
+		if hostChunkReqMsgType == message_types.Error || hostChunkReqMsgType == message_types.CreateFileStreamEnd {
+			return clientConn.Send(hostResp)
+		}
+
+		// Forward chunk request to the client
+		err = clientConn.Send(hostResp)
+		if err != nil {
+			return err
+		}
+
+		// Wait for the client to send chunk data
+		clientChunkResp, err := clientConn.Listen()
+		if err != nil {
+			return err
+		}
+
+		// Forward chunk data to host for processing
+		hostChunkProcessingResp, err := hostConn.Query(clientChunkResp)
+		if err != nil {
+			return err
+		}
+
+		hostChunkProcessingRespMsgType, err := message_types.GetMsgType(hostChunkProcessingResp)
+		if err != nil {
+			return err
+		}
+
+		// Host signals completion or error after processing chunk
+		if hostChunkProcessingRespMsgType == message_types.Error || hostChunkProcessingRespMsgType == message_types.CreateFileStreamEnd {
+			return clientConn.Send(hostChunkProcessingResp)
+		}
+
+		// Host acknowledged chunk successfully - continue to next iteration
+	}
+}
+
 func (s *defaultConnectionService) sendDownloadCompletionQueryToHost(hostConn hostconn.HostConn, downloadId uint32) error {
 	_, err := hostConn.Query(
 		message_types.DownloadCompletionRequest.Binary(),
@@ -263,7 +361,7 @@ func (s *defaultConnectionService) handleChunkRequest(
 	hostConn hostconn.HostConn,
 	clientConn clientconn.ClientConn,
 	downloadId uint32,
-	chunkReqDto clientChunkRequestDto,
+	chunkReqDto msgTypeWithPayload,
 ) error {
 	hostResp, err := hostConn.Query(
 		message_types.ChunkRequest.Binary(),

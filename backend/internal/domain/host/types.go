@@ -7,40 +7,40 @@ import (
 )
 
 const (
-	downloadIdSize = 4
+	uploadIdSize = 4
 )
 
-type hostDownloadInitResponseDto struct {
-	msgType    message_types.WebsocketMessageType
-	downloadId uint32
-	payload    []byte
+type hostStreamInitResponseDto struct {
+	msgType  message_types.WebsocketMessageType
+	streamId uint32
+	payload  []byte
 }
 
-func newHostDownloadInitResponseDto(resp []byte) (hostDownloadInitResponseDto, error) {
-	if len(resp) < message_types.WebsocketMessageTypeSize+downloadIdSize {
-		return hostDownloadInitResponseDto{}, ws_errors.InvalidMessageBodyErr
+func newHostStreamInitResponseDto(resp []byte) (hostStreamInitResponseDto, error) {
+	if len(resp) < message_types.WebsocketMessageTypeSize+uploadIdSize {
+		return hostStreamInitResponseDto{}, ws_errors.InvalidMessageBodyErr
 	}
 
-	hostResp := hostDownloadInitResponseDto{
-		msgType:    message_types.WebsocketMessageType(helpers.BinaryToUint16(resp[:message_types.WebsocketMessageTypeSize])),
-		downloadId: helpers.BinaryToUint32(resp[message_types.WebsocketMessageTypeSize : message_types.WebsocketMessageTypeSize+downloadIdSize]),
-		payload:    resp[message_types.WebsocketMessageTypeSize+downloadIdSize:],
+	hostResp := hostStreamInitResponseDto{
+		msgType:  message_types.WebsocketMessageType(helpers.BinaryToUint16(resp[:message_types.WebsocketMessageTypeSize])),
+		streamId: helpers.BinaryToUint32(resp[message_types.WebsocketMessageTypeSize : message_types.WebsocketMessageTypeSize+uploadIdSize]),
+		payload:  resp[message_types.WebsocketMessageTypeSize+uploadIdSize:],
 	}
 
 	return hostResp, nil
 }
 
-type clientChunkRequestDto struct {
+type msgTypeWithPayload struct {
 	msgType message_types.WebsocketMessageType
 	payload []byte
 }
 
-func newClientChunkRequestDto(req []byte) (clientChunkRequestDto, error) {
+func newMsgTypeWithPayloadDto(req []byte) (msgTypeWithPayload, error) {
 	if len(req) < message_types.WebsocketMessageTypeSize {
-		return clientChunkRequestDto{}, ws_errors.InvalidMessageBodyErr
+		return msgTypeWithPayload{}, ws_errors.InvalidMessageBodyErr
 	}
 
-	clientReq := clientChunkRequestDto{
+	clientReq := msgTypeWithPayload{
 		msgType: message_types.WebsocketMessageType(helpers.BinaryToUint16(req[:message_types.WebsocketMessageTypeSize])),
 		payload: req[message_types.WebsocketMessageTypeSize:],
 	}
