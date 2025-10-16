@@ -22,7 +22,9 @@ type HostService interface {
 	InitExistingHostConnection(ctx context.Context, ws *websocket.Conn, hostId uuid.UUID, hostKey string) error
 	GetResourceMetadata(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) ([]byte, error)
 	DownloadResource(clientConn clientconn.ClientConn, hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) error
-	UploadResource(clientConn clientconn.ClientConn, hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) error
+	CreateDirectory(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToDirectory string) ([]byte, error)
+	DeleteDirectory(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToDirectory string) ([]byte, error)
+	DeleteFile(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToFile string) ([]byte, error)
 }
 
 type defaultConnectionService struct {
@@ -137,39 +139,24 @@ func (s *defaultConnectionService) InitExistingHostConnection(
 }
 
 func (s *defaultConnectionService) GetResourceMetadata(hostUuid uuid.UUID, resourceUuid uuid.UUID, pathToResource string) ([]byte, error) {
-	hostConn, ok := s.hostMap.Get(hostUuid)
-	if !ok {
-		return nil, ws_errors.HostNotFoundErr
-	}
+	return s.queryHostResource(hostUuid, resourceUuid, pathToResource, message_types.MetadataQuery)
 
-	pathToResourceBinary := []byte(helpers.AddNullCharToString(pathToResource))
-
-	response, err := hostConn.Query(
-		message_types.MetadataQuery.Binary(),
-		helpers.UUIDToBinary(resourceUuid),
-		pathToResourceBinary,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
 }
 
 func (s *defaultConnectionService) DownloadResource(
 	clientConn clientconn.ClientConn,
-	hostUUID uuid.UUID,
-	resourceUUID uuid.UUID,
+	hostUuid uuid.UUID,
+	resourceUuid uuid.UUID,
 	pathToResource string,
 ) error {
-	hostConn, ok := s.hostMap.Get(hostUUID)
+	hostConn, ok := s.hostMap.Get(hostUuid)
 	if !ok {
 		return ws_errors.HostNotFoundErr
 	}
 
 	downloadInitResp, err := hostConn.Query(
 		message_types.DownloadInitRequest.Binary(),
-		helpers.UUIDToBinary(resourceUUID),
+		helpers.UUIDToBinary(resourceUuid),
 		helpers.Uint32ToBinary(uint32(s.websocketConfig.BatchSize)),
 		[]byte(helpers.AddNullCharToString(pathToResource)),
 	)
@@ -202,6 +189,30 @@ func (s *defaultConnectionService) DownloadResource(
 	}
 
 	return s.handleDownloadLoop(hostConn, clientConn, downloadInitRespDto.downloadId)
+}
+
+func (s *defaultConnectionService) CreateDirectory(
+	hostUuid uuid.UUID,
+	resourceUuid uuid.UUID,
+	pathToDirectory string,
+) ([]byte, error) {
+	return s.queryHostResource(hostUuid, resourceUuid, pathToDirectory, message_types.CreateDirectory)
+}
+
+func (s *defaultConnectionService) DeleteDirectory(
+	hostUuid uuid.UUID,
+	resourceUuid uuid.UUID,
+	pathToDirectory string,
+) ([]byte, error) {
+	return s.queryHostResource(hostUuid, resourceUuid, pathToDirectory, message_types.DeleteDirectory)
+}
+
+func (s *defaultConnectionService) DeleteFile(
+	hostUuid uuid.UUID,
+	resourceUuid uuid.UUID,
+	pathToDirectory string,
+) ([]byte, error) {
+	return s.queryHostResource(hostUuid, resourceUuid, pathToDirectory, message_types.DeleteFile)
 }
 
 func (s *defaultConnectionService) handleDownloadLoop(
@@ -266,121 +277,25 @@ func (s *defaultConnectionService) handleChunkRequest(
 	return clientConn.Send(hostResp)
 }
 
-func (s *defaultConnectionService) UploadResource(
-	clientConn clientconn.ClientConn,
-	hostUUID uuid.UUID,
-	resourceUUID uuid.UUID,
-	pathToResource string,
-	uploadName string,
-	uploadType string,
-) error {
-	hostConn, ok := s.hostMap.Get(hostUUID)
+func (s *defaultConnectionService) queryHostResource(
+	hostUuid uuid.UUID,
+	resourceUuid uuid.UUID,
+	path string,
+	msgType message_types.WebsocketMessageType,
+) ([]byte, error) {
+	hostConn, ok := s.hostMap.Get(hostUuid)
 	if !ok {
-		return ws_errors.HostNotFoundErr
+		return nil, ws_errors.HostNotFoundErr
 	}
 
-	var flags uint8
-	if uploadType == "dir" {
-		flags = 2
-	} else {
-		flags = 0
-	}
-
-	uploadInitResp, err := hostConn.Query(
-		message_types.UploadInitRequest.Binary(),
-		helpers.ByteToBinary(flags),
-		helpers.UUIDToBinary(resourceUUID),
-		[]byte(helpers.AddNullCharToString(pathToResource)),
-		[]byte(helpers.AddNullCharToString(uploadName)),
+	resp, err := hostConn.Query(
+		msgType.Binary(),
+		helpers.UUIDToBinary(resourceUuid),
+		[]byte(helpers.AddNullCharToString(path)),
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	msgType, err := message_types.GetMsgType(uploadInitResp)
-	if err != nil {
-		return err
-	}
-
-	if msgType == message_types.Error {
-		return clientConn.Send(uploadInitResp)
-	}
-
-	downloadInitRespDto, err := newHostDownloadInitResponseDto(uploadInitResp)
-	if err != nil {
-		return err
-	}
-
-	err = clientConn.Send(
-		message_types.DownloadInitResponse.Binary(),
-		downloadInitRespDto.payload,
-	)
-	if err != nil {
-		_ = s.sendUploadCompletionQueryToClient(hostConn, downloadInitRespDto.downloadId)
-		return err
-	}
-
-	return s.handleUploadLoop(hostConn, clientConn, downloadInitRespDto.downloadId)
-}
-
-func (s *defaultConnectionService) handleUploadLoop(
-	hostConn hostconn.HostConn,
-	clientConn clientconn.ClientConn,
-	downloadId uint32,
-) (err error) {
-	defer func() {
-		if err != nil {
-			_ = s.sendDownloadCompletionQueryToHost(hostConn, downloadId)
-		}
-	}()
-
-	for {
-		clientRequest, err := clientConn.Listen()
-		if err != nil {
-			return err
-		}
-
-		chunkReqDto, err := newClientChunkRequestDto(clientRequest)
-		if err != nil {
-			return err
-		}
-
-		switch chunkReqDto.msgType {
-		case message_types.DownloadCompletionRequest:
-			return s.sendDownloadCompletionQueryToHost(hostConn, downloadId)
-		case message_types.ChunkRequest:
-			err = s.handleUploadChunkRequest(hostConn, clientConn, downloadId, chunkReqDto)
-			if err != nil {
-				return err
-			}
-		default:
-			return ws_errors.UnexpectedMessageTypeErr
-		}
-	}
-}
-
-func (s *defaultConnectionService) sendUploadCompletionQueryToClient(hostConn hostconn.HostConn, downloadId uint32) error {
-	_, err := hostConn.Query(
-		message_types.DownloadCompletionRequest.Binary(),
-		helpers.Uint32ToBinary(downloadId),
-	)
-	return err
-}
-
-func (s *defaultConnectionService) handleUploadChunkRequest(
-	hostConn hostconn.HostConn,
-	clientConn clientconn.ClientConn,
-	downloadId uint32,
-	chunkReqDto clientChunkRequestDto,
-) error {
-	hostResp, err := hostConn.Query(
-		message_types.ChunkRequest.Binary(),
-		helpers.Uint32ToBinary(downloadId),
-		chunkReqDto.payload,
-	)
-	if err != nil {
-		return err
-	}
-
-	return clientConn.Send(hostResp)
+	return resp, nil
 }

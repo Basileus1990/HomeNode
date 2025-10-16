@@ -31,6 +31,10 @@ const (
 	UploadChunk        WebsocketMessageType = 21
 	ConfirmUploadChunk WebsocketMessageType = 22
 	UploadEOF          WebsocketMessageType = 23
+
+	CreateDirectory WebsocketMessageType = 12
+	DeleteDirectory WebsocketMessageType = 13
+	DeleteFile      WebsocketMessageType = 14
 )
 
 func GetMsgType(msg []byte) (WebsocketMessageType, error) {

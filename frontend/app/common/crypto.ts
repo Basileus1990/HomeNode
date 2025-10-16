@@ -1,5 +1,5 @@
 // code based on https://github.com/mdn/dom-examples/blob/main/web-crypto/derive-key/pbkdf2.js
-import type { HomeNodeFrontendConfig } from "~/config";
+import type { HomeNodeFrontendConfig } from "~/common/config";
 
 
 /**

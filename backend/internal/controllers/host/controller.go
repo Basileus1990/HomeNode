@@ -32,6 +32,9 @@ func (c *Controller) SetUpRoutes(group *gin.RouterGroup) {
 	group.GET("metadata/:hostUuid/:resourceUuid", c.GetResourceMetadata)
 	group.GET("download/:hostUuid/:resourceUuid/*pathToResource", c.DownloadResource)
 	group.GET("download/:hostUuid/:resourceUuid", c.DownloadResource)
+	group.GET("directory/create/:hostUuid/:resourceUuid/*pathToDirectory", c.CreateDirectory)
+	group.GET("directory/delete/:hostUuid/:resourceUuid/*pathToDirectory", c.DeleteDirectory)
+	group.GET("file/delete/:hostUuid/:resourceUuid/*pathToFile", c.DeleteFile)
 }
 
 // HostConnect
@@ -156,11 +159,11 @@ func (c *Controller) DownloadResource(ctx *gin.Context) {
 	}
 }
 
-// UploadResource
+// CreateDirectory
 //
 // Method: GET
-// Path: /api/v1/host/upload/{hostUuid}/{resourceUuid}/path/to/resource.exe?name={name}&type={type}
-func (c *Controller) UploadResource(ctx *gin.Context) {
+// Path: /api/v1/host/directory/create/{hostUuid}/{resourceUuid}/path/to/directory
+func (c *Controller) CreateDirectory(ctx *gin.Context) {
 	upgrader := c.upgrader()
 
 	ws, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
@@ -172,27 +175,15 @@ func (c *Controller) UploadResource(ctx *gin.Context) {
 	clientConn := c.ClientConnFactory.NewClientConn(ws, clientconn.DefaultClientConnTimeout)
 	defer clientConn.Close()
 
-	uploadName, ok := ctx.GetQuery(uploadNameQueryParam)
-	if !ok || len(uploadName) == 0 {
-		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
-		return
-	}
-
-	uploadType, ok := ctx.GetQuery(uploadTypeQueryParam)
-	if !ok || len(uploadType) == 0 || !(uploadType == "file" || uploadType == "dir") {
-		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
-		return
-	}
-
 	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))
 	resourceID, resourceErr := uuid.Parse(ctx.Param("resourceUuid"))
-	pathToResource := ctx.Param("pathToResource")
+	pathToDirectory := ctx.Param("pathToDirectory")
 	if hostErr != nil || resourceErr != nil {
 		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
 		return
 	}
 
-	err = c.HostService.UploadResource(clientConn, hostID, resourceID, pathToResource)
+	resp, err := c.HostService.CreateDirectory(hostID, resourceID, pathToDirectory)
 	if err != nil {
 		if errors.Is(err, &ws_errors.WebsocketError{}) {
 			clientConn.SendAndLogError(message_types.Error.Binary(), err.(ws_errors.WebsocketError).Code().Binary())
@@ -202,6 +193,84 @@ func (c *Controller) UploadResource(ctx *gin.Context) {
 		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.UnknownError.Binary())
 		return
 	}
+
+	clientConn.SendAndLogError(resp)
+}
+
+// DeleteDirectory
+//
+// Method: GET
+// Path: /api/v1/host/directory/delete/{hostUuid}/{resourceUuid}/path/to/directory
+func (c *Controller) DeleteDirectory(ctx *gin.Context) {
+	upgrader := c.upgrader()
+
+	ws, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+	if err != nil {
+		log.Println("Failed to upgrade to websocket:", err)
+		return
+	}
+
+	clientConn := c.ClientConnFactory.NewClientConn(ws, clientconn.DefaultClientConnTimeout)
+	defer clientConn.Close()
+
+	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))
+	resourceID, resourceErr := uuid.Parse(ctx.Param("resourceUuid"))
+	pathToDirectory := ctx.Param("pathToDirectory")
+	if hostErr != nil || resourceErr != nil {
+		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
+		return
+	}
+
+	resp, err := c.HostService.DeleteDirectory(hostID, resourceID, pathToDirectory)
+	if err != nil {
+		if errors.Is(err, &ws_errors.WebsocketError{}) {
+			clientConn.SendAndLogError(message_types.Error.Binary(), err.(ws_errors.WebsocketError).Code().Binary())
+			return
+		}
+
+		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.UnknownError.Binary())
+		return
+	}
+
+	clientConn.SendAndLogError(resp)
+}
+
+// DeleteFile
+//
+// Method: GET
+// Path: /api/v1/host/file/delete/{hostUuid}/{resourceUuid}/path/to/file.exe
+func (c *Controller) DeleteFile(ctx *gin.Context) {
+	upgrader := c.upgrader()
+
+	ws, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+	if err != nil {
+		log.Println("Failed to upgrade to websocket:", err)
+		return
+	}
+
+	clientConn := c.ClientConnFactory.NewClientConn(ws, clientconn.DefaultClientConnTimeout)
+	defer clientConn.Close()
+
+	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))
+	resourceID, resourceErr := uuid.Parse(ctx.Param("resourceUuid"))
+	pathToFile := ctx.Param("pathToFile")
+	if hostErr != nil || resourceErr != nil {
+		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
+		return
+	}
+
+	resp, err := c.HostService.DeleteFile(hostID, resourceID, pathToFile)
+	if err != nil {
+		if errors.Is(err, &ws_errors.WebsocketError{}) {
+			clientConn.SendAndLogError(message_types.Error.Binary(), err.(ws_errors.WebsocketError).Code().Binary())
+			return
+		}
+
+		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.UnknownError.Binary())
+		return
+	}
+
+	clientConn.SendAndLogError(resp)
 }
 
 func (c *Controller) upgrader() websocket.Upgrader {

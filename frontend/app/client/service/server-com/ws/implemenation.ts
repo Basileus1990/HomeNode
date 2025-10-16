@@ -8,7 +8,8 @@ import type { Item } from "~/common/fs/types";
 import { SocketToClientMessageTypes, HMClientReader } from "./message/readers";
 import { ClientToSocketMessageTypes, HMClientWriter } from "./message/writers";
 import { WebSocketServerEndpointService } from "./endpoints";
-import { getConfig } from "../../../../config";
+import { getConfig } from "../../../../common/config";
+import { getErrorMessage } from "../error/translate-error-codes";
 
 
 // WIP
@@ -41,12 +42,20 @@ export class HostWebSocketclient implements ClientToServerCommunication {
                         return;
                     }
 
-                    if (msg.typeNo != SocketToClientMessageTypes.MetadataResponse) {
-                        reject(new Error("Socket did not return metadata"));
-                        return;
-                    }
-
-                    resolve(msg.payload);
+                    switch (msg.typeNo) {
+                        case SocketToClientMessageTypes.MetadataResponse: {
+                            resolve(msg.payload);
+                            break;
+                        }
+                        case SocketToClientMessageTypes.ServerError: {
+                            reject(new Error(getErrorMessage((msg.payload.errorType))));
+                            break;
+                        }
+                        default: {
+                            reject(new Error("Unexpected server response"));
+                            break;
+                        }
+                    }                    
                 } catch (error) {
                     reject(new Error(`Error reading message: ${error}`));
                 } finally {
@@ -161,66 +170,104 @@ export class HostWebSocketclient implements ClientToServerCommunication {
             return worker;
         }
     }
-
-    public static async uploadFile(
-        hostId: string,
-        path: string,
-        file: File,
-        onStart?: (sizeInChunks?: number) => void,
-        onChunk?: (chunkNo?: number) => void,
-        onEof?: () => void,
-        onError?: () => void) 
-    {
+ 
+    public static async createDirectory(hostId: string, path: string) {
         const config = await getConfig();
-        const url = "";
-        //const url = WebSocketServerEndpointService.getUploadEndpointURL(hostId, path, config);
-        return new Promise(async (resolve, reject) => {
-            try {
+        const url = WebSocketServerEndpointService.getCreateDirectoryEndpointURL(hostId, path, config);
+        
+        return new Promise((resolve, reject) => {            
+            const socket = new WebSocket(url);
+            socket.binaryType = "arraybuffer";
+
+            socket.onmessage = (event: MessageEvent<ArrayBuffer>) => {
                 const reader = new HMClientReader();
-                const writer = new HMClientWriter();
-                const socket = new WebSocket(url);
-                socket.binaryType = "arraybuffer";
 
-                socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
-                    try {
-                        const msg = reader.read(event.data, config);
-                        if (!msg) {
-                            reject(new Error("Unable to interpret data from socket"));
-                            return;
-                        }
-
-                        if (msg.typeNo == SocketToClientMessageTypes.ChunkResponse) {
-                            if (onChunk) {
-                                onChunk(msg.payload.chunkNo);
-                            }
-                            const offset = msg.payload.offset;
-                            const chunk = file.slice(offset, offset + config.chunkSize!);
-                            const resp = await writer.write(ClientToSocketMessageTypes.ChunkUploadRequest, { chunk }, config);
-                            socket.send(resp);
-                        } else if (msg.typeNo == SocketToClientMessageTypes.UploadEOFResponse) {
-                            if (onEof) {
-                                onEof();
-                            }
-                            resolve(true);
-                        } else if (msg.typeNo == SocketToClientMessageTypes.ServerError) {
-                            if (onError) {
-                                onError();
-                            }
-                            reject(new Error(`Server error ${msg.payload.errorType}`));
-                        }
-
-                    } catch (error) {
-                        reject(new Error(`Error reading message: ${error}`));
-                    } finally {
-                        socket.close();
-                    }
+                if (typeof event.data === "string") {
+                    reject(new Error("Received string data, expected binary data"));
+                    return;
                 }
-                
-            } catch (e) {
-                log.error(e);
-                reject(e);
-            }
+
+                try {
+                    const msg = reader.read(event.data, config);
+                    if (!msg) {
+                        reject(new Error("Unable to interpret data from socket"));
+                        return;
+                    }
+
+                    switch (msg.typeNo) {
+                        case SocketToClientMessageTypes.ServerACK: {
+                            resolve(true);
+                            break;
+                        }
+                        case SocketToClientMessageTypes.ServerError: {
+                            reject(new Error(getErrorMessage((msg.payload.errorType))));
+                            break;
+                        }
+                        default: {
+                            reject(new Error("Unexpected server response"));
+                            break;
+                        }
+                    } 
+                } catch (error) {
+                    reject(new Error(`Error reading message: ${error}`));
+                } finally {
+                    socket.close();
+                }
+            };
+
+            socket.onerror = (error) => {
+                reject(error);
+            };
         });
     }
-    
+
+    public static async deleteResource(hostId: string, path: string) {
+        const config = await getConfig();
+        const url = WebSocketServerEndpointService.getDeleteResourceEndpointURL(hostId, path, config);
+        
+        return new Promise((resolve, reject) => {            
+            const socket = new WebSocket(url);
+            socket.binaryType = "arraybuffer";
+
+            socket.onmessage = (event: MessageEvent<ArrayBuffer>) => {
+                const reader = new HMClientReader();
+
+                if (typeof event.data === "string") {
+                    reject(new Error("Received string data, expected binary data"));
+                    return;
+                }
+
+                try {
+                    const msg = reader.read(event.data, config);
+                    if (!msg) {
+                        reject(new Error("Unable to interpret data from socket"));
+                        return;
+                    }
+
+                    switch (msg.typeNo) {
+                        case SocketToClientMessageTypes.ServerACK: {
+                            resolve(true);
+                            break;
+                        }
+                        case SocketToClientMessageTypes.ServerError: {
+                            reject(new Error(getErrorMessage((msg.payload.errorType))));
+                            break;
+                        }
+                        default: {
+                            reject(new Error("Unexpected server response"));
+                            break;
+                        }
+                    }
+                } catch (error) {
+                    reject(new Error(`Error reading message: ${error}`));
+                } finally {
+                    socket.close();
+                }
+            };
+
+            socket.onerror = (error) => {
+                reject(error);
+            };
+        });
+    }
 }

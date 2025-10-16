@@ -11,3 +11,6 @@
 - 9: EOF Response
 - 10: Download Completion Request
 - 11: Init existing host
+- 12: Create Directory
+- 13: Delete Directory
+- 14: Delete File

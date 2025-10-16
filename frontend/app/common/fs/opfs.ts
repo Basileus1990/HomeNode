@@ -1,23 +1,16 @@
+import { HostExceptions } from "../exceptions";
 import { getLeaf, getPath } from "./path";
 import { getStorageRoot } from "./root";
 import type { Item } from "./types";
 
 
-export async function findHandle(path: string, directory?: boolean): Promise<FileSystemHandle | null> {
-    console.log("looking for ", path);
-    
+export async function findHandle(path: string): Promise<FileSystemHandle> {
     const root = await getStorageRoot();
 
     if (path === "/")
         return root;
 
-    // if (!path.startsWith("/")) {
-    //   throw new Error("Path must be absolute and start with /");
-    // }
-
     const parts = path.split("/").filter(Boolean);
-    if (directory === undefined)
-        directory = !(parts.at(-1)?.includes("."));  // not the most foolproof way, but works most of the time
 
     let current: FileSystemDirectoryHandle | FileSystemFileHandle = root;
     for (let i = 0; i < parts.length; i++) {
@@ -26,39 +19,30 @@ export async function findHandle(path: string, directory?: boolean): Promise<Fil
 
         if (!(current instanceof FileSystemDirectoryHandle)) {
             // Can't traverse inside a file
-            return null;
+            throw new DOMException("", HostExceptions.PathError);
         }
 
         if (isLast) {
             // Last segment: file or directory
-            try {
-                if (directory) {
-                    current = await current.getDirectoryHandle(part);
-                } else {
-                    current = await current.getFileHandle(part);
+            for await (const [key, entry] of current.entries()) {
+                if (key === part) {
+                    return entry;
                 }
-            } catch {
-                return null;
             }
+            throw new DOMException("", HostExceptions.DOMNotFoundError);
         } else {
-            // Intermediate directories
-            try {
-                current = await current.getDirectoryHandle(part);
-            } catch {
-                return null;
-            }
+            current = await current.getDirectoryHandle(part);
         }
     }
-
-    return current;
+    throw new DOMException("", HostExceptions.DOMNotFoundError);
 }
 
-export async function createHandle(path: string, directory: boolean, createIntermediate: boolean = true): Promise<FileSystemHandle | null> {
+export async function createHandle(path: string, directory: boolean, createIntermediate: boolean = true): Promise<FileSystemHandle> {
     const root = await getStorageRoot();
 
-    if (!path.startsWith("/")) {
-      throw new Error("Path must be absolute and start with /");
-    }
+    // if (!path.startsWith("/")) {
+    //   throw new Error("Path must be absolute and start with /");
+    // }
 
     const parts = path.split("/").filter(Boolean);
 
@@ -69,31 +53,24 @@ export async function createHandle(path: string, directory: boolean, createInter
 
         if (!(current instanceof FileSystemDirectoryHandle)) {
             // Can"t traverse inside a file
-            return null;
+            throw new DOMException("", HostExceptions.PathError);
         }
 
         if (isLast) {
             // Last segment: file or directory
-            try {
-                if (directory) {
-                    current = await current.getDirectoryHandle(part, { create: true });
-                } else {
-                    current = await current.getFileHandle(part, { create: true });
-                }
-            } catch {
-                return null;
+            if (directory) {
+                current = await current.getDirectoryHandle(part, { create: true });
+            } else {
+                current = await current.getFileHandle(part, { create: true });
             }
+            return current;
         } else {
             // Intermediate directories
-            try {
-                current = await current.getDirectoryHandle(part, { create: createIntermediate });
-            } catch {
-                return null;
-            }
+            current = await current.getDirectoryHandle(part, { create: createIntermediate });
         }
     }
 
-    return current;
+    throw new Error();
 }
 
 export async function createFileAsync(path: string, file: File) {
@@ -144,8 +121,8 @@ export async function getSize(handle: FileSystemHandle) {
 
 }
 
-export async function readItem(path: string, directory: boolean) {
-    const handle = await findHandle(path, directory);
+export async function readItem(path: string) {
+    const handle = await findHandle(path);
 
     if (!handle) {
         return null;
@@ -198,11 +175,7 @@ export async function removeHandle(path: string) {
 
         if (isLast) {
             // Last segment: file or directory
-            try {
-                current.removeEntry(getLeaf(path)!);
-            } catch {
-                return false;
-            }
+            current.removeEntry(parts[parts.length - 1], { recursive: true });
         } else {
             // Intermediate directories
             try {

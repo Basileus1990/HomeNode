@@ -4,7 +4,7 @@ import { Outlet, Link } from "react-router";
 import useCoordinatorWorker from "../server-com/coordinator/use-coordinator";
 import { getHostId } from "../service/id";
 import { HostIdContext } from "./host-id-context";
-import { getConfig } from "../../config";
+import { getConfig } from "../../common/config";
 
 
 export async function clientLoader() {

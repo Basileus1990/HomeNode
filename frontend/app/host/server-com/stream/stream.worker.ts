@@ -21,11 +21,9 @@ self.onmessage = async (e: MessageEvent<CoordinatorToStreamWorker>) => {
     if (msg.type === "prepare") {
         streamId = msg.streamId;
 
+        // coordinator is responsible for checking whether the handle exists before initiating the worker
+        // so if we're here  it means it's safe to access
         handle = await findHandle(msg.resourcePath);
-        if (!handle) {
-            log.error(`StreamWorker #${streamId} did not find resource: ${msg.resourcePath}`);
-            return;
-        }
             
         chunkSize = msg.chunkSize;
         chunker = await RecordChunker.createChunker(handle, chunkSize);

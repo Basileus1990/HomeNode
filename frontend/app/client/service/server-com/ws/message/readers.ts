@@ -1,5 +1,5 @@
 import { FlagService, decodePerJson } from "../../../../../common/server-com/binary";
-import type { HomeNodeFrontendConfig } from "../../../../../config";
+import type { HomeNodeFrontendConfig } from "../../../../../common/config";
 
 
 export enum SocketToClientMessageTypes {
@@ -9,9 +9,6 @@ export enum SocketToClientMessageTypes {
     DownloadInitResponse = 6,
     ChunkResponse = 8,
     EOFResponse = 9,
-
-    ChunkUploadResponse = 22,
-    UploadEOFResponse = 23
 }
 
 export class HMClientReader {
