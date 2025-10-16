@@ -8,15 +8,13 @@ import { getStorageRoot, findHandle } from "~/common/fs/api";
 export async function clientLoader({ params }: Route.LoaderArgs) {
     const { "*": resourcePath} = params;
 
-    let handle: FileSystemHandle | null;
+    let handle: FileSystemHandle | null = null;
     let error: string = "";
     if (resourcePath) {
-        handle = await findHandle(resourcePath);
-        if (!handle) {
-            error = "Path not found";
-            handle = await getStorageRoot();
-        } else if (handle.kind !== "directory") {
-            error = "Not a directory";
+        try {
+            handle = await findHandle(resourcePath);
+        } catch (e) {
+            error = "Invalid path";
         }
     }
     else

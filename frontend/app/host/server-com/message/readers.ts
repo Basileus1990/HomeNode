@@ -1,5 +1,5 @@
 import { decodePerJson, decodeUUID } from "../../../common/server-com/binary";
-import type { HomeNodeFrontendConfig } from "../../../config";
+import type { HomeNodeFrontendConfig } from "../../../common/config";
 
 
 export namespace ServerToHostMessage {
@@ -11,7 +11,9 @@ export namespace ServerToHostMessage {
         DownloadInitRequest = 5,
         ChunkRequest = 7,
         DownloadCompletionRequest = 10,
-        InitWithExistingHost = 11
+        InitWithExistingHost = 11,
+        CreateDirectoryRequest = 12,
+        DeleteResourceRequest = 13
     }
 
     export type ServerError = {
@@ -44,6 +46,18 @@ export namespace ServerToHostMessage {
     }
     export type ExistingHostInit = {
     }
+    export type ClientStartsUpload = {
+        path: string;
+    }
+    export type ClientChunk = {
+        chunk: ArrayBuffer;
+    }
+    export type CreateDirectory = {
+        path: string;
+    }
+    export type RemoveResource = {
+        path: string;
+    }
 
     export type Contents =
       | ServerError
@@ -55,6 +69,8 @@ export namespace ServerToHostMessage {
       | EndStream
       | DownloadCompletion
       | ExistingHostInit
+      | CreateDirectory
+      | RemoveResource
 }
 
 export type HMHostReaderOut = { 
@@ -115,6 +131,10 @@ export class HMHostReader {
                     return this.readEndStreamRequest(data, useLittleEndian);
                 case ServerToHostMessage.Types.InitWithExistingHost:
                     return {};
+                case ServerToHostMessage.Types.CreateDirectoryRequest:
+                    return this.readCreateDirectoryRequest(data);
+                case ServerToHostMessage.Types.DeleteResourceRequest:
+                    return this.readDeleteResourceRequest(data);
                 default:
                     return null;
             }
@@ -175,5 +195,17 @@ export class HMHostReader {
         const view = new DataView(data);
         const streamId = view.getUint32(0, useLittleEndian);
         return { streamId };
+    }
+
+    private static readCreateDirectoryRequest(data: ArrayBuffer): ServerToHostMessage.CreateDirectory {
+        const uploadId = decodeUUID(data.slice(0, 16));
+        const path = String.fromCharCode(...new Uint8Array(data.slice(16, -1)));
+        return { path: uploadId + path };
+    }
+
+    private static readDeleteResourceRequest(data: ArrayBuffer): ServerToHostMessage.RemoveResource {
+        const decoder = new TextDecoder();
+        const path = decoder.decode(data.slice(0, -1));
+        return { path };
     }
 }

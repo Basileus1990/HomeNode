@@ -2,16 +2,18 @@ import log from "loglevel";
 
 import { ServerToHostMessage } from "../message/readers";
 import { createStreamWorker as createStreamWorker } from "./handle-stream-worker";
-import type { StreamWorkerRegistry } from "./stream-worker-registry";
+import type { WorkerRegistry } from "./stream-worker-registry";
 import { HMHostWriter, HostToServerMessage } from "../message/writers";
-import type { HomeNodeFrontendConfig } from "../../../config";
-import { findHandle, isDirectoryPath, readHandle } from "../../../common/fs/api";
+import type { HomeNodeFrontendConfig } from "../../../common/config";
+import { createHandle, findHandle, readHandle, removeHandle } from "../../../common/fs/api";
+import { ErrorCodes } from "../../../common/error-codes";
+import { HostExceptions } from "../../../common/exceptions";
 
 
 export class HostController {
     private _socket: WebSocket;
     private _config: HomeNodeFrontendConfig;
-    private _streamWorkers: StreamWorkerRegistry;
+    private _streamWorkers: WorkerRegistry;
     private _postMessage: (message: any) => void;
     private _streamCounter = 0;
     private _connectionStatus: "connected" | "disconncted" = "disconncted";
@@ -19,7 +21,7 @@ export class HostController {
     constructor(
         socket: WebSocket,
         config: HomeNodeFrontendConfig,
-        streamWorkers: StreamWorkerRegistry,
+        streamWorkers: WorkerRegistry,
         postMessage: (message: any) => void
     ) {
         this._socket = socket;
@@ -53,16 +55,29 @@ export class HostController {
                 this.handleChunkRequest(payload as ServerToHostMessage.ChunkRequest, respondentId);
                 break;
             case ServerToHostMessage.Types.DownloadCompletionRequest:
-                this.handleDownloadCompletionRequest(payload as ServerToHostMessage.DownloadCompletion, respondentId);
+                await this.handleDownloadCompletionRequest(payload as ServerToHostMessage.DownloadCompletion, respondentId);
                 break;
             case ServerToHostMessage.Types.InitWithExistingHost:
                 this.handleInitWithExistingHost(respondentId);
                 break;
+            case ServerToHostMessage.Types.CreateDirectoryRequest: {
+                await this.handleCreateDirectoryRequest(respondentId, payload as ServerToHostMessage.CreateDirectory);
+                break;
+            }
+            case ServerToHostMessage.Types.DeleteResourceRequest: {
+                await this.handleDeleteResourceRequest(respondentId, payload as ServerToHostMessage.RemoveResource);
+                break;
+            }
             default:
                 log.trace("Host received unknown message type:", typeNo, "with payload:", payload);
                 log.warn("Host received message of unknown type");
         }
     }
+
+
+    /**
+     * Handlers
+     */
 
     private async handleServerError(payload: ServerToHostMessage.ServerError) {
         const errorType = payload.errorType;
@@ -75,27 +90,29 @@ export class HostController {
     ) {
         const resourcePath = payload.resourcePath;
         const chunkSize = payload.chunkSize;
-        const handle = await findHandle(resourcePath, isDirectoryPath(resourcePath));
-        log.debug("Host received download request for resource:", resourcePath);
 
-        if (!handle) {
-            log.warn("Host couldn't find resource:", resourcePath);
-            await this.sendError(respondentId, 400, "resource not found");
-            return;
+        try {
+            log.debug("Host received download request for resource:", resourcePath);
+            await findHandle(resourcePath);
+
+            const newStreamId = this._streamCounter++;
+            const newWorker = createStreamWorker(this._socket, this._config, (id) => this.setWorkerLastActiveNow(id));
+            this._streamWorkers.set(newStreamId, { worker: newWorker, lastActive: Date.now() });
+            newWorker.postMessage({
+                type: "prepare",
+                resourcePath,
+                chunkSize,
+                streamId: newStreamId,
+                respondentId
+            });
+            log.debug("Host started preparing for streaming resource:", resourcePath);
+            log.info("created worker");
+        } catch (e) {
+            const handled = await this.handleCommonErrors(e, respondentId);
+            if (!handled) {
+                await this.sendError(respondentId, ErrorCodes.UnknownError);
+            }
         }
-
-        const newStreamId = this._streamCounter++;
-        const newWorker = createStreamWorker(this._socket, this._config, (id) => this.setStreamerWorkerLastActiveNow(id));
-        this._streamWorkers.set(newStreamId, { worker: newWorker, lastActive: Date.now() });
-        newWorker.postMessage({
-            type: "prepare",
-            resourcePath,
-            chunkSize,
-            streamId: newStreamId,
-            respondentId
-        });
-        log.debug("Host started preparing for streaming resource:", resourcePath);
-        log.info("created worker");
     }
 
     private handleChunkRequest(
@@ -120,7 +137,7 @@ export class HostController {
         log.info("requested chunk from streamer");
     }
 
-    private handleDownloadCompletionRequest(
+    private async handleDownloadCompletionRequest(
         payload: ServerToHostMessage.DownloadCompletion,
         respondentId: number
     ) {
@@ -136,6 +153,8 @@ export class HostController {
         log.info("stream finished for streamer", streamId, "terminating");
         entry.worker.terminate();
         this._streamWorkers.delete(streamId);
+
+        await this.sendHostAck(respondentId);
     }
 
     private async handleInitWithUuidQuery(
@@ -165,18 +184,19 @@ export class HostController {
         payload: ServerToHostMessage.ReadMetadata,
         respondentId: number
     ) {
-        const resourcePath = payload.resourcePath;
-        const handle = await findHandle(resourcePath, isDirectoryPath(resourcePath));
+        try {
+            const resourcePath = payload.resourcePath;
+            const handle = await findHandle(resourcePath);
 
-        if (!handle) {
-            log.warn(`Could not find resource: ${resourcePath}`)
-            await this.sendError(respondentId, 400, "resource not found");
-            return;
+            const metadata = await readHandle(handle, resourcePath);
+            await this.sendMetadataResponse(respondentId, metadata);
+            log.debug(`Metadata for ${resourcePath} sent`);
+        } catch (e) {
+            const handled = await this.handleCommonErrors(e, respondentId);
+            if (!handled) {
+                await this.sendError(respondentId, ErrorCodes.UnknownError);
+            }
         }
-
-        const metadata = await readHandle(handle, resourcePath);
-        await this.sendMetadataResponse(respondentId, metadata);
-        log.debug(`Metadata for ${resourcePath} sent`);
     }
 
     private async handleInitWithExistingHost(
@@ -191,6 +211,41 @@ export class HostController {
         await this.sendHostAck(respondentId);
         this._connectionStatus = "connected";
     }
+
+    private async handleCreateDirectoryRequest(respondentId: number, payload: ServerToHostMessage.CreateDirectory) {
+        const path = payload.path;
+        log.debug("Host received create folder request for path:", path);
+        console.log("Host received create folder request for path:", path);
+        try {
+            await createHandle(path, true, true);
+            await this.sendHostAck(respondentId);
+        } catch (e) {
+            console.log(e);
+            const handled = await this.handleCommonErrors(e, respondentId);
+            if (!handled) {
+                await this.sendError(respondentId, ErrorCodes.UnknownError);
+            }
+        }
+    }
+
+    private async handleDeleteResourceRequest(respondentId: number, payload: ServerToHostMessage.RemoveResource) {
+        const path = payload.path;
+        log.debug("Host received delete file request for path:", path);
+        try {
+            await removeHandle(path);
+            await this.sendHostAck(respondentId);
+        } catch (e) {
+            const handled = await this.handleCommonErrors(e, respondentId);
+            if (!handled) {
+                await this.sendError(respondentId, ErrorCodes.UnknownError);
+            }
+        }
+    }
+
+
+    /**
+     * Senders
+     */
 
     private async sendHostAck(respondentId: number) {
         const response = await HMHostWriter.write(
@@ -224,10 +279,31 @@ export class HostController {
         this._socket.send(response);
     }
 
-    private setStreamerWorkerLastActiveNow(streamId: number) {
+    private setWorkerLastActiveNow(streamId: number) {
         const entry = this._streamWorkers.get(streamId);
         if (entry) {
             entry.lastActive = Date.now();
         }
+    }
+
+
+    /**
+     * Helpers
+     */
+
+    private async handleCommonErrors(e: unknown, respondentId: number) {
+        if (e instanceof TypeError) {
+            await this.sendError(respondentId, ErrorCodes.InvalidPath);
+            return true;
+        } else if (e instanceof DOMException) {
+            if (e.name === HostExceptions.DOMNotAllowedError) {
+                await this.sendError(respondentId, ErrorCodes.OperationNotAllowed);
+                return true;
+            } else if (e.name === HostExceptions.DOMNotFoundError) {
+                await this.sendError(respondentId, ErrorCodes.ResourceNotFound);
+                return true;
+            }
+        }
+        return false;
     }
 }

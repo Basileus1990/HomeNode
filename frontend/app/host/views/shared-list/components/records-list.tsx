@@ -4,7 +4,7 @@ import { useContext } from "react";
 import FileRecordListItem from "../../../../common/components/file-record-listitem.js";
 import DirectoryRecordListItem from "../../../../common/components/directory-record-listitem.js";
 import { HostIdContext } from "../../host-id-context";
-import { getResourceShareURL } from "../../../service/url-service";
+import { getResourceShareURL, getHostAddItemURL } from "../../../service/url-service";
 import type { Item } from "~/common/fs/types.js";
 
 
@@ -48,6 +48,8 @@ export default function RecordsList({records}: {records: Item[]}) {
                     {deleteItemFetcher(resource)}
                     <br/>
                     <Link to={`/host/shared/${resource.path}`}>View</Link>
+                    <br/>
+                    <Link to={`/host/share/${resource.path}`}>Add</Link>
                     <br/>
                     {shareLinkButton(resource)}
                 </>

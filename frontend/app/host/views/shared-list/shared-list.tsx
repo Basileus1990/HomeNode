@@ -10,10 +10,16 @@ export async function clientLoader({ params }: Route.LoaderArgs) {
     const { "*": resourcePath} = params;
 
     let handle: FileSystemHandle | null;
-    if (resourcePath)
-        handle = await findHandle(resourcePath);
+    if (resourcePath) {
+        try {
+            handle = await findHandle(resourcePath);
+        } catch (e) {
+            handle = null;
+        }
+    }
     else
         handle = await getStorageRoot();
+    
     if (!handle) {
         log.debug(`No handle found for path: ${resourcePath}`)
         return [];

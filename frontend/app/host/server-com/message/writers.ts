@@ -1,6 +1,6 @@
 import { FlagService, encodePerJson, encodeUUID } from "../../../common/server-com/binary";
 import { type EncryptionData, encryptBuffer } from "../../../common/crypto";
-import { type HomeNodeFrontendConfig } from "../../../config";
+import { type HomeNodeFrontendConfig } from "../../../common/config";
 import type { Item } from "~/common/fs/types";
 
 
@@ -12,7 +12,7 @@ export namespace HostToServerMessage {
         MetadataResponse = 4,
         DownloadInitResponse = 6,
         ChunkResponse = 8,
-        EOFResponse = 9
+        EOFResponse = 9,
     }
     export type HostError = {
         errorType: number;
@@ -89,25 +89,25 @@ export class HMHostWriter {
     ): Promise<ArrayBuffer> {
         switch (typeNo) {
             case HostToServerMessage.Types.HostError:
-                return this.writeHostError(data as HostToServerMessage.HostError, config.use_little_endian);
+                return this.buildHostError(data as HostToServerMessage.HostError, config.use_little_endian);
             case HostToServerMessage.Types.HostACK:
-                return this.writeHostACK();
+                return this.buildHostACK();
             case HostToServerMessage.Types.CurrentHostIDDeclaration:
-                return this.writeCurrentHostIDDeclaration(data as HostToServerMessage.CurrentHostIdDeclaration);
+                return this.buildCurrentHostIDDeclaration(data as HostToServerMessage.CurrentHostIdDeclaration);
             case HostToServerMessage.Types.MetadataResponse:
-                return this.writeMetadataResponse(data as HostToServerMessage.Metadata, config);
+                return this.buildMetadataResponse(data as HostToServerMessage.Metadata, config);
             case HostToServerMessage.Types.DownloadInitResponse:
-                return this.writeStreamStartResponse(data as HostToServerMessage.StartStream, config.use_little_endian);
+                return this.buildStreamStartResponse(data as HostToServerMessage.StartStream, config.use_little_endian);
             case HostToServerMessage.Types.ChunkResponse:
-                return this.writeChunkResponse(data as HostToServerMessage.Chunk, config);
+                return this.buildChunkResponse(data as HostToServerMessage.Chunk, config);
             case HostToServerMessage.Types.EOFResponse:
-                return this.writeEOFResponse();
+                return this.buildEOFResponse();
             default:
                 throw new Error(`Unknown message type: ${typeNo}`);
         }
     }
 
-    private static writeHostError(data: HostToServerMessage.HostError, useLittleEndian: boolean = false) {
+    private static buildHostError(data: HostToServerMessage.HostError, useLittleEndian: boolean = false) {
         let buffer;
         if (data.errorInfo) {
             const encodedErrorInfo = encodePerJson(data.errorInfo);
@@ -123,16 +123,16 @@ export class HMHostWriter {
     }
 
     // ACK has no body, so we return empty, 0-size ArrayBuffer
-    private static writeHostACK() {
+    private static buildHostACK() {
         return new ArrayBuffer();
     }
 
-    private static writeCurrentHostIDDeclaration(data: HostToServerMessage.CurrentHostIdDeclaration) {
+    private static buildCurrentHostIDDeclaration(data: HostToServerMessage.CurrentHostIdDeclaration) {
         const encodedId = encodeUUID(data.hostId);
         return encodedId.buffer as ArrayBuffer;
     }
 
-    private static async writeMetadataResponse(data: HostToServerMessage.Metadata, config: HomeNodeFrontendConfig) {
+    private static async buildMetadataResponse(data: HostToServerMessage.Metadata, config: HomeNodeFrontendConfig) {
         let encodedMetadata = encodePerJson(data.item);
         let buffer;
         let metadataIndex = 1;
@@ -160,7 +160,7 @@ export class HMHostWriter {
         return buffer;
     }
 
-    private static writeStreamStartResponse(data: HostToServerMessage.StartStream, useLittleEndian: boolean = false) {
+    private static buildStreamStartResponse(data: HostToServerMessage.StartStream, useLittleEndian: boolean = false) {
         let buffer;
         let flags = 0;
 
@@ -179,7 +179,7 @@ export class HMHostWriter {
         return buffer;
     }
 
-    private static async writeChunkResponse(data: HostToServerMessage.Chunk, config: HomeNodeFrontendConfig) {
+    private static async buildChunkResponse(data: HostToServerMessage.Chunk, config: HomeNodeFrontendConfig) {
         if (data.encryption) {
             const { salt, iv, ciphertext } = await encryptBuffer(
                 data.encryption.password, 
@@ -193,9 +193,51 @@ export class HMHostWriter {
     }
 
     // EOF needs no body
-    private static writeEOFResponse() {
+    private static buildEOFResponse() {
         return new ArrayBuffer();
     }
+
+
+    /**
+     * Direct writers
+     */
+
+    public static writeHostAck(respondentId: number, config: HomeNodeFrontendConfig) {
+        const buffer = this.buildHostACK();
+        return this.assemble(respondentId, HostToServerMessage.Types.HostACK, buffer, config.use_little_endian);
+    }
+
+    public static writeHostError(respondentId: number, config: HomeNodeFrontendConfig, data: HostToServerMessage.HostError) {
+        const buffer = this.buildHostError(data, config.use_little_endian);
+        return this.assemble(respondentId, HostToServerMessage.Types.HostError, buffer, config.use_little_endian);
+    }
+
+    public static writeCurrentHostIDDeclaration(respondentId: number, config: HomeNodeFrontendConfig, data: HostToServerMessage.CurrentHostIdDeclaration) {
+        const buffer = this.buildCurrentHostIDDeclaration(data);
+        return this.assemble(respondentId, HostToServerMessage.Types.CurrentHostIDDeclaration, buffer, config.use_little_endian);
+    }
+
+    public static async writeMetadataResponse(respondentId: number, config: HomeNodeFrontendConfig, data: HostToServerMessage.Metadata) {
+        const buffer = await this.buildMetadataResponse(data, config);
+        return this.assemble(respondentId, HostToServerMessage.Types.MetadataResponse, buffer, config.use_little_endian);
+    }
+
+    public static writeDownloadInitResponse(respondentId: number, config: HomeNodeFrontendConfig, data: HostToServerMessage.StartStream) {
+        const buffer = this.buildStreamStartResponse(data, config.use_little_endian);
+        return this.assemble(respondentId, HostToServerMessage.Types.DownloadInitResponse, buffer, config.use_little_endian);
+    }
+
+    public static async writeChunkResponse(respondentId: number, config: HomeNodeFrontendConfig, data: HostToServerMessage.Chunk) {
+        const buffer = await this.buildChunkResponse(data, config);
+        return this.assemble(respondentId, HostToServerMessage.Types.ChunkResponse, buffer, config.use_little_endian);
+    }
+
+    public static writeEOFResponse(respondentId: number, config: HomeNodeFrontendConfig) {
+        const buffer = this.buildEOFResponse();
+        return this.assemble(respondentId, HostToServerMessage.Types.EOFResponse, buffer, config.use_little_endian);
+    }
+
+    
 }
 
 function writeEncryptionData(buffer: ArrayBuffer, saltOffset: number, ivOffset: number, encryptionData: EncryptionData) {
