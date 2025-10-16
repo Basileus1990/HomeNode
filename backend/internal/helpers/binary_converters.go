@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"encoding/binary"
+
 	"github.com/google/uuid"
 )
 

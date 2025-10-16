@@ -5,6 +5,9 @@ import RecordsList from "./components/records-list.js";
 import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenation.js"
 
 
+const metadataCache = new Map<string, any>();
+
+
 export async function clientLoader({ params }: Route.LoaderArgs) {
     const { host_id, "*": path} = params;
 
@@ -12,7 +15,16 @@ export async function clientLoader({ params }: Route.LoaderArgs) {
         throw new Error("Missing host_id in route parameters");
     }
 
-    return HostWebSocketclient.getRecordItem(host_id, path);
+    const cacheKey = `${host_id}/${path ?? ""}`;
+    if (metadataCache.has(cacheKey)) {
+        console.log(`retrieved ${cacheKey} from cache`);
+        return metadataCache.get(cacheKey);
+    }
+
+    console.log(`querying server for ${cacheKey}`);
+    const result = await HostWebSocketclient.getRecordItem(host_id, path);
+    metadataCache.set(cacheKey, result);
+    return result;
 }
 
 export function ErrorBoundary() {

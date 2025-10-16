@@ -2,7 +2,7 @@ import log from "loglevel";
 
 import { HMHostWriter, HostToServerMessage } from "../message/writers";
 import type { ChunkReadyMessage, EofReachedMessage, StreamerReadyMessage, StreamWorkerToCoordinator, StreamWorkerErrorMessage } from "../types";
-import type { HomeNodeFrontendConfig } from "../../../config";
+import type { HomeNodeFrontendConfig } from "../../../common/config";
 
 
 export function createStreamWorker(
@@ -28,7 +28,17 @@ export function createStreamWorker(
             case "eof":
                 await handleEof(socket, msg, config);
                 break;
+            case "error":
+                await handleError(socket, msg as StreamWorkerErrorMessage, config);
+                break;
+            default:
+                log.trace("Host received unknown message from StreamWorker:", msg);
+                log.warn("Host received message from StreamWorker it couldn't handle");
         }
+    };
+
+    streamerWorker.onerror = (err) => {
+        log.error("StreamWorker emitted error:", err.message, err);
     };
 
     return streamerWorker;
@@ -69,6 +79,20 @@ async function handleChunk(socket: WebSocket, msg: ChunkReadyMessage, config: Ho
         {
             chunk: msg.chunk,
             encryption: msg.encryption
+        }
+    );
+    socket.send(response);
+}
+
+async function handleError(socket: WebSocket, msg: StreamWorkerErrorMessage, config: HomeNodeFrontendConfig) {
+    log.error(`StreamWorker #${msg.streamId} emitted error: ${msg.message}`);
+    const response = await HMHostWriter.write(
+        msg.streamId,
+        HostToServerMessage.Types.HostError,
+        config,
+        {
+            errorType: msg.errorType,
+            errorInfo: { message: msg.message }
         }
     );
     socket.send(response);

@@ -1,5 +1,5 @@
 import type { EncryptionData } from "~/common/crypto";
-import type { HomeNodeFrontendConfig } from "~/config";
+import type { HomeNodeFrontendConfig } from "~/common/config";
 
 export interface PrepareStreamMessage {
   type: "prepare";
@@ -46,13 +46,15 @@ export interface EofReachedMessage {
 export interface StreamWorkerErrorMessage {
   type: "error";
   streamId: number;
+  errorType: number;
   message?: string;
 }
 
 export type StreamWorkerToCoordinator =
   | ChunkReadyMessage
   | EofReachedMessage
-  | StreamerReadyMessage;
+  | StreamerReadyMessage
+  | StreamWorkerErrorMessage;
 
 
 export interface HostIdReceived {

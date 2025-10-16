@@ -1,18 +1,18 @@
-export type StreamWorkerEntry = { worker: Worker; lastActive: number; };
+export type WorkerEntry = { worker: Worker; lastActive: number; };
 
-export class StreamWorkerRegistry {
-    private _workers = new Map<number, StreamWorkerEntry>();
+export class WorkerRegistry {
+    private _workers = new Map<number, WorkerEntry>();
 
-    public set(downloadId: number, entry: StreamWorkerEntry) {
-        this._workers.set(downloadId, entry);
+    public set(streamId: number, entry: WorkerEntry) {
+        this._workers.set(streamId, entry);
     }
 
-    public get(downloadId: number): StreamWorkerEntry | undefined {
-        return this._workers.get(downloadId);
+    public get(streamId: number): WorkerEntry | undefined {
+        return this._workers.get(streamId);
     }
 
-    public delete(downloadId: number) {
-        this._workers.delete(downloadId);
+    public delete(streamId: number) {
+        this._workers.delete(streamId);
     }
 
     public entries() {

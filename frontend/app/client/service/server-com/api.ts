@@ -1,5 +1,5 @@
 import type { Item } from "~/common/fs/types";
-import type { HomeNodeFrontendConfig } from "../../../config";
+import type { HomeNodeFrontendConfig } from "../../../common/config";
 
 export abstract class ClientToServerCommunication {
     public static async getRecordItem(hostId: string, itemId: string, config: HomeNodeFrontendConfig): Promise<Item[]> {
