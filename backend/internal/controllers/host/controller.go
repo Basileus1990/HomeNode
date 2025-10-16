@@ -16,8 +16,6 @@ import (
 )
 
 const hostKeyQueryParam = "hostKey"
-const uploadNameQueryParam = "name"
-const uploadTypeQueryParam = "type"
 
 type Controller struct {
 	HostService       host.HostService

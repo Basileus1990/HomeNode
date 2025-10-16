@@ -31,9 +31,3 @@ func UUIDToBinary(u uuid.UUID) []byte {
 	copy(b, u[:])
 	return b
 }
-
-func ByteToBinary(v uint8) []byte {
-	b := make([]byte, 1)
-	b[0] = v
-	return b
-}
