@@ -34,8 +34,16 @@ self.onmessage = async (e: MessageEvent<ToFileReceiverMsg>) => {
             break;
         }
         case "next": {
-            self.postMessage(buildHostChunkRequestMsg(respondentId));
-            log.debug(`Receiver #${streamId} requsts next chunk`);
+            if (offset < fileSize) {
+                self.postMessage(buildHostChunkRequestMsg(respondentId));
+            log.debug(`Receiver #${streamId} requsts next chunk from offset ${offset}`);
+            } else {
+                writeable.close();
+                self.postMessage(buildUploadEndMsg(respondentId));
+                log.debug(`Receiver #${streamId} received entire file and ends stream`);
+                close();
+            }
+            
             break;
         }
         case "data": {
@@ -48,6 +56,7 @@ self.onmessage = async (e: MessageEvent<ToFileReceiverMsg>) => {
                 writeable.close();
                 self.postMessage(buildUploadEndMsg(respondentId));
                 log.debug(`Receiver #${streamId} received entire file and ends stream`);
+                close();
             }
             break;
         }

@@ -3,12 +3,13 @@ import type { HomeNodeFrontendConfig } from "../../../../../common/config";
 
 
 export enum ClientToSocketMessageTypes {
-    ClientError = 0,
-    ClientACK = 1,
-    ChunkRequest = 7,
-    DownloadCompletionRequest = 10,
+    Error = 0,
+    Ack = 1,
 
-    UploadChunkResponse = 19
+    DownloadFileChunkRequest = 7,
+    DownloadFileEndStreamRequest = 10,
+
+    UploadFileChunkResponse = 19
 }
 
 export class HMClientWriter {
@@ -24,7 +25,7 @@ export class HMClientWriter {
         useLittleEndian: boolean = false
     ): ArrayBuffer {
         const payloadView = new Uint8Array(payloadBuffer);
-        const buffer = new ArrayBuffer(3 + payloadView.length);
+        const buffer = new ArrayBuffer(2 + payloadView.length);
         const view = new DataView(buffer);
         const byteView = new Uint8Array(buffer);
 
@@ -40,22 +41,22 @@ export class HMClientWriter {
         useLittleEndian: boolean = false
     ): { flags: number; payload: ArrayBuffer } {
         switch (typeNo) {
-            case ClientToSocketMessageTypes.ClientError:
-                return this.writeClientError(data, useLittleEndian);
-            case ClientToSocketMessageTypes.ClientACK:
-                return this.writeClientACK();
-            case ClientToSocketMessageTypes.ChunkRequest:
-                return this.writeChunkRequest(data, useLittleEndian);
-            case ClientToSocketMessageTypes.DownloadCompletionRequest:
-                return this.writeEndStreamRequest(data);
-            case ClientToSocketMessageTypes.UploadChunkResponse:
-                return this.writeUploadChunkResponse(data, useLittleEndian);
+            case ClientToSocketMessageTypes.Error:
+                return this.writeError(data, useLittleEndian);
+            case ClientToSocketMessageTypes.Ack:
+                return this.writeAck();
+            case ClientToSocketMessageTypes.DownloadFileChunkRequest:
+                return this.writeDownloadFileChunkRequest(data, useLittleEndian);
+            case ClientToSocketMessageTypes.DownloadFileEndStreamRequest:
+                return this.writeDownloadFileEndStreamRequest(data);
+            case ClientToSocketMessageTypes.UploadFileChunkResponse:
+                return this.writeUploadFileChunkResponse(data, useLittleEndian);
             default:
                 throw new Error(`Unknown client message type: ${typeNo}`);
         }
     }
 
-    private writeClientError(
+    private writeError(
         data: { errorType: number, errorInfo?: object }, 
         useLittleEndian: boolean = false
     ) {
@@ -71,11 +72,11 @@ export class HMClientWriter {
         return { flags: 0, payload: buffer };
     }
 
-    private writeClientACK() {
+    private writeAck() {
         return { flags: 0, payload: new ArrayBuffer() };
     }
 
-    private writeChunkRequest(
+    private writeDownloadFileChunkRequest(
         data: { offset: bigint }, 
         useLittleEndian: boolean = false
     ) {
@@ -85,11 +86,11 @@ export class HMClientWriter {
         return { flags: 0, payload: buffer };
     }
 
-    private writeEndStreamRequest(data: any) {
+    private writeDownloadFileEndStreamRequest(data: any) {
         return { flags: 0, payload: new ArrayBuffer() };
     }
 
-    private writeUploadChunkResponse(
+    private writeUploadFileChunkResponse(
         data: { streamId: number, chunk: ArrayBuffer },
         useLittleEndian: boolean = false
     ) {

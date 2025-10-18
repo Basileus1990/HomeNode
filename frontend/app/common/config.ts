@@ -1,13 +1,10 @@
-import log from "loglevel";
-
-
 const CONFIG_ENDPOINT = import.meta.env.VITE_CONFIG_ENDPOINT as string;
 
 type HomeNodeFrontendConfig = {
     streamer_inactivity_timeout: number;
     streamer_cleanup_interval: number;
 
-    batch_size: number;
+    chunk_size: number;
     use_little_endian: boolean;
 
     host_connect_ws_url: string;
@@ -28,8 +25,7 @@ const defautConfig: HomeNodeFrontendConfig = {
     streamer_inactivity_timeout: 30000,
     streamer_cleanup_interval: 10000,
 
-    //chunkSize: 32*1024,
-    batch_size: 34768,
+    chunk_size: 34768,
     use_little_endian: false,
 
     host_connect_ws_url: "ws://localhost:3000/api/vi1/host/connect",

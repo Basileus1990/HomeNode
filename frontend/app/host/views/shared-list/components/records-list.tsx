@@ -6,7 +6,7 @@ import DirectoryRecordListItem from "../../../../common/components/directory-rec
 import { HostIdContext } from "../../host-id-context";
 import { getResourceShareURL, getHostAddItemURL } from "../../../service/url-service";
 import type { Item } from "~/common/fs/types.js";
-import { downloadFileHandleToUser, findHandle } from "~/common/fs/opfs.js";
+import { downloadFileHandle, findHandle } from "~/common/fs/opfs.js";
 
 
 export default function RecordsList({records}: {records: Item[]}) {
@@ -36,7 +36,7 @@ export default function RecordsList({records}: {records: Item[]}) {
         try {
             // optional: show UI feedback, disable button, etc.
             const handle = await findHandle(resource.path);
-            await downloadFileHandleToUser(handle as FileSystemFileHandle, resource.name, (transferred, total) => {
+            await downloadFileHandle(handle as FileSystemFileHandle, resource.name, (transferred, total) => {
                 // you can hook this into a progress UI
                 console.debug(`Downloading ${resource.path}: ${transferred}/${total}`);
             })

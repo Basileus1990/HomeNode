@@ -14,37 +14,21 @@ export default function RecordsList({records, hostId}:
 
     const handleDownload = (record: Item) => {
         if (!isDownloading) {
-            console.log(`Downloading ${record.name}`);
             setIsDownloading(true);
-            HostWebSocketclient.downloadRecord(
-                hostId, 
-                record.name,
-                record.path
-            )
-                .then(() => console.log('resolved'))
-                .catch((e) => console.log('caught: ', e))
+            HostWebSocketclient.downloadRecord(hostId, record.name, record.path, {})
+                .then(() => window.alert("Download complete"))
+                .catch((e) => window.alert(e))
                 .finally(() => setIsDownloading(false));    // TODO: fix this
         } else {
-            console.log('wait for other download to finish');
+            window.alert("A file is already being downloaded. Wait for it to finish");
         }
     }
 
     const handleDelete = (record: Item) => {
         HostWebSocketclient.deleteResource(hostId, record.path)
             .then(() => {
-                console.log('delete successful');
-                revalidator.revalidate();
-            })
-            .catch((e) => window.alert(e))
-    }
-
-    const handleCreateDir = (record: Item) => {
-        const folderName = window.prompt("Enter the name of folder to create");
-        const path = `${record.path}/${folderName}`;
-        console.log('creating folder: ', path);
-        HostWebSocketclient.createDirectory(hostId, path)
-            .then(() => {
-                window.alert('create successful');
+                window.alert(`Resource ${record.name} deleted`);
+                revalidator.revalidate()
             })
             .catch((e) => window.alert(e))
     }
@@ -64,8 +48,6 @@ export default function RecordsList({records, hostId}:
                     <Link to={`${location.pathname}/${record.name}`}>View</Link>
                     <br/>
                     <button onClick={() => handleDelete(record)}>Delete</button>
-                    <br/>
-                    <button onClick={() => handleCreateDir(record)}>Add directory</button>
                 </>
             });
         }

@@ -48,7 +48,7 @@ async function handleStreamReady(socket: WebSocket, msg: StreamerReadyMessage, c
     log.debug(`StreamWorker #${msg.streamId} is ready`);
     const response = await HMHostWriter.write(
         msg.respondentId,
-        HostToServerMessage.Types.DownloadInitResponse,
+        HostToServerMessage.Types.DownloadFileInitStreamResponse,
         config,
         {
             streamId: msg.streamId,
@@ -64,7 +64,7 @@ async function handleEof(socket: WebSocket, msg: EofReachedMessage, config: Home
     log.debug(`StreamWorker #${msg.streamId} emitted EOF`);
     const response = await HMHostWriter.write(
         msg.respondentId,
-        HostToServerMessage.Types.EOFResponse,
+        HostToServerMessage.Types.DownloadFileEofResponse,
         config
     );
     socket.send(response);
@@ -74,7 +74,7 @@ async function handleChunk(socket: WebSocket, msg: ChunkReadyMessage, config: Ho
     log.debug(`StreamWorker #${msg.streamId} emitted chunk`);
     const response = await HMHostWriter.write(
         msg.respondentId,
-        HostToServerMessage.Types.ChunkResponse,
+        HostToServerMessage.Types.DownloadFileChunkResponse,
         config,
         {
             chunk: msg.chunk,
@@ -88,7 +88,7 @@ async function handleError(socket: WebSocket, msg: StreamWorkerErrorMessage, con
     log.error(`StreamWorker #${msg.streamId} emitted error: ${msg.message}`);
     const response = await HMHostWriter.write(
         msg.streamId,
-        HostToServerMessage.Types.HostError,
+        HostToServerMessage.Types.Error,
         config,
         {
             errorType: msg.errorType,

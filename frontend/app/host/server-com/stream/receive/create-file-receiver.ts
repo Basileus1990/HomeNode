@@ -51,7 +51,7 @@ async function handleWorkerReady(socket: WebSocket, msg: ReceiverReady, config: 
     log.debug(`Receiver #${msg.streamId} is ready`);
     const response = await HMHostWriter.write(
         msg.respondentId,
-        HostToServerMessage.Types.CreateFileInitResponse,
+        HostToServerMessage.Types.UploadFileInitStreamResponse,
         config,
         {
             streamId: msg.streamId,
@@ -64,7 +64,7 @@ async function handleUploadAck(socket: WebSocket, msg: UploadAck, config: HomeNo
     log.debug(`Receiver #${msg.streamId} saved chunk`);
     const response = await HMHostWriter.write(
         msg.respondentId,
-        HostToServerMessage.Types.HostACK,
+        HostToServerMessage.Types.Ack,
         config
     );
     socket.send(response);
@@ -74,7 +74,7 @@ async function handleUploadEnd(socket: WebSocket, msg: UploadEnd, config: HomeNo
     log.debug(`Receiver #${msg.streamId} saved entire file`);
     const response = await HMHostWriter.write(
         msg.respondentId,
-        HostToServerMessage.Types.CreateFileStreamEnd,
+        HostToServerMessage.Types.UploadFileEndStreamRequest,
         config
     );
     socket.send(response);
@@ -84,7 +84,7 @@ async function handleHostChunkRequest(socket: WebSocket, msg: HostChunkRequest, 
     log.debug(`Receiver #${msg.streamId} requests chunk from offset ${msg.offset}`);
     const response = await HMHostWriter.write(
         msg.respondentId,
-        HostToServerMessage.Types.HostChunkRequest,
+        HostToServerMessage.Types.UploadFileChunkRequest,
         config,
         {
             offset: msg.offset
@@ -97,7 +97,7 @@ async function handleError(socket: WebSocket, msg: Error, config: HomeNodeFronte
     log.error(`StreamWorker #${msg.streamId} emitted error: ${msg.message}`);
     const response = await HMHostWriter.write(
         msg.streamId,
-        HostToServerMessage.Types.HostError,
+        HostToServerMessage.Types.Error,
         config,
         {
             errorType: msg.errorType,

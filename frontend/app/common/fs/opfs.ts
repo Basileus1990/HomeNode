@@ -41,11 +41,6 @@ export async function findHandle(path: string): Promise<FileSystemHandle> {
 
 export async function createHandle(path: string, directory: boolean, createIntermediate: boolean = true): Promise<FileSystemHandle> {
     const root = await getStorageRoot();
-
-    // if (!path.startsWith("/")) {
-    //   throw new Error("Path must be absolute and start with /");
-    // }
-
     const parts = path.split("/").filter(Boolean);
 
     let current: FileSystemDirectoryHandle | FileSystemFileHandle = root;
@@ -191,7 +186,7 @@ export async function removeHandle(path: string) {
     return true;
 }
 
-export async function downloadFileHandleToUser(
+export async function downloadFileHandle(
   fileHandle: FileSystemFileHandle,
   suggestedName?: string,
   onProgress?: (transferred: number, total?: number) => void
@@ -204,7 +199,7 @@ export async function downloadFileHandleToUser(
   // fallback: throw if not available
     const saveHandle = await showSaveFilePicker({
                 _preferPolyfill: false,
-                suggestedName: suggestedName,
+                suggestedName: name,
                 excludeAcceptAllOption: false // default
             });
 

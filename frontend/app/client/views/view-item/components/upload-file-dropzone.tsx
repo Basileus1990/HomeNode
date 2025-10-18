@@ -1,12 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useDropzone, type FileWithPath } from 'react-dropzone';
-import { useLocation } from "react-router";
+import { useRevalidator } from "react-router";
 import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenation";
 
 export default function UploadFileDropzone({hostId, path}: {hostId: string, path: string}) {
     const [isUploading, setIsUploading] = useState<boolean>(false);
     const selectedFiles = useRef<FileWithPath[]>([]);
-    const location = useLocation();
+    const revalidator = useRevalidator();
     const { getRootProps, getInputProps, open } = useDropzone({
         onDropAccepted: (files) => {
             selectedFiles.current = files;
@@ -23,15 +23,11 @@ export default function UploadFileDropzone({hostId, path}: {hostId: string, path
 
         const file = selectedFiles.current[0];
         const uploadPath = path + file.path?.replace("./", "/");
-        console.log('uploding to:', uploadPath);
 
-        HostWebSocketclient.uploadFile(
-            hostId, 
-            uploadPath, 
-            file)
+        HostWebSocketclient.uploadFile(hostId, uploadPath, file, {})
             .then(() => {
-                console.log('upload successful');
-                window.alert('upload successful');
+                window.alert(`Upload complete`);
+                revalidator.revalidate();
             })
             .catch((e) => window.alert(e))
             .finally(() => {

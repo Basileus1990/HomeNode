@@ -1,5 +1,5 @@
 import type { Route } from "./+types/view-item.js";
-import { useRouteError, isRouteErrorResponse } from "react-router";
+import { useRouteError, isRouteErrorResponse, useRevalidator } from "react-router";
 
 import RecordsList from "./components/records-list";
 import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenation"
@@ -50,10 +50,26 @@ export function ErrorBoundary() {
 }
 
 export default function ViewItem({ loaderData, params }: Route.ComponentProps) {
+    const revalidator = useRevalidator();
+
+    const handleCreateDir = (hostId: string, basePath: string) => {
+        const folderName = window.prompt("Enter the name of folder to create");
+        const path = `${basePath}/${folderName}`;
+
+        HostWebSocketclient.createDirectory(hostId, path)
+            .then(() => {
+                window.alert(`Folder ${folderName} created`);
+                revalidator.revalidate();
+            })
+            .catch((e) => window.alert(e))
+    }
+
     return (
         <div>
-            <h1>Viewing item #{params.item_id} from host#{params.host_id}</h1>
+            <h1>Viewing item #{params["*"]} from host#{params.host_id}</h1>
             <UploadFileDropzone hostId={params.host_id} path={params["*"]}/>
+            <br/>
+            <button onClick={() => handleCreateDir(params.host_id, params["*"])}>Add directory</button>
             <br/>
             <RecordsList records={loaderData} hostId={params.host_id} />
         </div>

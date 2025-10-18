@@ -3,16 +3,18 @@ import type { HomeNodeFrontendConfig } from "../../../../../common/config";
 
 
 export enum SocketToClientMessageTypes {
-    ServerError = 0,
-    ServerACK = 1,
-    MetadataResponse = 4,
-    DownloadInitResponse = 6,
-    ChunkResponse = 8,
-    EOFResponse = 9,
+    Error = 0,
+    Ack = 1,
 
-    CreateFileInitResponse = 15,
-    CreateFileStreamEnd = 16,
-    HostChunkRequest = 18
+    MetadataResponse = 4,
+
+    DownloadFileInitStreamResponse = 6,
+    DownloadFileChunkResponse = 8,
+    DownloadFileEofResponse = 9,
+
+    UploadFileInitStreamResponse = 15,
+    UploadFileChunkRequest = 18,
+    UploadFileEndStreamRequest = 16,
 }
 
 export class HMClientReader {
@@ -25,7 +27,6 @@ export class HMClientReader {
     private disassemble(data: ArrayBuffer, useLittleEndian: boolean = false): { typeNo: number, flags: number, payload: ArrayBuffer } {
         const view = new DataView(data);
         const typeNo = view.getUint16(0, useLittleEndian);
-        // const flags = view.getUint8(2);
         const payload = data.slice(2);
         return { typeNo, flags: 0, payload };
     }
@@ -33,24 +34,24 @@ export class HMClientReader {
     protected dispatch(typeNo: number, payload: ArrayBuffer, useLittleEndian: boolean = false): any {
         try {
             switch (typeNo) {
-                case SocketToClientMessageTypes.ServerError:
-                    return this.readServerError(payload, useLittleEndian);
-                case SocketToClientMessageTypes.ServerACK:
-                    return this.readServerAck();
+                case SocketToClientMessageTypes.Error:
+                    return this.readError(payload, useLittleEndian);
+                case SocketToClientMessageTypes.Ack:
+                    return this.readAck();
                 case SocketToClientMessageTypes.MetadataResponse:
                     return this.readMetadataResponse(payload);
-                case SocketToClientMessageTypes.DownloadInitResponse:
-                    return this.readStreamStartResponse(payload, useLittleEndian);
-                case SocketToClientMessageTypes.ChunkResponse:
-                    return this.readChunkResponse(payload);
-                case SocketToClientMessageTypes.EOFResponse:
-                    return this.readChunkEof();
-                case SocketToClientMessageTypes.CreateFileInitResponse:
-                    return this.readCreateFileInitResponse(payload, useLittleEndian);
-                case SocketToClientMessageTypes.HostChunkRequest:
-                    return this.readHostChunkRequest(payload, useLittleEndian);
-                case SocketToClientMessageTypes.CreateFileStreamEnd:
-                    return this.readCreateFileStreamEnd();
+                case SocketToClientMessageTypes.DownloadFileInitStreamResponse:
+                    return this.readDownloadFileInitResponse(payload, useLittleEndian);
+                case SocketToClientMessageTypes.DownloadFileChunkResponse:
+                    return this.readDownloadFileChunkResponse(payload);
+                case SocketToClientMessageTypes.DownloadFileEofResponse:
+                    return this.readDownloadFileEofResponse();
+                case SocketToClientMessageTypes.UploadFileInitStreamResponse:
+                    return this.readUploadFileInitResponse(payload, useLittleEndian);
+                case SocketToClientMessageTypes.UploadFileChunkRequest:
+                    return this.readUploadFileChunkRequest(payload, useLittleEndian);
+                case SocketToClientMessageTypes.UploadFileEndStreamRequest:
+                    return this.readUploadFileEndRequest();
                 default:
                     return null;
             }
@@ -61,7 +62,7 @@ export class HMClientReader {
     }
 
     // 1.
-    private readServerError(data: ArrayBuffer, useLittleEndian: boolean = false) {
+    private readError(data: ArrayBuffer, useLittleEndian: boolean = false) {
         const view = new DataView(data);
         const errorType = view.getUint16(0, useLittleEndian);
         if (data.byteLength > 2) {
@@ -76,7 +77,7 @@ export class HMClientReader {
     }
 
     // 2.
-    private readServerAck() {
+    private readAck() {
         return true;
     }
 
@@ -89,7 +90,7 @@ export class HMClientReader {
     }
 
     // 6.
-    private readStreamStartResponse(data: ArrayBuffer, useLittleEndian: boolean = false) {
+    private readDownloadFileInitResponse(data: ArrayBuffer, useLittleEndian: boolean = false) {
         const view = new DataView(data);
         
         // const chunkSize = view.getUint32(0, useLittleEndian);
@@ -106,28 +107,28 @@ export class HMClientReader {
     }
 
     // 7.
-    private readChunkResponse(data: ArrayBuffer) {
+    private readDownloadFileChunkResponse(data: ArrayBuffer) {
         return new Uint8Array(data);
     }
 
     // 8.
-    private readChunkEof() {
+    private readDownloadFileEofResponse() {
         return null;
     }
 
-    private readCreateFileInitResponse(data: ArrayBuffer, useLittleEndian: boolean = false) {
+    private readUploadFileInitResponse(data: ArrayBuffer, useLittleEndian: boolean = false) {
         const view = new DataView(data);
         const streamId = view.getUint32(0, useLittleEndian);
         return { streamId };
     }
 
-    private readHostChunkRequest(data: ArrayBuffer, useLittleEndian: boolean = false) {
+    private readUploadFileChunkRequest(data: ArrayBuffer, useLittleEndian: boolean = false) {
         const view = new DataView(data);
         const offset = view.getBigUint64(0, useLittleEndian);
         return { offset };
     }
 
-    private readCreateFileStreamEnd() {
+    private readUploadFileEndRequest() {
         return true;
     }
 }
