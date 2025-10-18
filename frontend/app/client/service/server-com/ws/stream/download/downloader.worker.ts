@@ -1,9 +1,9 @@
 import log from "loglevel";
 
-import { HMClientReader, SocketToClientMessageTypes } from "../message/readers";
-import { ClientToSocketMessageTypes, HMClientWriter } from "../message/writers";
-import type { ToDownloader } from "./types";
-import type { HomeNodeFrontendConfig } from "../../../../../common/config";
+import { HMClientReader, SocketToClientMessageTypes } from "../../message/readers";
+import { ClientToSocketMessageTypes, HMClientWriter } from "../../message/writers";
+import type { ToDownloader } from "./msgs";
+import type { HomeNodeFrontendConfig } from "../../../../../../common/config";
 
 
 
@@ -50,11 +50,11 @@ function getSocket(url: string) {
         }
 
         switch (msg.typeNo) {
-            case SocketToClientMessageTypes.DownloadInitResponse: {
+            case SocketToClientMessageTypes.DownloadFileInitStreamResponse: {
                 log.debug("Client received confirmation the host is ready to stream");
                 
                 _chunksExpected = msg.payload.sizeInChunks;
-                _chunkSize = msg.payload.chunkSize;
+                _chunkSize = _config.chunk_size;
                 _downloadSize = _chunksExpected * _chunkSize;
 
                 self.postMessage({
@@ -71,7 +71,7 @@ function getSocket(url: string) {
 
                 break;
             }
-            case SocketToClientMessageTypes.ChunkResponse: {
+            case SocketToClientMessageTypes.DownloadFileChunkResponse: {
                 _chunksReceived++;
                 _offset += BigInt(_chunkSize);
 
@@ -90,7 +90,7 @@ function getSocket(url: string) {
 
                 break;
             }
-            case SocketToClientMessageTypes.EOFResponse: {
+            case SocketToClientMessageTypes.DownloadFileEofResponse: {
                 log.log("received eof");
                 log.log("at ", _chunksReceived, " of ", _chunksExpected)
 
@@ -124,7 +124,7 @@ function finishDownload() {
     _fileWriter.close();
 
     const query = _writer.write(
-        ClientToSocketMessageTypes.DownloadCompletionRequest,
+        ClientToSocketMessageTypes.DownloadFileEndStreamRequest,
         {},
         _config
     );
@@ -140,7 +140,7 @@ function queryNextChunk(offset: bigint) {
     log.log("Client querying for next chunk");
 
     const query = _writer.write(
-        ClientToSocketMessageTypes.ChunkRequest,
+        ClientToSocketMessageTypes.DownloadFileChunkRequest,
         { offset },
         _config
     );

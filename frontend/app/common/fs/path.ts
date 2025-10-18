@@ -38,8 +38,3 @@ export function getParentPath(path: string) {
 export function getLeaf(path: string) {
     return path.split("/").at(-1);
 }
-
-export function isDirectoryPath(path: string) {
-    const parts = path.split("/");
-    return !parts.at(-1)?.includes(".")
-}

@@ -14,5 +14,8 @@ export default defineConfig({
         secure: false, // if using self-signed HTTPS
       },
     },
+  },
+  worker: {
+    format: 'es', // ✅ Required in some edge cases
   }
 });

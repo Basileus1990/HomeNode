@@ -36,7 +36,7 @@ func (c *Controller) SetUpRoutes(group *gin.RouterGroup) {
 	group.GET("download/:hostUuid/:resourceUuid", c.DownloadResource)
 	group.GET("directory/create/:hostUuid/:resourceUuid/*pathToDirectory", c.CreateDirectory)
 	group.GET("file/create/:hostUuid/:resourceUuid/*pathToFile", c.CreateFile)
-	group.GET("directory/resource/:hostUuid/:resourceUuid/*pathToDirectory", c.DeleteResource)
+	group.GET("resource/delete/:hostUuid/:resourceUuid/*pathToResource", c.DeleteResource)
 }
 
 // HostConnect
@@ -217,13 +217,13 @@ func (c *Controller) DeleteResource(ctx *gin.Context) {
 
 	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))
 	resourceID, resourceErr := uuid.Parse(ctx.Param("resourceUuid"))
-	pathToDirectory := ctx.Param("pathToDirectory")
+	pathToResource := ctx.Param("pathToResource")
 	if hostErr != nil || resourceErr != nil {
 		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.InvalidUrlParams.Binary())
 		return
 	}
 
-	resp, err := c.HostService.DeleteResource(hostID, resourceID, pathToDirectory)
+	resp, err := c.HostService.DeleteResource(hostID, resourceID, pathToResource)
 	if err != nil {
 		if errors.Is(err, &ws_errors.WebsocketError{}) {
 			clientConn.SendAndLogError(message_types.Error.Binary(), err.(ws_errors.WebsocketError).Code().Binary())
@@ -240,7 +240,7 @@ func (c *Controller) DeleteResource(ctx *gin.Context) {
 // CreateFile
 //
 // Method: GET
-// Path: /api/v1/host/file/create/{hostUuid}/{resourceUuid}/path/to/file.exe
+// Path: /api/v1/host/file/create/{hostUuid}/{resourceUuid}/path/to/file.exe?uploadFileSize=xxx
 func (c *Controller) CreateFile(ctx *gin.Context) {
 	upgrader := c.upgrader()
 

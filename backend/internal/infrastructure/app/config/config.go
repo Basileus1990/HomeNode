@@ -26,7 +26,7 @@ type FrontendCfg struct {
 	StreamerInactivityTimeout int  `env:"FRONTEND_STREAMER_INACTIVITY_TIMEOUT" json:"streamer_inactivity_timeout"`
 	StreamerCleanupInterval   int  `env:"FRONTEND_STREAMER_CLEANUP_INTERVAL" json:"streamer_cleanup_interval"`
 	UseLittleEndian           bool `env:"FRONTEND_USE_LITTLE_ENDIAN" json:"use_little_endian"`
-	BatchSize                 int  `env:"-" json:"batch_size"`
+	BatchSize                 int  `env:"-" json:"chunk_size"`
 
 	// Websocket endpoints
 	HostConnectWSURL                  string `env:"FRONTEND_HOST_CONNECT_WS_URL" json:"host_connect_ws_url"`
