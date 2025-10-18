@@ -4,9 +4,7 @@ import { useRouteError, isRouteErrorResponse, useRevalidator } from "react-route
 import RecordsList from "./components/records-list";
 import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenation"
 import UploadFileDropzone from "./components/upload-file-dropzone";
-
-
-const metadataCache = new Map<string, any>();
+import { createCacheKey, checkKeyInCache, getFromCache, setToCache, deleteFromCache } from "~/client/service/cache-service.js";
 
 
 export async function clientLoader({ params }: Route.LoaderArgs) {
@@ -16,15 +14,13 @@ export async function clientLoader({ params }: Route.LoaderArgs) {
         throw new Error("Missing host_id in route parameters");
     }
 
-    const cacheKey = `${host_id}/${path ?? ""}`;
-    if (metadataCache.has(cacheKey)) {
-        console.log(`retrieved ${cacheKey} from cache`);
-        return metadataCache.get(cacheKey);
+    const cacheKey = createCacheKey();
+    if (checkKeyInCache(cacheKey)) {
+        return getFromCache(cacheKey);
     }
 
-    console.log(`querying server for ${cacheKey}`);
     const result = await HostWebSocketclient.getRecordItem(host_id, path);
-    metadataCache.set(cacheKey, result);
+    setToCache(cacheKey, result);
     return result;
 }
 
@@ -59,6 +55,8 @@ export default function ViewItem({ loaderData, params }: Route.ComponentProps) {
         HostWebSocketclient.createDirectory(hostId, path)
             .then(() => {
                 window.alert(`Folder ${folderName} created`);
+                const key = createCacheKey();
+                deleteFromCache(key);
                 revalidator.revalidate();
             })
             .catch((e) => window.alert(e))

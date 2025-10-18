@@ -1,7 +1,10 @@
 import { useState, useRef } from "react";
 import { useDropzone, type FileWithPath } from 'react-dropzone';
 import { useRevalidator } from "react-router";
+
 import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenation";
+import { createCacheKey, deleteFromCache } from "~/client/service/cache-service";
+
 
 export default function UploadFileDropzone({hostId, path}: {hostId: string, path: string}) {
     const [isUploading, setIsUploading] = useState<boolean>(false);
@@ -27,6 +30,8 @@ export default function UploadFileDropzone({hostId, path}: {hostId: string, path
         HostWebSocketclient.uploadFile(hostId, uploadPath, file, {})
             .then(() => {
                 window.alert(`Upload complete`);
+                const key = createCacheKey();
+                deleteFromCache(key);
                 revalidator.revalidate();
             })
             .catch((e) => window.alert(e))

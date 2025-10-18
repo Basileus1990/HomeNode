@@ -4,6 +4,7 @@ import { useState } from "react";
 import FileRecordListItem from "~/common/components/file-record-listitem.js";
 import DirectoryRecordListItem from "~/common/components/directory-record-listitem.js";
 import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenation.js"
+import { createCacheKey, deleteFromCache } from "~/client/service/cache-service";
 import type { Item } from "~/common/fs/types";
 
 export default function RecordsList({records, hostId}: 
@@ -17,8 +18,8 @@ export default function RecordsList({records, hostId}:
             setIsDownloading(true);
             HostWebSocketclient.downloadRecord(hostId, record.name, record.path, {})
                 .then(() => window.alert("Download complete"))
-                .catch((e) => window.alert(e))
-                .finally(() => setIsDownloading(false));    // TODO: fix this
+                .catch((e) => window.alert(e));
+            setIsDownloading(false);    // TODO: fix this
         } else {
             window.alert("A file is already being downloaded. Wait for it to finish");
         }
@@ -28,6 +29,8 @@ export default function RecordsList({records, hostId}:
         HostWebSocketclient.deleteResource(hostId, record.path)
             .then(() => {
                 window.alert(`Resource ${record.name} deleted`);
+                const key = createCacheKey();
+                deleteFromCache(key);
                 revalidator.revalidate()
             })
             .catch((e) => window.alert(e))
