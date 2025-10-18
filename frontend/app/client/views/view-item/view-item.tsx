@@ -1,8 +1,9 @@
 import type { Route } from "./+types/view-item.js";
 import { useRouteError, isRouteErrorResponse } from "react-router";
 
-import RecordsList from "./components/records-list.js";
-import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenation.js"
+import RecordsList from "./components/records-list";
+import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenation"
+import UploadFileDropzone from "./components/upload-file-dropzone";
 
 
 const metadataCache = new Map<string, any>();
@@ -52,6 +53,8 @@ export default function ViewItem({ loaderData, params }: Route.ComponentProps) {
     return (
         <div>
             <h1>Viewing item #{params.item_id} from host#{params.host_id}</h1>
+            <UploadFileDropzone hostId={params.host_id} path={params["*"]}/>
+            <br/>
             <RecordsList records={loaderData} hostId={params.host_id} />
         </div>
     );

@@ -1,3 +1,5 @@
+import { showSaveFilePicker } from "native-file-system-adapter";
+
 import { HostExceptions } from "../exceptions";
 import { getLeaf, getPath } from "./path";
 import { getStorageRoot } from "./root";
@@ -187,4 +189,44 @@ export async function removeHandle(path: string) {
     }
 
     return true;
+}
+
+export async function downloadFileHandleToUser(
+  fileHandle: FileSystemFileHandle,
+  suggestedName?: string,
+  onProgress?: (transferred: number, total?: number) => void
+) {
+  const file = await fileHandle.getFile();
+  const total = file.size;
+  const name = suggestedName ?? file.name ?? "download";
+
+  // showSaveFilePicker requires user gesture
+  // fallback: throw if not available
+    const saveHandle = await showSaveFilePicker({
+                _preferPolyfill: false,
+                suggestedName: suggestedName,
+                excludeAcceptAllOption: false // default
+            });
+
+  const writable = await saveHandle.createWritable();
+  const reader = file.stream().getReader();
+
+  let transferred = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      // value is Uint8Array (or null)
+      if (value) {
+        await writable.write(value);
+        transferred += value.byteLength ?? value.length ?? 0;
+        onProgress?.(transferred, total);
+      }
+    }
+    await writable.close();
+  } catch (err) {
+    // abort will discard partial file
+    try { await writable.abort(); } catch (_) {}
+    throw err;
+  }
 }

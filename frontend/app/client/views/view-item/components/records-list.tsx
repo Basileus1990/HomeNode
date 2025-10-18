@@ -8,7 +8,7 @@ import type { Item } from "~/common/fs/types";
 
 export default function RecordsList({records, hostId}: 
     {records: Item[], hostId: string}) {
-    const [ isDownloading, setIsDownloading ] = useState(false);
+    const [ isDownloading, setIsDownloading ] = useState<boolean>(false);
     const location = useLocation();
     const revalidator = useRevalidator();
 
@@ -23,7 +23,7 @@ export default function RecordsList({records, hostId}:
             )
                 .then(() => console.log('resolved'))
                 .catch((e) => console.log('caught: ', e))
-                .finally(setIsDownloading(false));
+                .finally(() => setIsDownloading(false));    // TODO: fix this
         } else {
             console.log('wait for other download to finish');
         }

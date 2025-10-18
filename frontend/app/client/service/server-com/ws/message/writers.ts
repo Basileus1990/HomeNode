@@ -6,7 +6,9 @@ export enum ClientToSocketMessageTypes {
     ClientError = 0,
     ClientACK = 1,
     ChunkRequest = 7,
-    DownloadCompletionRequest = 10
+    DownloadCompletionRequest = 10,
+
+    UploadChunkResponse = 19
 }
 
 export class HMClientWriter {
@@ -46,6 +48,8 @@ export class HMClientWriter {
                 return this.writeChunkRequest(data, useLittleEndian);
             case ClientToSocketMessageTypes.DownloadCompletionRequest:
                 return this.writeEndStreamRequest(data);
+            case ClientToSocketMessageTypes.UploadChunkResponse:
+                return this.writeUploadChunkResponse(data, useLittleEndian);
             default:
                 throw new Error(`Unknown client message type: ${typeNo}`);
         }
@@ -83,5 +87,17 @@ export class HMClientWriter {
 
     private writeEndStreamRequest(data: any) {
         return { flags: 0, payload: new ArrayBuffer() };
+    }
+
+    private writeUploadChunkResponse(
+        data: { streamId: number, chunk: ArrayBuffer },
+        useLittleEndian: boolean = false
+    ) {
+        const buffer = new ArrayBuffer(data.chunk.byteLength + 4);
+        const view = new DataView(buffer);
+        view.setUint32(0, data.streamId, useLittleEndian);
+        const bytes = new Uint8Array(buffer);
+        bytes.set(new Uint8Array(data.chunk), 4);
+        return { flags: 0, payload: buffer };
     }
 }

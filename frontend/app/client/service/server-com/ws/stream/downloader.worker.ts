@@ -54,7 +54,7 @@ function getSocket(url: string) {
                 log.debug("Client received confirmation the host is ready to stream");
                 
                 _chunksExpected = msg.payload.sizeInChunks;
-                _chunkSize = msg.payload.chunkSize;
+                _chunkSize = _config.batch_size;
                 _downloadSize = _chunksExpected * _chunkSize;
 
                 self.postMessage({

@@ -9,6 +9,10 @@ export enum SocketToClientMessageTypes {
     DownloadInitResponse = 6,
     ChunkResponse = 8,
     EOFResponse = 9,
+
+    CreateFileInitResponse = 15,
+    CreateFileStreamEnd = 16,
+    HostChunkRequest = 18
 }
 
 export class HMClientReader {
@@ -41,6 +45,12 @@ export class HMClientReader {
                     return this.readChunkResponse(payload);
                 case SocketToClientMessageTypes.EOFResponse:
                     return this.readChunkEof();
+                case SocketToClientMessageTypes.CreateFileInitResponse:
+                    return this.readCreateFileInitResponse(payload, useLittleEndian);
+                case SocketToClientMessageTypes.HostChunkRequest:
+                    return this.readHostChunkRequest(payload, useLittleEndian);
+                case SocketToClientMessageTypes.CreateFileStreamEnd:
+                    return this.readCreateFileStreamEnd();
                 default:
                     return null;
             }
@@ -82,9 +92,9 @@ export class HMClientReader {
     private readStreamStartResponse(data: ArrayBuffer, useLittleEndian: boolean = false) {
         const view = new DataView(data);
         
-        const chunkSize = view.getUint32(0, useLittleEndian);
-        const sizeInChunks = view.getUint32(4, useLittleEndian);
-        const flags = view.getUint8(8);
+        // const chunkSize = view.getUint32(0, useLittleEndian);
+        const sizeInChunks = view.getUint32(0, useLittleEndian);
+        // const flags = view.getUint8(8);
         // const result: any = { sizeInChunks };
 
         // if (data.byteLength == 36) {
@@ -92,7 +102,7 @@ export class HMClientReader {
         //     result.initVector = new Uint8Array(data.slice(20));
         // }
 
-        return { chunkSize, sizeInChunks };
+        return { sizeInChunks };
     }
 
     // 7.
@@ -103,5 +113,21 @@ export class HMClientReader {
     // 8.
     private readChunkEof() {
         return null;
+    }
+
+    private readCreateFileInitResponse(data: ArrayBuffer, useLittleEndian: boolean = false) {
+        const view = new DataView(data);
+        const streamId = view.getUint32(0, useLittleEndian);
+        return { streamId };
+    }
+
+    private readHostChunkRequest(data: ArrayBuffer, useLittleEndian: boolean = false) {
+        const view = new DataView(data);
+        const offset = view.getBigUint64(0, useLittleEndian);
+        return { offset };
+    }
+
+    private readCreateFileStreamEnd() {
+        return true;
     }
 }

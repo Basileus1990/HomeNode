@@ -13,7 +13,11 @@ export namespace ServerToHostMessage {
         DownloadCompletionRequest = 10,
         InitWithExistingHost = 11,
         CreateDirectoryRequest = 12,
-        DeleteResourceRequest = 13
+        DeleteResourceRequest = 13,
+
+        CreateFileInitRequest = 14,
+        CreateFileHostChunkRequest = 17,
+        UploadChunkResponse = 19
     }
 
     export type ServerError = {
@@ -28,11 +32,10 @@ export namespace ServerToHostMessage {
         hostKey: string;
     }
     export type ReadMetadata = {
-        resourcePath: string;
+        path: string;
     }
     export type StartStream = {
-        resourcePath: string;
-        chunkSize: number;
+        path: string;
     }
     export type ChunkRequest = {
         streamId: number;
@@ -46,17 +49,22 @@ export namespace ServerToHostMessage {
     }
     export type ExistingHostInit = {
     }
-    export type ClientStartsUpload = {
-        path: string;
-    }
-    export type ClientChunk = {
-        chunk: ArrayBuffer;
-    }
     export type CreateDirectory = {
         path: string;
     }
     export type RemoveResource = {
         path: string;
+    }
+    export type CreateFile = {
+        path: string;
+        fileSize: number;
+    }
+    export type CreateFileHostChunk = {
+        streamId: number;
+    }
+    export type UploadChunk = {
+        streamId: number;
+        chunk: ArrayBuffer;
     }
 
     export type Contents =
@@ -71,6 +79,8 @@ export namespace ServerToHostMessage {
       | ExistingHostInit
       | CreateDirectory
       | RemoveResource
+      | CreateFile
+      | UploadChunk
 }
 
 export type HMHostReaderOut = { 
@@ -124,7 +134,7 @@ export class HMHostReader {
                 case ServerToHostMessage.Types.MetadataQuery:
                     return this.readMetadataRequest(data);
                 case ServerToHostMessage.Types.DownloadInitRequest:
-                    return this.readStreamStartRequest(data, useLittleEndian);
+                    return this.readStreamStartRequest(data);
                 case ServerToHostMessage.Types.ChunkRequest:
                     return this.readChunkRequest(data, useLittleEndian);
                 case ServerToHostMessage.Types.DownloadCompletionRequest:
@@ -135,6 +145,12 @@ export class HMHostReader {
                     return this.readCreateDirectoryRequest(data);
                 case ServerToHostMessage.Types.DeleteResourceRequest:
                     return this.readDeleteResourceRequest(data);
+                case ServerToHostMessage.Types.CreateFileInitRequest: 
+                    return this.readCreateFileInitRequest(data, useLittleEndian);
+                case ServerToHostMessage.Types.CreateFileHostChunkRequest:
+                    return this.readCreateFileHostChunkRequest(data, useLittleEndian);
+                case ServerToHostMessage.Types.UploadChunkResponse:
+                    return this.readUploadChunkResponse(data, useLittleEndian);
                 default:
                     return null;
             }
@@ -173,15 +189,13 @@ export class HMHostReader {
     private static readMetadataRequest(data: ArrayBuffer): ServerToHostMessage.ReadMetadata {
         const uploadId = decodeUUID(data.slice(0, 16));
         const path = String.fromCharCode(...new Uint8Array(data.slice(16, -1)));
-        return { resourcePath: uploadId + path };
+        return { path: uploadId + path };
     }
 
-    private static readStreamStartRequest(data: ArrayBuffer, useLittleEndian: boolean = false): ServerToHostMessage.StartStream {
+    private static readStreamStartRequest(data: ArrayBuffer): ServerToHostMessage.StartStream {
         const resourceId = decodeUUID(data.slice(0, 16));
-        const view = new DataView(data);
-        const chunkSize = view.getUint32(16, useLittleEndian);
-        const path = String.fromCharCode(...new Uint8Array(data.slice(20, -1)));
-        return { resourcePath: resourceId + path, chunkSize };
+        const path = String.fromCharCode(...new Uint8Array(data.slice(16, -1)));
+        return { path: resourceId + path };
     }
 
     private static readChunkRequest(data: ArrayBuffer, useLittleEndian: boolean = false): ServerToHostMessage.ChunkRequest {
@@ -204,8 +218,29 @@ export class HMHostReader {
     }
 
     private static readDeleteResourceRequest(data: ArrayBuffer): ServerToHostMessage.RemoveResource {
-        const decoder = new TextDecoder();
-        const path = decoder.decode(data.slice(0, -1));
-        return { path };
+        const uploadId = decodeUUID(data.slice(0, 16));
+        const path = String.fromCharCode(...new Uint8Array(data.slice(16, -1)));
+        return { path: uploadId + path };
+    }
+
+    private static readCreateFileInitRequest(data: ArrayBuffer, useLittleEndian: boolean) {
+        const resourceId = decodeUUID(data.slice(0, 16));
+        const view = new DataView(data);
+        const fileSize = view.getUint32(16, useLittleEndian);
+        const path = String.fromCharCode(...new Uint8Array(data.slice(20, -1)));
+        return { path: resourceId + path, fileSize };
+    }
+
+    private static readCreateFileHostChunkRequest(data: ArrayBuffer, useLittleEndian: boolean): ServerToHostMessage.CreateFileHostChunk {
+        const view = new DataView(data);
+        const streamId = view.getUint32(0, useLittleEndian)
+        return { streamId };
+    }
+
+    private static readUploadChunkResponse(data: ArrayBuffer, useLittleEndian: boolean): ServerToHostMessage.UploadChunk {
+        const view = new DataView(data);
+        const streamId = view.getUint32(0, useLittleEndian);
+        const chunk = data.slice(4);
+        return { streamId, chunk };
     }
 }

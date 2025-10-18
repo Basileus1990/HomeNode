@@ -13,6 +13,10 @@ export namespace HostToServerMessage {
         DownloadInitResponse = 6,
         ChunkResponse = 8,
         EOFResponse = 9,
+
+        CreateFileInitResponse = 15,
+        CreateFileStreamEnd = 16,
+        HostChunkRequest = 18
     }
     export type HostError = {
         errorType: number;
@@ -36,6 +40,12 @@ export namespace HostToServerMessage {
         chunk: ArrayBuffer;
         encryption?: EncryptionData;
     }
+    export type CreateFileInit = {
+        streamId: number;
+    }
+    export type HostChunkRequest = {
+        offset: bigint;
+    }
 
     export type Params =
       | HostError
@@ -43,6 +53,8 @@ export namespace HostToServerMessage {
       | Metadata
       | StartStream
       | Chunk
+      | CreateFileInit
+      | HostChunkRequest
 }
 
 /**
@@ -102,6 +114,12 @@ export class HMHostWriter {
                 return this.buildChunkResponse(data as HostToServerMessage.Chunk, config);
             case HostToServerMessage.Types.EOFResponse:
                 return this.buildEOFResponse();
+            case HostToServerMessage.Types.CreateFileInitResponse:
+                return this.buildCreateFileInitResponse(data as HostToServerMessage.CreateFileInit, config.use_little_endian);
+            case HostToServerMessage.Types.HostChunkRequest:
+                return this.buildHostChunkRequest(data as HostToServerMessage.HostChunkRequest, config.use_little_endian);
+            case HostToServerMessage.Types.CreateFileStreamEnd:
+                return this.buildCreateFileStreamEnd();
             default:
                 throw new Error(`Unknown message type: ${typeNo}`);
         }
@@ -194,6 +212,27 @@ export class HMHostWriter {
 
     // EOF needs no body
     private static buildEOFResponse() {
+        return new ArrayBuffer();
+    }
+
+    private static buildCreateFileInitResponse(data: HostToServerMessage.CreateFileInit, useLittleEndian: boolean) {
+        const streamdId = data.streamId;
+        const buffer = new ArrayBuffer(4);
+        const view = new DataView(buffer);
+        view.setUint32(0, streamdId, useLittleEndian);
+        return buffer;
+    }
+
+    private static buildHostChunkRequest(data: HostToServerMessage.HostChunkRequest, useLittleEndian: boolean) {
+        const offset = data.offset;
+        const buffer = new ArrayBuffer(8);
+        const view = new DataView(buffer);
+        view.setBigUint64(0, offset, useLittleEndian);
+        return buffer;
+    }
+
+    // EOF needs no body
+    private static buildCreateFileStreamEnd(): ArrayBuffer | PromiseLike<ArrayBuffer> {
         return new ArrayBuffer();
     }
 

@@ -170,7 +170,104 @@ export class HostWebSocketclient implements ClientToServerCommunication {
             return worker;
         }
     }
- 
+
+    public static async uploadFile(
+        hostId: string,
+        path: string,
+        file: File,
+        onStart?: (sizeInChunks?: number) => void,
+        onChunk?: (chunkNo?: number) => void,
+        onEof?: () => void,
+        onError?: () => void) 
+    {
+        const config = await getConfig();
+        const url = WebSocketServerEndpointService.getCreateFileEndpointURL(hostId, path, file.size,config);
+        console.log("Upload URL:", url);
+        return new Promise(async (resolve, reject) => {
+            try {
+                const reader = new HMClientReader();
+                const writer = new HMClientWriter();
+                const socket = new WebSocket(url);
+                socket.binaryType = "arraybuffer";
+
+                socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
+                    console.log("socket got msg");
+                    try {
+                        const msg = reader.read(event.data, config);
+                        if (!msg) {
+                            reject(new Error("Unable to interpret data from socket"));
+                            return;
+                        }
+
+                        switch (msg.typeNo) {
+                            case SocketToClientMessageTypes.CreateFileInitResponse: {
+                                if (onStart) {
+                                    onStart();
+                                }
+                                log.debug("Host reports being reaady to start transfer");
+                                break;
+                            }
+                            case SocketToClientMessageTypes.HostChunkRequest: {
+                                if (onChunk) {
+                                    onChunk(msg.payload.chunkNo);
+                                }
+                                const offset = Number(msg.payload.offset);
+                                console.log("Chunk", offset, "-", offset + config.batch_size!)
+                                const chunk = file.slice(offset, offset + config.batch_size!);
+                                console.log('sliced!');
+                                const bytes = await chunk.arrayBuffer();
+                                const resp = writer.write(
+                                    ClientToSocketMessageTypes.UploadChunkResponse,
+                                    { 
+                                        streamId: msg.payload.streamdId,
+                                        chunk: bytes
+                                    },
+                                    config
+                                );
+                                socket.send(resp);
+                                log.debug(`Uploaded chunk [${offset}-${offset+config.batch_size!}:${file.size}]`)
+                                break;
+                            }
+                            case SocketToClientMessageTypes.CreateFileStreamEnd: {
+                                if (onEof) {
+                                    onEof();
+                                }
+                                console.log("closing socket");
+                                socket.close();
+                                log.debug("Host signals upload end");
+                                resolve(true);
+                            }
+                            case SocketToClientMessageTypes.ServerError: {
+                                if (onError) {
+                                    onError();
+                                }
+                                console.log("closing socket");
+                                socket.close();
+                                reject(new Error(getErrorMessage((msg.payload.errorType))));
+                                break;
+                            }
+                            default: {
+                                console.log("closing socket");
+                                socket.close();
+                                reject(new Error("Unexpected server response"));
+                                break;
+                            }
+                        }   
+
+                    } catch (error) {
+                        console.log("closing socket");
+                        socket.close();
+                        reject(new Error(`Error reading message: ${error}`));
+                    }
+                }
+                
+            } catch (e) {
+                log.error(e);
+                reject(e);
+            }
+        });
+    }
+
     public static async createDirectory(hostId: string, path: string) {
         const config = await getConfig();
         const url = WebSocketServerEndpointService.getCreateDirectoryEndpointURL(hostId, path, config);
