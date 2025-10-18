@@ -43,9 +43,9 @@ var UnexpectedMessageTypeErr = WebsocketError{
 	msg:  "unexpected message type error",
 }
 
-var MissingRequiredParamsErr = WebsocketError{
-	code: MissingRequiredParams,
-	msg:  "missing required params",
+var MissingOrInvalidRequiredParamsErr = WebsocketError{
+	code: MissingOrInvalidRequiredParams,
+	msg:  "missing or invalid required params",
 }
 
 var HostAlreadyConnectedErr = WebsocketError{

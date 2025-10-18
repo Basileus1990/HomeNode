@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/message_types"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/ws_errors"
@@ -15,7 +16,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const hostKeyQueryParam = "hostKey"
+const (
+	hostKeyQueryParam        = "hostKey"
+	uploadFileSizeQueryParam = "uploadFileSize"
+)
 
 type Controller struct {
 	HostService       host.HostService
@@ -31,8 +35,8 @@ func (c *Controller) SetUpRoutes(group *gin.RouterGroup) {
 	group.GET("download/:hostUuid/:resourceUuid/*pathToResource", c.DownloadResource)
 	group.GET("download/:hostUuid/:resourceUuid", c.DownloadResource)
 	group.GET("directory/create/:hostUuid/:resourceUuid/*pathToDirectory", c.CreateDirectory)
-	group.GET("directory/delete/:hostUuid/:resourceUuid/*pathToDirectory", c.DeleteDirectory)
-	group.GET("file/delete/:hostUuid/:resourceUuid/*pathToFile", c.DeleteFile)
+	group.GET("file/create/:hostUuid/:resourceUuid/*pathToFile", c.CreateFile)
+	group.GET("directory/resource/:hostUuid/:resourceUuid/*pathToDirectory", c.DeleteResource)
 }
 
 // HostConnect
@@ -69,7 +73,7 @@ func (c *Controller) HostReconnect(ctx *gin.Context) {
 
 	hostKey, ok := ctx.GetQuery(hostKeyQueryParam)
 	if !ok || len(hostKey) == 0 {
-		c.handleConnectionInitError(ws_errors.MissingRequiredParamsErr, ws)
+		c.handleConnectionInitError(ws_errors.MissingOrInvalidRequiredParamsErr, ws)
 	}
 
 	hostID, hostErr := uuid.Parse(ctx.Param("hostUuid"))
@@ -195,11 +199,11 @@ func (c *Controller) CreateDirectory(ctx *gin.Context) {
 	clientConn.SendAndLogError(resp)
 }
 
-// DeleteDirectory
+// DeleteResource
 //
 // Method: GET
-// Path: /api/v1/host/directory/delete/{hostUuid}/{resourceUuid}/path/to/directory
-func (c *Controller) DeleteDirectory(ctx *gin.Context) {
+// Path: /api/v1/host/resource/delete/{hostUuid}/{resourceUuid}/path/to/directory
+func (c *Controller) DeleteResource(ctx *gin.Context) {
 	upgrader := c.upgrader()
 
 	ws, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
@@ -219,7 +223,7 @@ func (c *Controller) DeleteDirectory(ctx *gin.Context) {
 		return
 	}
 
-	resp, err := c.HostService.DeleteDirectory(hostID, resourceID, pathToDirectory)
+	resp, err := c.HostService.DeleteResource(hostID, resourceID, pathToDirectory)
 	if err != nil {
 		if errors.Is(err, &ws_errors.WebsocketError{}) {
 			clientConn.SendAndLogError(message_types.Error.Binary(), err.(ws_errors.WebsocketError).Code().Binary())
@@ -233,11 +237,11 @@ func (c *Controller) DeleteDirectory(ctx *gin.Context) {
 	clientConn.SendAndLogError(resp)
 }
 
-// DeleteFile
+// CreateFile
 //
 // Method: GET
-// Path: /api/v1/host/file/delete/{hostUuid}/{resourceUuid}/path/to/file.exe
-func (c *Controller) DeleteFile(ctx *gin.Context) {
+// Path: /api/v1/host/file/create/{hostUuid}/{resourceUuid}/path/to/file.exe
+func (c *Controller) CreateFile(ctx *gin.Context) {
 	upgrader := c.upgrader()
 
 	ws, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
@@ -257,18 +261,27 @@ func (c *Controller) DeleteFile(ctx *gin.Context) {
 		return
 	}
 
-	resp, err := c.HostService.DeleteFile(hostID, resourceID, pathToFile)
+	fileSizeStr, ok := ctx.GetQuery(uploadFileSizeQueryParam)
+	if !ok || len(fileSizeStr) == 0 {
+		c.handleConnectionInitError(ws_errors.MissingOrInvalidRequiredParamsErr, ws)
+	}
+
+	fileSize, err := strconv.ParseUint(fileSizeStr, 10, 32)
 	if err != nil {
-		if errors.Is(err, &ws_errors.WebsocketError{}) {
-			clientConn.SendAndLogError(message_types.Error.Binary(), err.(ws_errors.WebsocketError).Code().Binary())
+		c.handleConnectionInitError(ws_errors.MissingOrInvalidRequiredParamsErr, ws)
+	}
+
+	err = c.HostService.CreateFile(clientConn, hostID, resourceID, pathToFile, uint32(fileSize))
+	if err != nil {
+		var wsErr ws_errors.WebsocketError
+		if errors.As(err, &wsErr) {
+			clientConn.SendAndLogError(message_types.Error.Binary(), wsErr.Code().Binary())
 			return
 		}
 
 		clientConn.SendAndLogError(message_types.Error.Binary(), ws_errors.UnknownError.Binary())
 		return
 	}
-
-	clientConn.SendAndLogError(resp)
 }
 
 func (c *Controller) upgrader() websocket.Upgrader {

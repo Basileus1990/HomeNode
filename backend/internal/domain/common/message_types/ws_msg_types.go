@@ -14,21 +14,24 @@ func (t WebsocketMessageType) Binary() []byte {
 }
 
 const (
-	Error                     WebsocketMessageType = 0
-	ACK                       WebsocketMessageType = 1
-	InitWithUuidQuery         WebsocketMessageType = 2
-	MetadataQuery             WebsocketMessageType = 3
-	MetadataResponse          WebsocketMessageType = 4
-	DownloadInitRequest       WebsocketMessageType = 5
-	DownloadInitResponse      WebsocketMessageType = 6
-	ChunkRequest              WebsocketMessageType = 7
-	ChunkResponse             WebsocketMessageType = 8
-	EofResponse               WebsocketMessageType = 9
-	DownloadCompletionRequest WebsocketMessageType = 10
-	InitExistingHost          WebsocketMessageType = 11
-	CreateDirectory           WebsocketMessageType = 12
-	DeleteDirectory           WebsocketMessageType = 13
-	DeleteFile                WebsocketMessageType = 14
+	Error                      WebsocketMessageType = 0
+	ACK                        WebsocketMessageType = 1
+	InitWithUuidQuery          WebsocketMessageType = 2
+	MetadataQuery              WebsocketMessageType = 3
+	MetadataResponse           WebsocketMessageType = 4
+	DownloadInitRequest        WebsocketMessageType = 5
+	DownloadInitResponse       WebsocketMessageType = 6
+	ChunkRequest               WebsocketMessageType = 7
+	ChunkResponse              WebsocketMessageType = 8
+	EofResponse                WebsocketMessageType = 9
+	DownloadCompletionRequest  WebsocketMessageType = 10
+	InitExistingHost           WebsocketMessageType = 11
+	CreateDirectory            WebsocketMessageType = 12
+	DeleteResource             WebsocketMessageType = 13
+	CreateFileInitRequest      WebsocketMessageType = 14
+	CreateFileInitResponse     WebsocketMessageType = 15
+	CreateFileStreamEnd        WebsocketMessageType = 16
+	CreateFileHostChunkRequest WebsocketMessageType = 17
 )
 
 func GetMsgType(msg []byte) (WebsocketMessageType, error) {
