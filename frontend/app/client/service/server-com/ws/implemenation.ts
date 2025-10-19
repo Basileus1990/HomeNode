@@ -2,14 +2,15 @@ import { showSaveFilePicker } from "native-file-system-adapter";
 import log from "loglevel";
 //import streamSaver from "streamsaver";
 
-import type{ ClientToServerCommunication } from "../api";
-import type{ FromDownloader } from "./stream/types";
+import type { ClientToServerCommunication } from "../api";
 import type { Item } from "~/common/fs/types";
+import type { TransferProgressCallbacks } from "../../../../common/server-com/stream/types";
 import { SocketToClientMessageTypes, HMClientReader } from "./message/readers";
 import { ClientToSocketMessageTypes, HMClientWriter } from "./message/writers";
 import { WebSocketServerEndpointService } from "./endpoints";
 import { getConfig } from "../../../../common/config";
-import { getErrorMessage } from "../error/translate-error-codes";
+import { getErrorMessage } from "../../error/translate-error-codes";
+import { createDownloadWorker } from "./stream/download/create-file-downloader";
 
 
 // WIP
@@ -47,7 +48,7 @@ export class HostWebSocketclient implements ClientToServerCommunication {
                             resolve(msg.payload);
                             break;
                         }
-                        case SocketToClientMessageTypes.ServerError: {
+                        case SocketToClientMessageTypes.Error: {
                             reject(new Error(getErrorMessage((msg.payload.errorType))));
                             break;
                         }
@@ -69,7 +70,6 @@ export class HostWebSocketclient implements ClientToServerCommunication {
         });
     }
 
-    // WIP
     /**
      * 
      * @param hostId host identifier
@@ -83,19 +83,16 @@ export class HostWebSocketclient implements ClientToServerCommunication {
      */
     public static async downloadRecord(
         hostId: string, 
-        filename: string,
-        resourcePath: string, 
-        onStart?: (sizeInChunks?: number) => void,
-        onChunk?: (chunkNo?: number) => void,
-        onEof?: () => void,
-        onError?: () => void) 
+        filename: string, 
+        resourcePath: string,
+        callbacks: TransferProgressCallbacks) 
     {
         const config = await getConfig();
         const url = WebSocketServerEndpointService.getDownloadEndpointURL(hostId, resourcePath, config);
         return new Promise(async (resolve, reject) => {
             try {
-                const transferableStream = await getFileStream();
-                const worker = createDownloadWorker(resolve, reject);
+                const transferableStream = await getFileStream(filename);
+                const worker = createDownloadWorker(resolve, reject, callbacks);
                 worker.postMessage({
                     type: "start",
                     stream: transferableStream,
@@ -108,11 +105,10 @@ export class HostWebSocketclient implements ClientToServerCommunication {
             }
         });
 
-
-        async function getFileStream() {
+        async function getFileStream(suggestedName: string) {
             const fileHandle = await showSaveFilePicker({
                 _preferPolyfill: false,
-                suggestedName: filename,
+                suggestedName,
                 excludeAcceptAllOption: false // default
             });
             const writeable = await fileHandle.createWritable();
@@ -131,46 +127,101 @@ export class HostWebSocketclient implements ClientToServerCommunication {
             return transferableStream;
         }
 
-        function createDownloadWorker(resolve: (value: unknown) => void, reject: (reason?: any) => void) {
-            const worker = new Worker(new URL("./stream/downloader.worker.ts", import.meta.url), {
-                type: "module",
-            });
-
-            worker.onmessage = (e: MessageEvent<FromDownloader>) => {
-                const msg = e.data;
-
-                switch (msg.type) {
-                    case "started":
-                        if (onStart){
-                            onStart(msg.sizeInChunks);
-                        }
-                        break;
-                    case "chunk": {
-                        if (onChunk) {
-                            onChunk(msg.chunkNo);
-                        }
-                        break;
-                    }
-                    case "aborted":
-                        if (onError) {
-                            onError();
-                        }
-                        reject("abort");
-                        break;
-                    case "eof":
-                        if (onEof) {
-                            onEof();
-                        }
-                        resolve(true);
-                        break
-                    default:
-                        break;
-                }
-            };
-            return worker;
-        }
+        
     }
- 
+
+    public static async uploadFile(
+        hostId: string,
+        path: string,
+        file: File,
+        { onStart, onProgress, onEof, onError }: TransferProgressCallbacks) 
+    {
+        const config = await getConfig();
+        const url = WebSocketServerEndpointService.getCreateFileEndpointURL(hostId, path, file.size,config);
+        console.log("Upload URL:", url);
+        return new Promise(async (resolve, reject) => {
+            try {
+                const reader = new HMClientReader();
+                const writer = new HMClientWriter();
+                const socket = new WebSocket(url);
+                socket.binaryType = "arraybuffer";
+
+                socket.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
+                    console.log("socket got msg");
+                    try {
+                        const msg = reader.read(event.data, config);
+                        if (!msg) {
+                            reject(new Error("Unable to interpret data from socket"));
+                            return;
+                        }
+
+                        switch (msg.typeNo) {
+                            case SocketToClientMessageTypes.UploadFileInitStreamResponse: {
+                                if (onStart) {
+                                    onStart();
+                                }
+                                log.debug("Host reports being reaady to start transfer");
+                                break;
+                            }
+                            case SocketToClientMessageTypes.UploadFileChunkRequest: {
+                                if (onProgress) {
+                                    onProgress(msg.payload.chunkNo);
+                                }
+                                const offset = Number(msg.payload.offset);
+                                const chunk = file.slice(offset, offset + config.chunk_size!);
+                                const bytes = await chunk.arrayBuffer();
+                                const resp = writer.write(
+                                    ClientToSocketMessageTypes.UploadFileChunkResponse,
+                                    { 
+                                        streamId: msg.payload.streamdId,
+                                        chunk: bytes
+                                    },
+                                    config
+                                );
+                                socket.send(resp);
+                                log.debug(`Uploaded chunk [${offset}-${offset+config.chunk_size!}:${file.size}]`)
+                                break;
+                            }
+                            case SocketToClientMessageTypes.UploadFileEndStreamRequest: {
+                                if (onEof) {
+                                    onEof();
+                                }
+                                console.log("closing socket");
+                                socket.close();
+                                log.debug("Host signals upload end");
+                                resolve(true);
+                            }
+                            case SocketToClientMessageTypes.Error: {
+                                if (onError) {
+                                    onError();
+                                }
+                                console.log("closing socket");
+                                socket.close();
+                                reject(new Error(getErrorMessage((msg.payload.errorType))));
+                                break;
+                            }
+                            default: {
+                                console.log("closing socket");
+                                socket.close();
+                                reject(new Error("Unexpected server response"));
+                                break;
+                            }
+                        }   
+
+                    } catch (error) {
+                        console.log("closing socket");
+                        socket.close();
+                        reject(new Error(`Error reading message: ${error}`));
+                    }
+                }
+                
+            } catch (e) {
+                log.error(e);
+                reject(e);
+            }
+        });
+    }
+
     public static async createDirectory(hostId: string, path: string) {
         const config = await getConfig();
         const url = WebSocketServerEndpointService.getCreateDirectoryEndpointURL(hostId, path, config);
@@ -195,11 +246,11 @@ export class HostWebSocketclient implements ClientToServerCommunication {
                     }
 
                     switch (msg.typeNo) {
-                        case SocketToClientMessageTypes.ServerACK: {
+                        case SocketToClientMessageTypes.Ack: {
                             resolve(true);
                             break;
                         }
-                        case SocketToClientMessageTypes.ServerError: {
+                        case SocketToClientMessageTypes.Error: {
                             reject(new Error(getErrorMessage((msg.payload.errorType))));
                             break;
                         }
@@ -245,11 +296,11 @@ export class HostWebSocketclient implements ClientToServerCommunication {
                     }
 
                     switch (msg.typeNo) {
-                        case SocketToClientMessageTypes.ServerACK: {
+                        case SocketToClientMessageTypes.Ack: {
                             resolve(true);
                             break;
                         }
-                        case SocketToClientMessageTypes.ServerError: {
+                        case SocketToClientMessageTypes.Error: {
                             reject(new Error(getErrorMessage((msg.payload.errorType))));
                             break;
                         }

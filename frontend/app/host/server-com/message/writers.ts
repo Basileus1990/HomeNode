@@ -6,15 +6,22 @@ import type { Item } from "~/common/fs/types";
 
 export namespace HostToServerMessage {
     export enum Types {
-        HostError = 0,
-        HostACK = 1,
+        Error = 0,
+        Ack = 1,
+
         CurrentHostIDDeclaration = -1,
+
         MetadataResponse = 4,
-        DownloadInitResponse = 6,
-        ChunkResponse = 8,
-        EOFResponse = 9,
+
+        DownloadFileInitStreamResponse = 6,
+        DownloadFileChunkResponse = 8,
+        DownloadFileEofResponse = 9,
+
+        UploadFileInitStreamResponse = 15,
+        UploadFileChunkRequest = 18,
+        UploadFileEndStreamRequest = 16,
     }
-    export type HostError = {
+    export type Error = {
         errorType: number;
         errorInfo?: object;  // deserialized from JSON, contains additional information
     }
@@ -26,23 +33,31 @@ export namespace HostToServerMessage {
         item: Item
         encryption?: EncryptionData;
     }
-    export type StartStream = {
+    export type DownloadFileInitStream = {
         streamId: number;
         sizeInChunks: number;
         chunkSize: number;
         encryption?: EncryptionData;
     }
-    export type Chunk = {
+    export type DownloadFileChunk = {
         chunk: ArrayBuffer;
         encryption?: EncryptionData;
     }
+    export type UploadFileInitStream = {
+        streamId: number;
+    }
+    export type UploadFileChunk = {
+        offset: bigint;
+    }
 
     export type Params =
-      | HostError
+      | Error
       | CurrentHostIdDeclaration
       | Metadata
-      | StartStream
-      | Chunk
+      | DownloadFileInitStream
+      | DownloadFileChunk
+      | UploadFileInitStream
+      | UploadFileChunk
 }
 
 /**
@@ -88,26 +103,32 @@ export class HMHostWriter {
         data?: HostToServerMessage.Params 
     ): Promise<ArrayBuffer> {
         switch (typeNo) {
-            case HostToServerMessage.Types.HostError:
-                return this.buildHostError(data as HostToServerMessage.HostError, config.use_little_endian);
-            case HostToServerMessage.Types.HostACK:
-                return this.buildHostACK();
+            case HostToServerMessage.Types.Error:
+                return this.buildError(data as HostToServerMessage.Error, config.use_little_endian);
+            case HostToServerMessage.Types.Ack:
+                return this.buildAck();
             case HostToServerMessage.Types.CurrentHostIDDeclaration:
                 return this.buildCurrentHostIDDeclaration(data as HostToServerMessage.CurrentHostIdDeclaration);
             case HostToServerMessage.Types.MetadataResponse:
                 return this.buildMetadataResponse(data as HostToServerMessage.Metadata, config);
-            case HostToServerMessage.Types.DownloadInitResponse:
-                return this.buildStreamStartResponse(data as HostToServerMessage.StartStream, config.use_little_endian);
-            case HostToServerMessage.Types.ChunkResponse:
-                return this.buildChunkResponse(data as HostToServerMessage.Chunk, config);
-            case HostToServerMessage.Types.EOFResponse:
-                return this.buildEOFResponse();
+            case HostToServerMessage.Types.DownloadFileInitStreamResponse:
+                return this.buildDownloadFileInitStreamResponse(data as HostToServerMessage.DownloadFileInitStream, config.use_little_endian);
+            case HostToServerMessage.Types.DownloadFileChunkResponse:
+                return this.buildDownloadFileChunkResponse(data as HostToServerMessage.DownloadFileChunk, config);
+            case HostToServerMessage.Types.DownloadFileEofResponse:
+                return this.buildDownloadFileEofResponse();
+            case HostToServerMessage.Types.UploadFileInitStreamResponse:
+                return this.buildUploadFileInitStreamResponse(data as HostToServerMessage.UploadFileInitStream, config.use_little_endian);
+            case HostToServerMessage.Types.UploadFileChunkRequest:
+                return this.buildUploadFileChunkRequest(data as HostToServerMessage.UploadFileChunk, config.use_little_endian);
+            case HostToServerMessage.Types.UploadFileEndStreamRequest:
+                return this.buildUploadFileEndStreamRequest();
             default:
                 throw new Error(`Unknown message type: ${typeNo}`);
         }
     }
 
-    private static buildHostError(data: HostToServerMessage.HostError, useLittleEndian: boolean = false) {
+    private static buildError(data: HostToServerMessage.Error, useLittleEndian: boolean = false) {
         let buffer;
         if (data.errorInfo) {
             const encodedErrorInfo = encodePerJson(data.errorInfo);
@@ -123,7 +144,7 @@ export class HMHostWriter {
     }
 
     // ACK has no body, so we return empty, 0-size ArrayBuffer
-    private static buildHostACK() {
+    private static buildAck() {
         return new ArrayBuffer();
     }
 
@@ -160,7 +181,7 @@ export class HMHostWriter {
         return buffer;
     }
 
-    private static buildStreamStartResponse(data: HostToServerMessage.StartStream, useLittleEndian: boolean = false) {
+    private static buildDownloadFileInitStreamResponse(data: HostToServerMessage.DownloadFileInitStream, useLittleEndian: boolean = false) {
         let buffer;
         let flags = 0;
 
@@ -179,7 +200,7 @@ export class HMHostWriter {
         return buffer;
     }
 
-    private static async buildChunkResponse(data: HostToServerMessage.Chunk, config: HomeNodeFrontendConfig) {
+    private static async buildDownloadFileChunkResponse(data: HostToServerMessage.DownloadFileChunk, config: HomeNodeFrontendConfig) {
         if (data.encryption) {
             const { salt, iv, ciphertext } = await encryptBuffer(
                 data.encryption.password, 
@@ -193,7 +214,28 @@ export class HMHostWriter {
     }
 
     // EOF needs no body
-    private static buildEOFResponse() {
+    private static buildDownloadFileEofResponse() {
+        return new ArrayBuffer();
+    }
+
+    private static buildUploadFileInitStreamResponse(data: HostToServerMessage.UploadFileInitStream, useLittleEndian: boolean) {
+        const streamdId = data.streamId;
+        const buffer = new ArrayBuffer(4);
+        const view = new DataView(buffer);
+        view.setUint32(0, streamdId, useLittleEndian);
+        return buffer;
+    }
+
+    private static buildUploadFileChunkRequest(data: HostToServerMessage.UploadFileChunk, useLittleEndian: boolean) {
+        const offset = data.offset;
+        const buffer = new ArrayBuffer(8);
+        const view = new DataView(buffer);
+        view.setBigUint64(0, offset, useLittleEndian);
+        return buffer;
+    }
+
+    // EOF needs no body
+    private static buildUploadFileEndStreamRequest(): ArrayBuffer | PromiseLike<ArrayBuffer> {
         return new ArrayBuffer();
     }
 
@@ -203,13 +245,13 @@ export class HMHostWriter {
      */
 
     public static writeHostAck(respondentId: number, config: HomeNodeFrontendConfig) {
-        const buffer = this.buildHostACK();
-        return this.assemble(respondentId, HostToServerMessage.Types.HostACK, buffer, config.use_little_endian);
+        const buffer = this.buildAck();
+        return this.assemble(respondentId, HostToServerMessage.Types.Ack, buffer, config.use_little_endian);
     }
 
-    public static writeHostError(respondentId: number, config: HomeNodeFrontendConfig, data: HostToServerMessage.HostError) {
-        const buffer = this.buildHostError(data, config.use_little_endian);
-        return this.assemble(respondentId, HostToServerMessage.Types.HostError, buffer, config.use_little_endian);
+    public static writeHostError(respondentId: number, config: HomeNodeFrontendConfig, data: HostToServerMessage.Error) {
+        const buffer = this.buildError(data, config.use_little_endian);
+        return this.assemble(respondentId, HostToServerMessage.Types.Error, buffer, config.use_little_endian);
     }
 
     public static writeCurrentHostIDDeclaration(respondentId: number, config: HomeNodeFrontendConfig, data: HostToServerMessage.CurrentHostIdDeclaration) {
@@ -222,19 +264,19 @@ export class HMHostWriter {
         return this.assemble(respondentId, HostToServerMessage.Types.MetadataResponse, buffer, config.use_little_endian);
     }
 
-    public static writeDownloadInitResponse(respondentId: number, config: HomeNodeFrontendConfig, data: HostToServerMessage.StartStream) {
-        const buffer = this.buildStreamStartResponse(data, config.use_little_endian);
-        return this.assemble(respondentId, HostToServerMessage.Types.DownloadInitResponse, buffer, config.use_little_endian);
+    public static writeDownloadInitResponse(respondentId: number, config: HomeNodeFrontendConfig, data: HostToServerMessage.DownloadFileInitStream) {
+        const buffer = this.buildDownloadFileInitStreamResponse(data, config.use_little_endian);
+        return this.assemble(respondentId, HostToServerMessage.Types.DownloadFileInitStreamResponse, buffer, config.use_little_endian);
     }
 
-    public static async writeChunkResponse(respondentId: number, config: HomeNodeFrontendConfig, data: HostToServerMessage.Chunk) {
-        const buffer = await this.buildChunkResponse(data, config);
-        return this.assemble(respondentId, HostToServerMessage.Types.ChunkResponse, buffer, config.use_little_endian);
+    public static async writeChunkResponse(respondentId: number, config: HomeNodeFrontendConfig, data: HostToServerMessage.DownloadFileChunk) {
+        const buffer = await this.buildDownloadFileChunkResponse(data, config);
+        return this.assemble(respondentId, HostToServerMessage.Types.DownloadFileChunkResponse, buffer, config.use_little_endian);
     }
 
     public static writeEOFResponse(respondentId: number, config: HomeNodeFrontendConfig) {
-        const buffer = this.buildEOFResponse();
-        return this.assemble(respondentId, HostToServerMessage.Types.EOFResponse, buffer, config.use_little_endian);
+        const buffer = this.buildDownloadFileEofResponse();
+        return this.assemble(respondentId, HostToServerMessage.Types.DownloadFileEofResponse, buffer, config.use_little_endian);
     }
 
     

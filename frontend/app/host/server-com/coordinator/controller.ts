@@ -8,6 +8,7 @@ import type { HomeNodeFrontendConfig } from "../../../common/config";
 import { createHandle, findHandle, readHandle, removeHandle } from "../../../common/fs/api";
 import { ErrorCodes } from "../../../common/error-codes";
 import { HostExceptions } from "../../../common/exceptions";
+import { createFileReceiverWorker } from "../stream/receive/create-file-receiver";
 
 
 export class HostController {
@@ -36,38 +37,45 @@ export class HostController {
 
     public async dispatch(respondentId: number, typeNo: number, payload: ServerToHostMessage.Contents) {
         switch (typeNo) {
-            case ServerToHostMessage.Types.ServerError:
-                this.handleServerError(payload as ServerToHostMessage.ServerError);
+            case ServerToHostMessage.Types.Error:
+                this.handleServerError(payload as ServerToHostMessage.Error);
                 break;
-            case ServerToHostMessage.Types.ServerACK:
+            case ServerToHostMessage.Types.Ack:
                 log.debug("Host received ACK from server");
                 break;
             case ServerToHostMessage.Types.InitWithUuidQuery:
                 await this.handleInitWithUuidQuery(payload as ServerToHostMessage.NewHostIdGrant, respondentId);
                 break;
-            case ServerToHostMessage.Types.MetadataQuery:
-                await this.handleMetadataQuery(payload as ServerToHostMessage.ReadMetadata, respondentId);
+            case ServerToHostMessage.Types.MetadataRequest:
+                await this.handleMetadataRequest(payload as ServerToHostMessage.Metadata, respondentId);
                 break;
-            case ServerToHostMessage.Types.DownloadInitRequest:
-                await this.handleDownloadInitRequest(payload as ServerToHostMessage.StartStream, respondentId);
+            case ServerToHostMessage.Types.DownloadFileInitStreamRequest:
+                await this.handleDownloadFileInitStreamRequest(payload as ServerToHostMessage.DownloadFileInitStream, respondentId);
                 break;
-            case ServerToHostMessage.Types.ChunkRequest:
-                this.handleChunkRequest(payload as ServerToHostMessage.ChunkRequest, respondentId);
+            case ServerToHostMessage.Types.DownloadFileChunkRequest:
+                this.handleDownloadFileChunkRequest(payload as ServerToHostMessage.DownloadFileChunkRequest, respondentId);
                 break;
-            case ServerToHostMessage.Types.DownloadCompletionRequest:
-                await this.handleDownloadCompletionRequest(payload as ServerToHostMessage.DownloadCompletion, respondentId);
+            case ServerToHostMessage.Types.DownloadFileEndStreamRequest:
+                await this.handleDownloadFileEndStreamRequest(payload as ServerToHostMessage.DownloadFileEndStream, respondentId);
                 break;
             case ServerToHostMessage.Types.InitWithExistingHost:
                 this.handleInitWithExistingHost(respondentId);
                 break;
-            case ServerToHostMessage.Types.CreateDirectoryRequest: {
-                await this.handleCreateDirectoryRequest(respondentId, payload as ServerToHostMessage.CreateDirectory);
+            case ServerToHostMessage.Types.CreateDirectoryRequest:
+                await this.handleCreateDirectoryRequest(payload as ServerToHostMessage.CreateDirectory, respondentId);
                 break;
-            }
-            case ServerToHostMessage.Types.DeleteResourceRequest: {
-                await this.handleDeleteResourceRequest(respondentId, payload as ServerToHostMessage.RemoveResource);
+            case ServerToHostMessage.Types.DeleteResourceRequest:
+                await this.handleDeleteResourceRequest(payload as ServerToHostMessage.Delete, respondentId);
                 break;
-            }
+            case ServerToHostMessage.Types.UploadFileInitStreamRequest:
+                await this.handleUploadFileInitStreamRequest(payload as ServerToHostMessage.UploadFileInitStream, respondentId);
+                break;
+            case ServerToHostMessage.Types.UploadFileChunkPrompt:
+                this.handleUploadFileChunkPrompt(payload as ServerToHostMessage.UploadFileChunkPrompt, respondentId);
+                break;
+            case ServerToHostMessage.Types.UploadFileChunkResponse:
+                this.handleUploadFileChunkResponse(payload as ServerToHostMessage.UploadFileChunk, respondentId);
+                break;
             default:
                 log.trace("Host received unknown message type:", typeNo, "with payload:", payload);
                 log.warn("Host received message of unknown type");
@@ -79,30 +87,26 @@ export class HostController {
      * Handlers
      */
 
-    private async handleServerError(payload: ServerToHostMessage.ServerError) {
+    private async handleServerError(payload: ServerToHostMessage.Error) {
         const errorType = payload.errorType;
         log.warn("Host received error of type:", errorType, "from server");
     }
 
-    private async handleDownloadInitRequest(
-        payload: ServerToHostMessage.StartStream,
-        respondentId: number
-    ) {
-        const resourcePath = payload.resourcePath;
-        const chunkSize = payload.chunkSize;
+    private async handleDownloadFileInitStreamRequest(payload: ServerToHostMessage.DownloadFileInitStream, respondentId: number) {
+        const resourcePath = payload.path;
 
         try {
             log.debug("Host received download request for resource:", resourcePath);
             await findHandle(resourcePath);
 
-            const newStreamId = this._streamCounter++;
+            const streamId = this._streamCounter++;
             const newWorker = createStreamWorker(this._socket, this._config, (id) => this.setWorkerLastActiveNow(id));
-            this._streamWorkers.set(newStreamId, { worker: newWorker, lastActive: Date.now() });
+            this._streamWorkers.set(streamId, { worker: newWorker, lastActive: Date.now() });
             newWorker.postMessage({
                 type: "prepare",
                 resourcePath,
-                chunkSize,
-                streamId: newStreamId,
+                chunkSize: this._config.chunk_size,
+                streamId,
                 respondentId
             });
             log.debug("Host started preparing for streaming resource:", resourcePath);
@@ -115,10 +119,7 @@ export class HostController {
         }
     }
 
-    private handleChunkRequest(
-        payload: ServerToHostMessage.ChunkRequest,
-        respondentId: number
-    ) {
+    private handleDownloadFileChunkRequest(payload: ServerToHostMessage.DownloadFileChunkRequest, respondentId: number) {
         const streamId = payload.streamId;
         const offset = payload.offset;
         const entry = this._streamWorkers.get(streamId);
@@ -137,10 +138,7 @@ export class HostController {
         log.info("requested chunk from streamer");
     }
 
-    private async handleDownloadCompletionRequest(
-        payload: ServerToHostMessage.DownloadCompletion,
-        respondentId: number
-    ) {
+    private async handleDownloadFileEndStreamRequest(payload: ServerToHostMessage.DownloadFileEndStream, respondentId: number) {
         const streamId = payload.streamId;
         const entry = this._streamWorkers.get(streamId);
         log.info("queried for chunk from ", streamId, entry);
@@ -157,10 +155,7 @@ export class HostController {
         await this.sendHostAck(respondentId);
     }
 
-    private async handleInitWithUuidQuery(
-        payload: ServerToHostMessage.NewHostIdGrant,
-        respondentId: number
-    ) {
+    private async handleInitWithUuidQuery(payload: ServerToHostMessage.NewHostIdGrant, respondentId: number) {
         if (this._connectionStatus === "connected") {
             log.warn("Host already connected, ignoring another new HostId grant");
             return;
@@ -180,12 +175,9 @@ export class HostController {
         this._connectionStatus = "connected";
     }
 
-    private async handleMetadataQuery(
-        payload: ServerToHostMessage.ReadMetadata,
-        respondentId: number
-    ) {
+    private async handleMetadataRequest(payload: ServerToHostMessage.Metadata,respondentId: number) {
         try {
-            const resourcePath = payload.resourcePath;
+            const resourcePath = payload.path;
             const handle = await findHandle(resourcePath);
 
             const metadata = await readHandle(handle, resourcePath);
@@ -199,9 +191,7 @@ export class HostController {
         }
     }
 
-    private async handleInitWithExistingHost(
-        respondentId: number
-    ) {
+    private async handleInitWithExistingHost(respondentId: number) {
         if (this._connectionStatus === "connected") {
             log.warn("Host already connected, ignoring another reconnect message");
             return;
@@ -212,7 +202,7 @@ export class HostController {
         this._connectionStatus = "connected";
     }
 
-    private async handleCreateDirectoryRequest(respondentId: number, payload: ServerToHostMessage.CreateDirectory) {
+    private async handleCreateDirectoryRequest(payload: ServerToHostMessage.CreateDirectory, respondentId: number) {
         const path = payload.path;
         log.debug("Host received create folder request for path:", path);
         console.log("Host received create folder request for path:", path);
@@ -228,7 +218,7 @@ export class HostController {
         }
     }
 
-    private async handleDeleteResourceRequest(respondentId: number, payload: ServerToHostMessage.RemoveResource) {
+    private async handleDeleteResourceRequest(payload: ServerToHostMessage.Delete, respondentId: number) {
         const path = payload.path;
         log.debug("Host received delete file request for path:", path);
         try {
@@ -242,6 +232,70 @@ export class HostController {
         }
     }
 
+    private async handleUploadFileInitStreamRequest(payload: ServerToHostMessage.UploadFileInitStream,respondentId: number) {
+        const filePath = payload.path;
+        const fileSize = payload.fileSize;
+
+        try {
+            log.debug("Host received upload request for file:", filePath);
+            await createHandle(filePath, false, true);
+
+            const streamId = this._streamCounter++;
+            const worker = createFileReceiverWorker(this._socket, this._config, (id) => this.setWorkerLastActiveNow(id));
+            this._streamWorkers.set(streamId, { worker, lastActive: Date.now() });
+            worker.postMessage({
+                type: "prepare",
+                resourcePath: filePath,
+                fileSize,
+                chunkSize: this._config.chunk_size,
+                streamId,
+                respondentId
+            });
+            log.debug("Host started preparing for receiving file:", filePath);
+            log.info("created worker");
+        } catch (e) {
+            const handled = await this.handleCommonErrors(e, respondentId);
+            if (!handled) {
+                await this.sendError(respondentId, ErrorCodes.UnknownError);
+            }
+        }
+    }
+
+    private handleUploadFileChunkPrompt(payload: ServerToHostMessage.UploadFileChunkPrompt, respondentId: number) {
+        const streamId = payload.streamId;
+        const entry = this._streamWorkers.get(streamId);
+        log.info("Prompting receiver: ", streamId, entry);
+
+        if (!entry) {
+            this.sendError(respondentId, 400, "unknown respondentId");
+            return;
+        }
+
+        entry.worker.postMessage({
+            type: "next",
+            respondentId
+        });
+        log.info("Prompted receiver for chunk request");
+    }
+
+    private handleUploadFileChunkResponse(payload: ServerToHostMessage.UploadFileChunk, respondentId: number) {
+        const streamId = payload.streamId;
+        const entry = this._streamWorkers.get(streamId);
+        log.info("Transfering chunk to receiver: ", streamId, entry);
+
+        if (!entry) {
+            this.sendError(respondentId, 400, "unknown respondentId");
+            return;
+        }
+
+        entry.worker.postMessage({
+            type: "data",
+            respondentId,
+            chunk: payload.chunk
+        });
+        log.info("Transferred chunk to receiver");
+    }
+
 
     /**
      * Senders
@@ -250,7 +304,7 @@ export class HostController {
     private async sendHostAck(respondentId: number) {
         const response = await HMHostWriter.write(
             respondentId,
-            HostToServerMessage.Types.HostACK,
+            HostToServerMessage.Types.Ack,
             this._config
         );
         this._socket.send(response);
@@ -269,7 +323,7 @@ export class HostController {
     private async sendError(respondentId: number, errorType: number, message?: string) {
         const response = await HMHostWriter.write(
             respondentId,
-            HostToServerMessage.Types.HostError,
+            HostToServerMessage.Types.Error,
             this._config,
             {
                 errorType,
@@ -279,17 +333,17 @@ export class HostController {
         this._socket.send(response);
     }
 
+
+    /**
+     * Helpers
+     */
+
     private setWorkerLastActiveNow(streamId: number) {
         const entry = this._streamWorkers.get(streamId);
         if (entry) {
             entry.lastActive = Date.now();
         }
     }
-
-
-    /**
-     * Helpers
-     */
 
     private async handleCommonErrors(e: unknown, respondentId: number) {
         if (e instanceof TypeError) {

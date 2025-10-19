@@ -1,11 +1,11 @@
 import log from "loglevel";
 
-import { HMHostWriter, HostToServerMessage } from "../message/writers";
-import type { ChunkReadyMessage, EofReachedMessage, StreamerReadyMessage, StreamWorkerToCoordinator, StreamWorkerErrorMessage } from "../types";
-import type { HomeNodeFrontendConfig } from "../../../common/config";
+import { HMHostWriter, HostToServerMessage } from "../../message/writers";
+import type { ChunkReady, EofReached, WorkerReady, Error, FromFileSenderMsg } from "./msgs";
+import type { HomeNodeFrontendConfig } from "../../../../common/config";
 
 
-export function createStreamWorker(
+export function createFileSenderWorker(
     socket: WebSocket,
     config: HomeNodeFrontendConfig,
     onStreamerActivated: (streamId: number) => void
@@ -13,23 +13,23 @@ export function createStreamWorker(
     const streamerWorker = new Worker(new URL("../stream/stream.worker.ts", import.meta.url),
         { type: "module" });
 
-    streamerWorker.onmessage = async (event: MessageEvent<StreamWorkerToCoordinator>) => {
+    streamerWorker.onmessage = async (event: MessageEvent<FromFileSenderMsg>) => {
         const msg = event.data;
 
         onStreamerActivated(msg.streamId);
 
         switch (msg.type) {
             case "ready":
-                await handleStreamReady(socket, msg, config);
+                await handleWorkerReady(socket, msg as WorkerReady, config);
                 break;
             case "chunk":
-                await handleChunk(socket, msg, config);
+                await handleChunkReady(socket, msg as ChunkReady, config);
                 break;
             case "eof":
-                await handleEof(socket, msg, config);
+                await handleEofReached(socket, msg as EofReached, config);
                 break;
             case "error":
-                await handleError(socket, msg as StreamWorkerErrorMessage, config);
+                await handleError(socket, msg as Error, config);
                 break;
             default:
                 log.trace("Host received unknown message from StreamWorker:", msg);
@@ -44,7 +44,7 @@ export function createStreamWorker(
     return streamerWorker;
 }
 
-async function handleStreamReady(socket: WebSocket, msg: StreamerReadyMessage, config: HomeNodeFrontendConfig) {
+async function handleWorkerReady(socket: WebSocket, msg: WorkerReady, config: HomeNodeFrontendConfig) {
     log.debug(`StreamWorker #${msg.streamId} is ready`);
     const response = await HMHostWriter.write(
         msg.respondentId,
@@ -60,7 +60,7 @@ async function handleStreamReady(socket: WebSocket, msg: StreamerReadyMessage, c
     socket.send(response);
 }
 
-async function handleEof(socket: WebSocket, msg: EofReachedMessage, config: HomeNodeFrontendConfig) {
+async function handleEofReached(socket: WebSocket, msg: EofReached, config: HomeNodeFrontendConfig) {
     log.debug(`StreamWorker #${msg.streamId} emitted EOF`);
     const response = await HMHostWriter.write(
         msg.respondentId,
@@ -70,7 +70,7 @@ async function handleEof(socket: WebSocket, msg: EofReachedMessage, config: Home
     socket.send(response);
 }
 
-async function handleChunk(socket: WebSocket, msg: ChunkReadyMessage, config: HomeNodeFrontendConfig) {
+async function handleChunkReady(socket: WebSocket, msg: ChunkReady, config: HomeNodeFrontendConfig) {
     log.debug(`StreamWorker #${msg.streamId} emitted chunk`);
     const response = await HMHostWriter.write(
         msg.respondentId,
@@ -84,7 +84,7 @@ async function handleChunk(socket: WebSocket, msg: ChunkReadyMessage, config: Ho
     socket.send(response);
 }
 
-async function handleError(socket: WebSocket, msg: StreamWorkerErrorMessage, config: HomeNodeFrontendConfig) {
+async function handleError(socket: WebSocket, msg: Error, config: HomeNodeFrontendConfig) {
     log.error(`StreamWorker #${msg.streamId} emitted error: ${msg.message}`);
     const response = await HMHostWriter.write(
         msg.streamId,
