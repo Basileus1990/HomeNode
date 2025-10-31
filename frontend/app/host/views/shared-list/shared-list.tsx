@@ -4,6 +4,7 @@ import log from "loglevel";
 
 import RecordsList from "./components/records-list";
 import { findHandle, getStorageRoot, removeHandle, purgeStorage, readHandle } from "~/common/fs/api";
+import { setDirPermissions } from "~/common/perm/permissions";
 
 
 export async function clientLoader({ params }: Route.LoaderArgs) {
@@ -32,14 +33,23 @@ export async function clientAction({ request }: Route.ActionArgs) {
     const formData = await request.formData();
     const resourcePath = formData.get("resourcePath") as string;
 
-    if (resourcePath) {
-        const removed = await removeHandle(resourcePath);
-        if (removed) {
-            log.debug(`Successfully removed resource: ${resourcePath}`)
-        } else {
-            log.warn(`Could not resource: ${resourcePath}`)
-        }
-    }
+    // if (resourcePath) {
+    //     try {
+    //         await removeHandle(resourcePath);
+    //         log.debug(`Successfully removed resource: ${resourcePath}`);
+    //     } catch (ex) {
+    //         log.warn(`Could not resource: ${resourcePath} due to ${ex}`);
+    //     }
+    // }
+
+    const perms = {
+        AllowAddDir: formData.get("allowAddDir") === "on",
+        AllowAddFile: formData.get("allowAddFile") === "on",
+        AllowDeleteDir: formData.get("allowDeleteDir") === "on",
+        AllowDeleteFile: formData.get("llowDeleteFile") === "on",
+    };
+    console.log(resourcePath, perms);
+    return setDirPermissions(resourcePath, perms);
 }
 
 export default function SharedFilesList({loaderData}: Route.ComponentProps) {

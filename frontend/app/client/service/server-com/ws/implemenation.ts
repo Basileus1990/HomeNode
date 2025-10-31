@@ -45,6 +45,7 @@ export class HostWebSocketclient implements ClientToServerCommunication {
 
                     switch (msg.typeNo) {
                         case SocketToClientMessageTypes.MetadataResponse: {
+                            console.log(msg.payload);
                             resolve(msg.payload);
                             break;
                         }

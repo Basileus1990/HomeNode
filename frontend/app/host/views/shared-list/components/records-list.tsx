@@ -1,5 +1,6 @@
 import { Link, useFetcher } from "react-router";
 import { useContext } from "react";
+import log from "loglevel";
 
 import FileRecordListItem from "../../../../common/components/file-record-listitem.js";
 import DirectoryRecordListItem from "../../../../common/components/directory-record-listitem.js";
@@ -7,6 +8,8 @@ import { HostIdContext } from "../../host-id-context";
 import { getResourceShareURL, getHostAddItemURL } from "../../../service/url-service";
 import type { Item } from "~/common/fs/types.js";
 import { downloadFileHandle, findHandle } from "~/common/fs/opfs.js";
+import { setDirPermissions } from "~/common/perm/permissions.js";
+import { removeHandle } from "~/common/fs/opfs.js";
 
 
 export default function RecordsList({records}: {records: Item[]}) {
@@ -14,12 +17,12 @@ export default function RecordsList({records}: {records: Item[]}) {
     const sortedRecords = records;
     const hostId = useContext(HostIdContext);
 
-    const deleteItemFetcher = (resource: Item) => (
-        <fetcher.Form method="post">
-            <input type="hidden" name="resourcePath" value={resource.path} />
-            <button type="submit">Delete</button>
-        </fetcher.Form>
-    )
+    // const deleteItemFetcher = (resource: Item) => (
+    //     <fetcher.Form method="post">
+    //         <input type="hidden" name="resourcePath" value={resource.path} />
+    //         <button type="submit">Delete</button>
+    //     </fetcher.Form>
+    // )
 
     const shareLinkButton = (resource: Item) => (
         <button
@@ -32,7 +35,7 @@ export default function RecordsList({records}: {records: Item[]}) {
             </button>
     )
 
-    async function handleDownload(resource: Item) {
+    const handleDownload = async (resource: Item) => {
         try {
             // optional: show UI feedback, disable button, etc.
             const handle = await findHandle(resource.path);
@@ -46,12 +49,40 @@ export default function RecordsList({records}: {records: Item[]}) {
         }
     }
 
+    const handleDelete = async (resource: Item) => {
+        try {
+            await removeHandle(resource.path);
+            log.debug(`Successfully removed resource: ${resource.path}`);
+        } catch (ex) {
+            log.warn(`Could not resource: ${resource.path} due to ${ex}`);
+        }
+    }
+
+    const updatePermissionsFetcher = (resource: Item) => (
+        <fetcher.Form method="post">
+            <label htmlFor="allowAddDir">Allow adding directories</label>
+            <input type="checkbox" name="allowAddDir" checked={resource.perms?.AllowAddDir} />
+
+            <label htmlFor="allowAddFile">Allow adding files</label>
+            <input type="checkbox" name="allowAddFile" checked={resource.perms?.AllowAddFile} />
+
+            <label htmlFor="allowDeleteDir">Allow deleting directories</label>
+            <input type="checkbox" name="allowDeleteDir" checked={resource.perms?.AllowDeleteDir} />
+
+            <label htmlFor="allowDeleteFile">Allow deleting files</label>
+            <input type="checkbox" name="allowDeleteFile" checked={resource.perms?.AllowDeleteFile} />
+
+            <input type="hidden" name="resourcePath" value={resource.path} />
+            <button type="submit">Update permissions</button>
+        </fetcher.Form>
+    )
+
     const buildListItem = (resource: Item) => {
         if (resource.kind === "file") {
             return FileRecordListItem({rec: resource, children: 
                 <>
                     <br/>
-                    {deleteItemFetcher(resource)}
+                    <button onClick={() => handleDelete(resource)}>Delete</button>
                     <br/>
                     <button onClick={() => handleDownload(resource)}>Download</button>
                     <br/>
@@ -62,7 +93,9 @@ export default function RecordsList({records}: {records: Item[]}) {
             return DirectoryRecordListItem({rec: resource, children:
                 <>
                     <br/>
-                    {deleteItemFetcher(resource)}
+                    {updatePermissionsFetcher(resource)}
+                    <br/>
+                    <button onClick={() => handleDelete(resource)}>Delete</button>
                     <br/>
                     <Link to={`/host/shared/${resource.path}`}>View</Link>
                     <br/>

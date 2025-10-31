@@ -157,7 +157,6 @@ export async function readHandle(handle: FileSystemHandle, path?: string): Promi
 
 export async function removeHandle(path: string) {
     const root = await getStorageRoot();
-
     const parts = path.split("/").filter(Boolean);
 
     let current: FileSystemDirectoryHandle | FileSystemFileHandle = root;
@@ -167,7 +166,7 @@ export async function removeHandle(path: string) {
 
         if (!(current instanceof FileSystemDirectoryHandle)) {
             // Can't traverse inside a file
-            return false;
+            throw new DOMException("", HostExceptions.PathError);
         }
 
         if (isLast) {
@@ -175,15 +174,9 @@ export async function removeHandle(path: string) {
             current.removeEntry(parts[parts.length - 1], { recursive: true });
         } else {
             // Intermediate directories
-            try {
-                current = await current.getDirectoryHandle(part);
-            } catch {
-                return false;
-            }
+            current = await current.getDirectoryHandle(part);
         }
     }
-
-    return true;
 }
 
 export async function downloadFileHandle(

@@ -1,7 +1,7 @@
 import log from "loglevel";
 
 import type { HostChunkRequest, ReceiverReady, ToFileReceiverMsg, UploadAck, UploadEnd } from "./msgs";
-import { findHandle, removeHandle } from "../../../../common/fs/api";
+import { findHandle } from "../../../../common/fs/api";
 
 
 let streamId: number;     // id of this specific download stream

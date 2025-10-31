@@ -42,7 +42,7 @@ export default function RecordsList({records, hostId}:
                 <>
                     <button onClick={() => handleDownload(record)} disabled={isDownloading}>Download</button>
                     <br/>
-                    <button onClick={() => handleDelete(record)}>Delete</button>
+                    { record.perms?.AllowDeleteDir ? <button onClick={() => handleDelete(record)}>Delete</button> : "" }
                 </>
             });
         } else if (record.kind === "directory") {
@@ -50,7 +50,7 @@ export default function RecordsList({records, hostId}:
                 <>
                     <Link to={`${location.pathname}/${record.name}`}>View</Link>
                     <br/>
-                    <button onClick={() => handleDelete(record)}>Delete</button>
+                    { record.perms?.AllowDeleteFile ? <button onClick={() => handleDelete(record)}>Delete</button> : "" }
                 </>
             });
         }

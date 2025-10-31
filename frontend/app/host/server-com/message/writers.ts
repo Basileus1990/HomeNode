@@ -139,7 +139,7 @@ export class HMHostWriter {
             buffer = new ArrayBuffer(2);
         }
         const view = new DataView(buffer);
-        view.setUint16(data.errorType, 0, useLittleEndian);
+        view.setUint16(0, data.errorType, useLittleEndian);
         return buffer;
     }
 
