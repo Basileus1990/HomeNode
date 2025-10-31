@@ -3,7 +3,7 @@ import { useContext } from "react";
 
 
 import type { SubItem } from "~/common/fs/types";
-import { HostIdContext } from "../../host-id-context";
+import { HostIdContext } from "../../../../client/views/host-id-context";
 import ShareLinkButton from "./share-link-button";
 import DownloadFileButton from "./download-file-button";
 import DeleteButton from "./delete-button";

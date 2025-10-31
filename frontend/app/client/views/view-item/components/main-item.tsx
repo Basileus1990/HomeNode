@@ -1,19 +1,25 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 
 import type { Item } from "~/common/fs/types.js";
 import SharedDirectoryManger from "./dir-manager";
-import { HostIdContext } from "../../../../client/views/host-id-context";
-import ShareLinkButton from "./share-link-button";
 import DownloadFileButton from "./download-file-button";
+import { HostIdContext } from "../../host-id-context";
 
 export default function MainItem({item}: {item: Item}) {
     const hostId = useContext(HostIdContext);
+    const [isDownloading, setDownloadStatus] = useState<boolean>(false);
 
     const buildActions = () => {
         if (item.kind === "directory") {
             return <SharedDirectoryManger item={item} />
         } else {
-            return <DownloadFileButton filename={item.name} path={item.path} />
+            return <DownloadFileButton 
+                        setDownloadStatus={setDownloadStatus} 
+                        hostId={hostId} 
+                        filename={item.name} 
+                        path={item.path} 
+                        isDownloading={isDownloading} 
+                    />
         }
     }
 
@@ -25,7 +31,6 @@ export default function MainItem({item}: {item: Item}) {
             <h4>Path: {item.path}</h4>
             <p>Kind: {item.kind}</p>
             <p>Total size: {item.size} b</p>
-            <ShareLinkButton hostId={hostId} path={item.path} />
             {buildActions()}
         </div>
     )
