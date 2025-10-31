@@ -2,5 +2,6 @@ export enum HostExceptions {
     DOMNotAllowedError = "NotAllowedError",
     DOMNotFoundError = "NotFoundError",
 
-    PathError = "PathError"
+    PathError = "PathError",
+    ForbiddenError = "OperationForbiddenError",
 }

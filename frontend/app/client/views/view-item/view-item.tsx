@@ -1,10 +1,9 @@
 import type { Route } from "./+types/view-item.js";
-import { useRouteError, isRouteErrorResponse, useRevalidator } from "react-router";
+import { useRouteError, isRouteErrorResponse, useLocation } from "react-router";
 
-import RecordsList from "./components/records-list";
-import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenation"
-import UploadFileDropzone from "./components/upload-file-dropzone";
-import { createCacheKey, checkKeyInCache, getFromCache, setToCache, deleteFromCache } from "~/client/service/cache-service.js";
+import { HostWebSocketClient } from "~/client/service/server-com/ws/implemenation"
+import { createCacheKey, checkKeyInCache, getFromCache, setToCache } from "~/client/service/cache-service.js";
+import MainItem from "./components/main-item.js";
 
 
 export async function clientLoader({ params }: Route.LoaderArgs) {
@@ -15,11 +14,12 @@ export async function clientLoader({ params }: Route.LoaderArgs) {
     }
 
     const cacheKey = createCacheKey();
+    console.log(cacheKey, path, window.location);
     if (checkKeyInCache(cacheKey)) {
         return getFromCache(cacheKey);
     }
 
-    const result = await HostWebSocketclient.getRecordItem(host_id, path);
+    const result = await HostWebSocketClient.getRecordItem(host_id, path);
     setToCache(cacheKey, result);
     return result;
 }
@@ -46,30 +46,19 @@ export function ErrorBoundary() {
 }
 
 export default function ViewItem({ loaderData, params }: Route.ComponentProps) {
-    const revalidator = useRevalidator();
+    const item = loaderData;
 
-    const handleCreateDir = (hostId: string, basePath: string) => {
-        const folderName = window.prompt("Enter the name of folder to create");
-        const path = `${basePath}/${folderName}`;
-
-        HostWebSocketclient.createDirectory(hostId, path)
-            .then(() => {
-                window.alert(`Folder ${folderName} created`);
-                const key = createCacheKey();
-                deleteFromCache(key);
-                revalidator.revalidate();
-            })
-            .catch((e) => window.alert(e))
+    const buildContents = () => {
+        if (!item) {
+            return  <p>No item found</p>;
+        } else {
+            return <MainItem item={item} />
+        }
     }
 
     return (
-        <div>
-            <h1>Viewing item #{params["*"]} from host#{params.host_id}</h1>
-            <UploadFileDropzone hostId={params.host_id} path={params["*"]}/>
-            <br/>
-            <button onClick={() => handleCreateDir(params.host_id, params["*"])}>Add directory</button>
-            <br/>
-            <RecordsList records={loaderData} hostId={params.host_id} />
-        </div>
+        <>
+            {buildContents()}
+        </>
     );
 }

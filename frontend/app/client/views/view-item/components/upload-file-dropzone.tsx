@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useDropzone, type FileWithPath } from 'react-dropzone';
 import { useRevalidator } from "react-router";
 
-import { HostWebSocketclient } from "~/client/service/server-com/ws/implemenation";
+import { HostWebSocketClient } from "~/client/service/server-com/ws/implemenation";
 import { createCacheKey, deleteFromCache } from "~/client/service/cache-service";
 
 
@@ -27,7 +27,7 @@ export default function UploadFileDropzone({hostId, path}: {hostId: string, path
         const file = selectedFiles.current[0];
         const uploadPath = path + file.path?.replace("./", "/");
 
-        HostWebSocketclient.uploadFile(hostId, uploadPath, file, {})
+        HostWebSocketClient.uploadFile(hostId, uploadPath, file, {})
             .then(() => {
                 window.alert(`Upload complete`);
                 const key = createCacheKey();

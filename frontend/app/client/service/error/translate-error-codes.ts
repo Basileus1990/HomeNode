@@ -29,6 +29,8 @@ export function getErrorMessage(code: ErrorCodes): string {
             return "Operation not allowed.";
         case ErrorCodes.InvalidPath:
             return "Invalid path specified.";
+        case ErrorCodes.OperationForbidden:
+            return "Operation not allowed";
         default:
             return "Unknown error code.";
     }

@@ -19,8 +19,8 @@ import { createDownloadWorker } from "./stream/download/create-file-downloader";
 //     //streamSaver.mitm = "/mitm.html";
 // }
 
-export class HostWebSocketclient implements ClientToServerCommunication {
-    public static async getRecordItem(hostId: string, path: string): Promise<Item[]> {
+export class HostWebSocketClient implements ClientToServerCommunication {
+    public static async getRecordItem(hostId: string, path: string): Promise<Item> {
         const config = await getConfig();
         const url = WebSocketServerEndpointService.getMetadataEndpointURL(hostId, path, config);
         
@@ -45,6 +45,7 @@ export class HostWebSocketclient implements ClientToServerCommunication {
 
                     switch (msg.typeNo) {
                         case SocketToClientMessageTypes.MetadataResponse: {
+                            console.log(msg.payload);
                             resolve(msg.payload);
                             break;
                         }
