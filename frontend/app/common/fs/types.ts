@@ -9,5 +9,12 @@ export interface Item {
     name: string;
     kind: "directory" | "file";
     size: number;
-    perms?: DirPermissions
+    perms?: DirPermissions;
+    contents?: SubItem[];
+}
+
+export interface SubItem {
+    path: string;
+    name: string;
+    kind: "directory" | "file";
 }

@@ -87,29 +87,43 @@ export async function createHandleIfAllowed(path: string, directory: boolean, cr
     throw new Error();
 }
 
-export async function readHandleWithPermissions(handle: FileSystemHandle, path?: string): Promise<Item[]> {
-    const contents: Item[] = [];
+export async function readHandleWithPermissions(handle: FileSystemHandle, path?: string): Promise<Item> {
+    const item = {
+        path: path ? path : "",
+        name: handle.name,
+        kind: handle.kind,
+        size: await getSize(handle),
+    } as Item;
+
     if (handle.kind === "directory") {
+        item.contents = [];
+        item.perms = await getPerms();
+
         for await (const [name, entry] of (handle as FileSystemDirectoryHandle).entries()) {
             const entryPath = (path ? (path + "/") : "") + entry.name;
-            contents.push({
+            item.contents.push({
                 path: entryPath,
                 name,
                 kind: entry.kind,
-                size: await getSize(entry),
-                perms: await getDirPermissions(entryPath)
-            })
+            });
         }
-    } else {
-        contents.push({
-            path: path ?? "",
-            name: handle.name,
-            kind: "file",
-            size: await getSize(handle),
-            perms: path ? await getDirPermissions(path) : undefined
-        })
     }
-    return contents;
+
+    return item;
+
+    async function getPerms() {
+        let perms: DirPermissions | undefined = undefined;
+        if (path)
+            perms = await getDirPermissions(path);
+        if (path && !perms) {
+            perms = getDefaultPermissions();
+            setDirPermissions(path, perms);
+        }
+        if (!perms)
+            perms = getDefaultPermissions();
+        
+        return perms;
+    }
 }
 
 export async function removeHandleIfAllowed(path: string) {
@@ -141,6 +155,8 @@ export async function removeHandleIfAllowed(path: string) {
                         (handle.kind === "file" && !perms.AllowDeleteFile)) {
                         throw new Error(HostExceptions.ForbiddenError);
                     }
+                    if (handle.kind === "directory")
+                        delDirPermissions(path);
                     break;
                 }
             }

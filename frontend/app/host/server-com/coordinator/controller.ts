@@ -5,8 +5,7 @@ import { createStreamWorker as createStreamWorker } from "./handle-stream-worker
 import type { WorkerRegistry } from "./stream-worker-registry";
 import { HMHostWriter, HostToServerMessage } from "../message/writers";
 import type { HomeNodeFrontendConfig } from "../../../common/config";
-import { findHandle, readHandle } from "../../../common/fs/api";
-import { createHandleIfAllowed, readHandleWithPermissions, removeHandleIfAllowed } from "../../../common/fs/perm";
+import { findHandle, createHandleIfAllowed, readHandleWithPermissions, removeHandleIfAllowed } from "../../../common/fs/api";
 import { ErrorCodes } from "../../../common/error-codes";
 import { HostExceptions } from "../../../common/exceptions";
 import { createFileReceiverWorker } from "../stream/receive/create-file-receiver";

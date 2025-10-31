@@ -118,41 +118,27 @@ export async function getSize(handle: FileSystemHandle) {
 
 }
 
-export async function readItem(path: string) {
-    const handle = await findHandle(path);
-
-    if (!handle) {
-        return null;
-    }
-
-    return {
-        path,
-        name: getLeaf(path),
+export async function readHandle(handle: FileSystemHandle, path?: string): Promise<Item> {
+    const item = {
+        path: path ? path : "",
+        name: handle.name,
         kind: handle.kind,
         size: await getSize(handle),
     } as Item;
-}
 
-export async function readHandle(handle: FileSystemHandle, path?: string): Promise<Item[]> {
-    const contents: Item[] = [];
     if (handle.kind === "directory") {
+        item.contents = [];
         for await (const [name, entry] of (handle as FileSystemDirectoryHandle).entries()) {
-            contents.push({
-                path: (path ? (path + "/") : "") + entry.name,
+            const entryPath = (path ? (path + "/") : "") + entry.name;
+            item.contents.push({
+                path: entryPath,
                 name,
                 kind: entry.kind,
-                size: await getSize(entry),
-            })
+            });
         }
-    } else {
-        contents.push({
-            path: path ?? "",
-            name: handle.name,
-            kind: "file",
-            size: await getSize(handle),
-        })
     }
-    return contents;
+
+    return item;
 }
 
 export async function removeHandle(path: string) {
