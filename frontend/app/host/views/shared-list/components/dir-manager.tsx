@@ -13,16 +13,16 @@ export default function SharedDirectoryManger({item}: {item: Item}) {
         >
             <fetcher.Form method="post">
                 <label htmlFor="allowAddDir">Allow adding directories</label>
-                <input type="checkbox" name="allowAddDir" checked={item.perms?.AllowAddDir} />
+                <input type="checkbox" name="allowAddDir" defaultChecked={item.perms?.AllowAddDir} />
                 <br/>
                 <label htmlFor="allowAddFile">Allow adding files</label>
-                <input type="checkbox" name="allowAddFile" checked={item.perms?.AllowAddFile} />
+                <input type="checkbox" name="allowAddFile" defaultChecked={item.perms?.AllowAddFile} />
                 <br/>
                 <label htmlFor="allowDeleteDir">Allow deleting directories</label>
-                <input type="checkbox" name="allowDeleteDir" checked={item.perms?.AllowDeleteDir} />
+                <input type="checkbox" name="allowDeleteDir" defaultChecked={item.perms?.AllowDeleteDir} />
                 <br/>
                 <label htmlFor="allowDeleteFile">Allow deleting files</label>
-                <input type="checkbox" name="allowDeleteFile" checked={item.perms?.AllowDeleteFile} />
+                <input type="checkbox" name="allowDeleteFile" defaultChecked={item.perms?.AllowDeleteFile} />
                 <br/>
                 <input type="hidden" name="itemPath" value={item.path} />
                 <button type="submit">Update permissions</button>

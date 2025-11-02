@@ -2,7 +2,7 @@ import type { Route } from ".react-router/types/app/host/views/shared-list/+type
 import { useRevalidator, Link } from "react-router";
 import log from "loglevel";
 
-import { findHandle, getStorageRoot, purgeStorage, readHandle } from "~/common/fs/api";
+import { findHandle, getStorageRoot, purgeStorage, readHandle, readHandleWithPermissions } from "~/common/fs/api";
 import { setDirPermissions } from "~/common/perm/permissions";
 import MainItem from "./components/main-item";
 import SubItemsList from "./components/sub-items-list";
@@ -27,7 +27,7 @@ export async function clientLoader({ params }: Route.LoaderArgs) {
         return null;
     }
 
-    return readHandle(handle, resourcePath);
+    return readHandleWithPermissions(handle, resourcePath);
 }
 
 export async function clientAction({ request }: Route.ActionArgs) {

@@ -17,6 +17,7 @@ export default function SharedDirectoryManger({item}: {item: Item}) {
     const handleCreateDir = () => {
         const folderName = window.prompt("Enter the name of folder to create");
         const path = `${item.path}/${folderName}`;
+        console.log("create dir:", path);
 
         HostWebSocketClient.createDirectory(hostId, path)
             .then(() => {
@@ -38,9 +39,9 @@ export default function SharedDirectoryManger({item}: {item: Item}) {
 
     return (
         <div>
-            <UploadFileDropzone hostId={hostId} path={item.path}/>
+            { item.perms?.AllowAddFile ? <UploadFileDropzone hostId={hostId} path={item.path}/> : "" }
             <br/>
-            <button onClick={handleCreateDir}>Add directory</button>
+            { item.perms?.AllowAddDir ? <button onClick={handleCreateDir}>Add directory</button> : "" }
             <br/>
             {buildContents()}
         </div>

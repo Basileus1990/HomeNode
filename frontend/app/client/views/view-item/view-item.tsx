@@ -1,9 +1,11 @@
 import type { Route } from "./+types/view-item.js";
+import { useContext } from "react";
 import { useRouteError, isRouteErrorResponse, useLocation } from "react-router";
 
 import { HostWebSocketClient } from "~/client/service/server-com/ws/implemenation"
 import { createCacheKey, checkKeyInCache, getFromCache, setToCache } from "~/client/service/cache-service.js";
 import MainItem from "./components/main-item.js";
+import { HostIdContext } from "../host-id-context.js";
 
 
 export async function clientLoader({ params }: Route.LoaderArgs) {
@@ -14,7 +16,6 @@ export async function clientLoader({ params }: Route.LoaderArgs) {
     }
 
     const cacheKey = createCacheKey();
-    console.log(cacheKey, path, window.location);
     if (checkKeyInCache(cacheKey)) {
         return getFromCache(cacheKey);
     }
@@ -47,6 +48,7 @@ export function ErrorBoundary() {
 
 export default function ViewItem({ loaderData, params }: Route.ComponentProps) {
     const item = loaderData;
+    const hostId = params.host_id;
 
     const buildContents = () => {
         if (!item) {
@@ -58,7 +60,9 @@ export default function ViewItem({ loaderData, params }: Route.ComponentProps) {
 
     return (
         <>
-            {buildContents()}
+            <HostIdContext value={hostId}>
+                {buildContents()}
+            </HostIdContext>
         </>
     );
 }

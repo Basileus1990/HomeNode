@@ -358,7 +358,6 @@ export class HostController {
                 return true;
             }
         } else if (e instanceof Error && e.message === HostExceptions.ForbiddenError) {
-            log.error("Operation forbidden error encountered");
             await this.sendError(respondentId, ErrorCodes.OperationForbidden);
             return true;
         }
