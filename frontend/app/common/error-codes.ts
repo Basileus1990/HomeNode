@@ -13,4 +13,5 @@ export enum ErrorCodes {
     ResourceNotFound = 10,
     OperationNotAllowed = 11,
     InvalidPath = 13,
+    OperationForbidden = 14,
 }

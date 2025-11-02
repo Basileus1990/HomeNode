@@ -5,7 +5,7 @@ import { createStreamWorker as createStreamWorker } from "./handle-stream-worker
 import type { WorkerRegistry } from "./stream-worker-registry";
 import { HMHostWriter, HostToServerMessage } from "../message/writers";
 import type { HomeNodeFrontendConfig } from "../../../common/config";
-import { createHandle, findHandle, readHandle, removeHandle } from "../../../common/fs/api";
+import { findHandle, createHandleIfAllowed, readHandleWithPermissions, removeHandleIfAllowed } from "../../../common/fs/api";
 import { ErrorCodes } from "../../../common/error-codes";
 import { HostExceptions } from "../../../common/exceptions";
 import { createFileReceiverWorker } from "../stream/receive/create-file-receiver";
@@ -180,7 +180,7 @@ export class HostController {
             const resourcePath = payload.path;
             const handle = await findHandle(resourcePath);
 
-            const metadata = await readHandle(handle, resourcePath);
+            const metadata = await readHandleWithPermissions(handle, resourcePath);
             await this.sendMetadataResponse(respondentId, metadata);
             log.debug(`Metadata for ${resourcePath} sent`);
         } catch (e) {
@@ -207,10 +207,9 @@ export class HostController {
         log.debug("Host received create folder request for path:", path);
         console.log("Host received create folder request for path:", path);
         try {
-            await createHandle(path, true, true);
+            await createHandleIfAllowed(path, true, true);
             await this.sendHostAck(respondentId);
         } catch (e) {
-            console.log(e);
             const handled = await this.handleCommonErrors(e, respondentId);
             if (!handled) {
                 await this.sendError(respondentId, ErrorCodes.UnknownError);
@@ -222,7 +221,7 @@ export class HostController {
         const path = payload.path;
         log.debug("Host received delete file request for path:", path);
         try {
-            await removeHandle(path);
+            await removeHandleIfAllowed(path);
             await this.sendHostAck(respondentId);
         } catch (e) {
             const handled = await this.handleCommonErrors(e, respondentId);
@@ -238,7 +237,7 @@ export class HostController {
 
         try {
             log.debug("Host received upload request for file:", filePath);
-            await createHandle(filePath, false, true);
+            await createHandleIfAllowed(filePath, false, true);
 
             const streamId = this._streamCounter++;
             const worker = createFileReceiverWorker(this._socket, this._config, (id) => this.setWorkerLastActiveNow(id));
@@ -321,14 +320,15 @@ export class HostController {
     }
 
     private async sendError(respondentId: number, errorType: number, message?: string) {
+        const parms = {
+            errorType,
+            errorInfo: message ? { message } : undefined
+        }
         const response = await HMHostWriter.write(
             respondentId,
             HostToServerMessage.Types.Error,
             this._config,
-            {
-                errorType,
-                errorInfo: { message }
-            }
+            parms
         );
         this._socket.send(response);
     }
@@ -357,6 +357,9 @@ export class HostController {
                 await this.sendError(respondentId, ErrorCodes.ResourceNotFound);
                 return true;
             }
+        } else if (e instanceof Error && e.message === HostExceptions.ForbiddenError) {
+            await this.sendError(respondentId, ErrorCodes.OperationForbidden);
+            return true;
         }
         return false;
     }

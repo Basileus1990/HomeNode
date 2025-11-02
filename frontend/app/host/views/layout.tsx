@@ -3,7 +3,7 @@ import { Outlet, Link } from "react-router";
 
 import useCoordinatorWorker from "../server-com/coordinator/use-coordinator";
 import { getHostId } from "../service/id";
-import { HostIdContext } from "./host-id-context";
+import { HostIdContext } from "../../client/views/host-id-context";
 import { getConfig } from "../../common/config";
 
 
