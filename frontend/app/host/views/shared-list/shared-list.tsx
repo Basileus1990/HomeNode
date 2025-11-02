@@ -32,7 +32,7 @@ export async function clientLoader({ params }: Route.LoaderArgs) {
 
 export async function clientAction({ request }: Route.ActionArgs) {
     const formData = await request.formData();
-    const resourcePath = formData.get("resourcePath") as string;
+    const resourcePath = formData.get("itemPath") as string;
 
     const perms = {
         AllowAddDir: formData.get("allowAddDir") === "on",
@@ -40,7 +40,8 @@ export async function clientAction({ request }: Route.ActionArgs) {
         AllowDeleteDir: formData.get("allowDeleteDir") === "on",
         AllowDeleteFile: formData.get("llowDeleteFile") === "on",
     };
-    return setDirPermissions(resourcePath, perms);
+
+    return setDirPermissions(resourcePath, perms).then(() => window.alert("Permissions updated"));
 }
 
 export default function SharedFilesList({loaderData}: Route.ComponentProps) {
