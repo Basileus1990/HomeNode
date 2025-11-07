@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useDropzone, type FileWithPath } from 'react-dropzone';
+import { Button } from "@chakra-ui/react";
 
 export default function Dropzone({ setSelectedFiles }: { setSelectedFiles: React.Dispatch<React.SetStateAction<FileWithPath[]>> }) {
     const [mode, setMode] = useState<"files" | "folder">("files");
@@ -31,7 +32,7 @@ export default function Dropzone({ setSelectedFiles }: { setSelectedFiles: React
     return (
         <section className="container">
             <div style={{ marginBottom: 8 }}>
-                <button
+                <Button
                     type="button"
                     onClick={() => {
                         if (mode === "files") {
@@ -44,8 +45,8 @@ export default function Dropzone({ setSelectedFiles }: { setSelectedFiles: React
                     style={{ marginRight: 8 }}
                 >
                     Select Files
-                </button>
-                <button
+                </Button>
+                <Button
                     type="button"
                     onClick={() => {
                         if (mode === "folder") {
@@ -57,7 +58,7 @@ export default function Dropzone({ setSelectedFiles }: { setSelectedFiles: React
                     }}
                 >
                     Select Folder
-                </button>
+                </Button>
             </div>
             <div {...getRootProps({
                 style: {

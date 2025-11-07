@@ -1,7 +1,10 @@
-import { Link, useFetcher } from "react-router";
+import { Link as RouterLink, useFetcher } from "react-router";
+import { For, VStack } from "@chakra-ui/react";
+import { FiMenu, FiBox, FiTrash } from "react-icons/fi";
 
 import type { Item } from "~/common/fs/types";
 import SubItemsList from "./sub-items-list";
+import SubItemComponent from "./sub-item";
 
 
 export default function SharedDirectoryManger({item}: {item: Item}) {
@@ -30,25 +33,30 @@ export default function SharedDirectoryManger({item}: {item: Item}) {
         </div>
     );
 
-    const addToDirLink = () => (
-        <Link to={`/host/share/${item.path}`}>Add</Link>
-    )
-
-    const buildContents = () => {
-        if (item.contents && item.contents.length > 0) {
-            return  <SubItemsList items={item.contents}/>;
-        } else {
-            return <p>Empty directory</p>;
-        }
-    }
-
     return (
-        <div>
-            {addToDirLink()}
+        <>
+            <RouterLink to={`/host/share/${item.path}`}>Add</RouterLink>
             <br/>
             {updatePermissionsFetcher()}
             <br/>
-            {buildContents()}
-        </div>
+            <For
+                each={item.contents}
+                fallback={
+                    <VStack textAlign="center" fontWeight="medium">
+                        <FiBox />
+                        Directory is empty
+                    </VStack>
+                }
+            >
+                {(item, index) => (
+                    <SubItemComponent 
+                        item={item}
+                        perms={undefined}
+
+                    />
+                )
+                }
+            </For>
+        </>
     )
 }

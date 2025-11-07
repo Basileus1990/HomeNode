@@ -16,6 +16,15 @@ export function getDefaultPermissions(): DirPermissions {
     };
 }
 
+export function getAllAllowedPermissions(): DirPermissions {
+    return {
+        AllowAddDir: true,
+        AllowAddFile: true,
+        AllowDeleteDir: true,
+        AllowDeleteFile: true
+    };
+}
+
 export async function getDirPermissions(path: string): Promise<DirPermissions | undefined> {
     return get(path);
 }

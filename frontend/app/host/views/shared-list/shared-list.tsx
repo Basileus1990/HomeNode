@@ -1,8 +1,9 @@
 import type { Route } from ".react-router/types/app/host/views/shared-list/+types/shared-list";
-import { useRevalidator, Link } from "react-router";
+import { useRevalidator } from "react-router";
+import { Box, Text, Button, Stack } from "@chakra-ui/react";
 import log from "loglevel";
 
-import { findHandle, getStorageRoot, purgeStorage, readHandle, readHandleWithPermissions } from "~/common/fs/api";
+import { findHandle, getStorageRoot, purgeStorage, readHandleWithPermissions } from "~/common/fs/api";
 import { setDirPermissions } from "~/common/perm/permissions";
 import MainItem from "./components/main-item";
 import SubItemsList from "./components/sub-items-list";
@@ -38,10 +39,11 @@ export async function clientAction({ request }: Route.ActionArgs) {
         AllowAddDir: formData.get("allowAddDir") === "on",
         AllowAddFile: formData.get("allowAddFile") === "on",
         AllowDeleteDir: formData.get("allowDeleteDir") === "on",
-        AllowDeleteFile: formData.get("llowDeleteFile") === "on",
+        AllowDeleteFile: formData.get("allowDeleteFile") === "on",
     };
 
-    return setDirPermissions(resourcePath, perms).then(() => window.alert("Permissions updated"));
+    await setDirPermissions(resourcePath, perms);
+    return { ok: true, message: "Permissions updated successfully!" };
 }
 
 export default function SharedFilesList({loaderData}: Route.ComponentProps) {
@@ -55,30 +57,30 @@ export default function SharedFilesList({loaderData}: Route.ComponentProps) {
 
     const buildContents = () => {
         if (!item) {
-            return  <p>No item found</p>;
+            throw new Error("Resource not found");
         } else if (!item.path || item.path === "/") {
-            if (!item.contents || item.contents.length <= 0) {
-                return (
-                    <>
-                        <p>Nothing shared yet!</p>
-                        <br/>
-                        <Link to="/host/share">Add something</Link>
-                    </>
-                )
-            }
-
-            return <SubItemsList items={item.contents} />
+            return (
+                <>
+                    <Text 
+                        textStyle="xl" 
+                        fontWeight="bold" 
+                        textAlign="center"
+                        color="teal"
+                    >
+                        Here are your shared files!
+                    </Text>
+                    <Button onClick={handleClear}>Clear all shared</Button>
+                    <SubItemsList items={item.contents ?? []} />
+                </>
+            )   
         } else {
             return <MainItem item={item} />
         }
     }
-
     
     return (
-        <div>
-            <h1>Shared Files</h1>
-            <button onClick={handleClear}>Clear OPFS</button>
+        <Stack w={{ base: "sm", md: "lg", lg: "50vw" }}>
             {buildContents()}
-        </div>
+        </Stack>
     );
 }
