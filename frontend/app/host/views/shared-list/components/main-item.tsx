@@ -1,31 +1,24 @@
-import { Link as RouterLink, useNavigate } from "react-router";
-import { useState } from "react";
-import { FiPlus, FiArrowLeft, FiDownload } from "react-icons/fi";
-import { Box, Text, Flex, IconButton, Stack, Separator, Wrap } from "@chakra-ui/react";
-import { Tooltip } from "~/components/ui/tooltip";
-import { toaster, Toaster } from "~/components/ui/toaster";
+import { useState, useContext } from "react";
+import { Link as RouterLink } from "react-router";
+import { Flex, Stack, Button } from "@chakra-ui/react";
+import { toaster, Toaster } from "~/common/ui/chakra/components/toaster";
 
-import type { Item } from "~/common/fs/types.js";
-import SubItemsList from "./sub-items-list";
-import { downloadFileLocally } from "~/host/service/file-service";
-import Path from "./path";
-import { DirPermissionsForm } from "./dir-perms";
+import { getResourceShareURL } from "~/common/service/common-url-service";
+import { getAllAllowedPermissions } from "~/common/perm/permissions";
+import { deleteResource, downloadFileLocally } from "~/host/service/file-service";
+import { type Item, type SubItem } from "~/common/fs/types.js";
+import { HostIdContext } from "~/common/ui/contexts/host-id-context";
+import SubItemsList from "~/common/ui/components/sub-items-list";
+import GoBackButton from "~/common/ui/components/go-back";
+import ItemMenu from "~/common/ui/components/item-menu";
+import Path from "~/common/ui/components/path";
+import DirPermissionsForm from "./dir-perms";
 
 
 export default function MainItem({item}: {item: Item}) {
-    const navigate = useNavigate();
     const [isDownloading, setDownloadStatus] = useState<boolean>(false);
-
-    function formatBytes(bytes: number, decimals = 2): string {
-        if (bytes === 0) return "0 Bytes";
-
-        const k = 1024;
-        const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-        const value = parseFloat((bytes / Math.pow(k, i)).toFixed(decimals));
-        return `${value} ${sizes[i]}`;
-    }
+    const hostId = useContext(HostIdContext);
+    const itemURL = getResourceShareURL(hostId, item.path);
 
     const handleDownload = async () => {
         setDownloadStatus(true);
@@ -46,42 +39,40 @@ export default function MainItem({item}: {item: Item}) {
         });
     }
 
-    const buildActionButton = () => {
-        if (item.kind === "file") {
-            return (
-                 <IconButton 
-                    onClick={() => handleDownload()}
-                    disabled={isDownloading}
-                >
-                    <Tooltip content="Download">
-                        <FiDownload />
-                    </Tooltip>
-                </IconButton>
-            )
-        } else {
-            return (
-                <IconButton>
-                    <Tooltip content="Add something">
-                        <RouterLink to={`/host/share/${item.path}`}>
-                            <FiPlus />
-                        </RouterLink>
-                    </Tooltip>
-                </IconButton>
-            );
+    const dirActions = [
+        {
+            value: "add-file-or-dir",
+            children: 
+                <Button variant="plain" size="sm" asChild>
+                    <RouterLink to={`/host/share/${item.path}`}>
+                        Add
+                    </RouterLink>
+                </Button>
+        },
+        {
+            value: "manage-dir-permissions",
+            children: <DirPermissionsForm item={item} />
         }
-    }
+    ]
 
-    const buildContents = () => {
-        if (item.kind === "directory") {
-            return (
-                <>
-                    <DirPermissionsForm item={item} />
-                    <Separator />
-                    <SubItemsList items={item.contents ?? []} />
-                </>
-            );
+    const fileActions = [
+        {
+            value: "download",
+            children: 
+                <Button 
+                    variant="plain" 
+                    size="sm"
+                    onClick={e => {
+                        e.stopPropagation();
+                        handleDownload();
+                    }}
+                    disabled={isDownloading}
+                    loading={isDownloading}
+                >
+                    Download
+                </Button>
         }
-    }
+    ]
 
     return (
         <Stack>
@@ -92,20 +83,25 @@ export default function MainItem({item}: {item: Item}) {
                 justifyContent="space-between"
                 alignItems="center"
             >
-                
-                    <IconButton onClick={() => navigate(-1)}>
-                        <Tooltip content="Go back">
-                            <FiArrowLeft />
-                        </Tooltip>
-                    </IconButton>
+                <GoBackButton />
 
-                    {/* <Text fontWeight="bolder">{item.name}</Text> */}
-                    <Path path={item.path} kind={item.kind} />
+                <Path path={item.path} kind={item.kind} />
 
-                    {buildActionButton()}
-                
+                <ItemMenu 
+                    shareLink={itemURL}
+                    items={item.kind === "file" ? fileActions : dirActions}
+                />
             </Flex>
-            {buildContents()}
+
+            {item.kind === "directory" ? 
+                <SubItemsList 
+                    perms={getAllAllowedPermissions()}
+                    items={item.contents ?? []} 
+                    deleteItem={(item: SubItem) => deleteResource(item.path)}
+                    downloadItem={(item: SubItem) => downloadFileLocally(item.name, item.path)}
+                    useCache={false}
+                /> : null
+            }
         </Stack>
     )
 }

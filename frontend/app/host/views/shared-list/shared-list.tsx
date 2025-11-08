@@ -4,9 +4,11 @@ import { Box, Text, Button, Stack } from "@chakra-ui/react";
 import log from "loglevel";
 
 import { findHandle, getStorageRoot, purgeStorage, readHandleWithPermissions } from "~/common/fs/api";
-import { setDirPermissions } from "~/common/perm/permissions";
+import { getAllAllowedPermissions, setDirPermissions } from "~/common/perm/permissions";
+import { deleteResource, downloadFileLocally } from "~/host/service/file-service";
+import { type Item, type SubItem } from "~/common/fs/types.js";
+import SubItemsList from "~/common/ui/components/sub-items-list";
 import MainItem from "./components/main-item";
-import SubItemsList from "./components/sub-items-list";
 
 
 export async function clientLoader({ params }: Route.LoaderArgs) {
@@ -47,7 +49,7 @@ export async function clientAction({ request }: Route.ActionArgs) {
 }
 
 export default function SharedFilesList({loaderData}: Route.ComponentProps) {
-    const item = loaderData;
+    const item: Item | null = loaderData;
     const revalidator = useRevalidator();
 
     const handleClear = async () => {
@@ -65,12 +67,18 @@ export default function SharedFilesList({loaderData}: Route.ComponentProps) {
                         textStyle="xl" 
                         fontWeight="bold" 
                         textAlign="center"
-                        color="teal"
+                        color="colorPalette.emphasized"
                     >
                         Here are your shared files!
                     </Text>
                     <Button onClick={handleClear}>Clear all shared</Button>
-                    <SubItemsList items={item.contents ?? []} />
+                    <SubItemsList 
+                        perms={getAllAllowedPermissions()}
+                        items={item.contents ?? []} 
+                        deleteItem={(item: SubItem) => deleteResource(item.path)}
+                        downloadItem={(item: SubItem) => downloadFileLocally(item.name, item.path)}
+                        useCache={false}
+                    />
                 </>
             )   
         } else {
@@ -79,7 +87,7 @@ export default function SharedFilesList({loaderData}: Route.ComponentProps) {
     }
     
     return (
-        <Stack w={{ base: "sm", md: "lg", lg: "50vw" }}>
+        <Stack>
             {buildContents()}
         </Stack>
     );

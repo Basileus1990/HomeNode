@@ -1,11 +1,10 @@
 import type { Route } from "./+types/view-item.js";
-import { useContext } from "react";
-import { useRouteError, isRouteErrorResponse, useLocation } from "react-router";
+import { useRouteError, isRouteErrorResponse } from "react-router";
 
 import { HostWebSocketClient } from "~/client/service/server-com/ws/implemenation"
-import { createCacheKey, checkKeyInCache, getFromCache, setToCache } from "~/client/service/cache-service.js";
-import MainItem from "./components/main-item.js";
-import { HostIdContext } from "../host-id-context.js";
+import { createCacheKey, checkKeyInCache, getFromCache, setToCache } from "~/common/service/cache-service.js";
+import MainItem from "./components/main-item";
+import { HostIdContext } from "../../../common/ui/contexts/host-id-context.js";
 
 
 export async function clientLoader({ params }: Route.LoaderArgs) {

@@ -1,4 +1,4 @@
-import { Text, Icon, For, HStack, Box } from "@chakra-ui/react";
+import { Text, Icon, For, HStack, Box, Container } from "@chakra-ui/react";
 import { FiFile, FiFolder, FiChevronRight } from "react-icons/fi";
 
 export default function Path({path, kind}: {path: string, kind: "file" | "directory"}) {
@@ -9,10 +9,9 @@ export default function Path({path, kind}: {path: string, kind: "file" | "direct
             return (
                 <For
                     each={steps.slice(0, -1)}
-                    fallback={<Text>{path}</Text>}
                 >
                     {(step, index) => (
-                        <HStack key={index} gap="0">
+                        <HStack key={index} gap="0" hideBelow="md">
                             <Text>
                                 {step}
                             </Text>

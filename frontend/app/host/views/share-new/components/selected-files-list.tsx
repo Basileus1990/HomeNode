@@ -7,8 +7,8 @@ import {
     DrawerFooter,
     DrawerBackdrop,
     DrawerCloseTrigger,
-} from "~/components/ui/drawer";
-import { Tooltip } from "~/components/ui/tooltip";
+} from "~/common/ui/chakra/components/drawer";
+import { Tooltip } from "~/common/ui/chakra/components/tooltip";
 import { IconButton, Button, For, VStack, Text, Flex, Float, Circle } from "@chakra-ui/react";
 import { FiMenu, FiBox, FiTrash } from "react-icons/fi";
 import type { FileWithPath } from "react-dropzone";
@@ -66,7 +66,10 @@ export default function SelectedFilesList({ selectedFiles, setSelectedFiles }:
                     <For
                         each={selectedFiles}
                         fallback={
-                            <VStack textAlign="center" fontWeight="medium">
+                            <VStack 
+                                textAlign="center" 
+                                fontWeight="medium"
+                                >
                                 <FiBox />
                                 Nothing selected to share
                             </VStack>
@@ -74,11 +77,18 @@ export default function SelectedFilesList({ selectedFiles, setSelectedFiles }:
                     >
                         {(item, index) => (
                             <Flex 
+                                key={index}
                                 flexDirection="row"
                                 justifyContent="space-between"
+                                alignItems="center"
                             >
                                 <Text fontWeight="bold">{item.path ? item.path : item.name}</Text>
-                                <IconButton onClick={() => handleRemoveFile(item)}>
+                                <IconButton 
+                                    variant="outline"
+                                    size="sm"
+                                    rounded="full"
+                                    onClick={() => handleRemoveFile(item)}
+                                >
                                     <FiTrash />
                                 </IconButton>
                             </Flex>

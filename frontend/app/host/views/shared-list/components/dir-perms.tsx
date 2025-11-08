@@ -1,18 +1,16 @@
-import { Box, Button, Stack, Heading, Text, VStack, Fieldset, CheckboxGroup } from "@chakra-ui/react";
-import { toaster, Toaster } from "~/components/ui/toaster";
-import { DialogRoot, DialogContent, DialogTrigger, DialogCloseTrigger } from "~/components/ui/dialog";
-import { CloseButton } from "~/components/ui/close-button";
-import { Checkbox } from "~/components/ui/checkbox";
-import { useFetcher } from "react-router";
 import { useEffect } from "react";
+import { useFetcher } from "react-router";
+import { Box, Button, Heading, Text, VStack, Fieldset, CheckboxGroup } from "@chakra-ui/react";
+import { DialogRoot, DialogContent, DialogTrigger, DialogCloseTrigger } from "~/common/ui/chakra/components/dialog";
+import { toaster } from "~/common/ui/chakra/components/toaster";
+import { Checkbox } from "~/common/ui/chakra/components/checkbox";
 
 import type { Item } from "~/common/fs/types";
 
 
-export function DirPermissionsForm({ item }: {item: Item}) {
+export default function DirPermissionsForm({ item }: {item: Item}) {
   const fetcher = useFetcher();
 
-  // Run side effect when fetcher completes
     useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data) {
         const { ok, message } = fetcher.data;
@@ -93,9 +91,11 @@ export function DirPermissionsForm({ item }: {item: Item}) {
 
     return (
         <VStack>
-            <DialogRoot>
-                <DialogTrigger asChild>
-                    <Button variant="outline">Open Dialog</Button>
+            <DialogRoot >
+                <DialogTrigger asChild onClick={e => e.stopPropagation()}>
+                    <Button variant="plain" size="sm">
+                        Permissions
+                    </Button>
                 </DialogTrigger>
 
                 <DialogContent>

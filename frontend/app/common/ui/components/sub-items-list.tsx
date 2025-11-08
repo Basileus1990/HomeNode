@@ -1,29 +1,35 @@
-import { useContext, useState } from "react";
-import { Link as RouterLink, useFetcher, useRevalidator } from "react-router";
-import { FiBox, FiPlus } from "react-icons/fi";
-import { toaster, Toaster } from "~/components/ui/toaster";
-import { Box, Text, For, Flex, VStack, IconButton, Stack } from "@chakra-ui/react";
+import { useState } from "react";
+import { useRevalidator } from "react-router";
+import { For, VStack, Stack } from "@chakra-ui/react";
+import { toaster, Toaster } from "~/common/ui/chakra/components/toaster";
+import { FiBox } from "react-icons/fi";
 
-import type { Item, SubItem } from "~/common/fs/types.js";
-import { HostIdContext } from "../../../../client/views/host-id-context";
-import SubItemComponent from "./sub-item";
-import { getAllAllowedPermissions } from "~/common/perm/permissions";
-import { deleteResource, downloadFileLocally } from "~/host/service/file-service";
-import { createCacheKey, deleteFromCache } from "~/client/service/cache-service";
-import { getResourceShareURL } from "~/host/service/url-service";
+import { createCacheKey, deleteFromCache } from "~/common/service/cache-service";
+import { type DirPermissions } from "~/common/perm/permissions";
+import { type SubItem } from "~/common/fs/types.js";
+import SubItemComponent from "~/common/ui/components/sub-item";
 
 
-export default function SubItemsList({items}: {items: SubItem[]}) {
-    const hostId = useContext(HostIdContext);
+export type SubItemsListProps = {
+    perms?: DirPermissions,
+    items: SubItem[],
+    deleteItem: (item: SubItem) => Promise<unknown>
+    downloadItem: (item: SubItem) => Promise<unknown>
+    useCache?: boolean
+}
+
+export default function SubItemsList(props : SubItemsListProps) {
+    const { perms, items, deleteItem, downloadItem, useCache } = props;
     const [isDownloading, setDownloadStatus] = useState<boolean>(false);
     const revalidator = useRevalidator();
-    const perms = getAllAllowedPermissions();
 
     const handleDelete = async (subitem: SubItem) => {
-        const deletePromise = deleteResource(subitem.path)
+        const deletePromise = deleteItem(subitem)
             .then(() => {
-                const key = createCacheKey();
-                deleteFromCache(key);
+                if (useCache) {
+                    const key = createCacheKey();
+                    deleteFromCache(key);
+                }
                 revalidator.revalidate();
             });
 
@@ -41,7 +47,7 @@ export default function SubItemsList({items}: {items: SubItem[]}) {
     const handleDownload = async (subitem: SubItem) => {
         setDownloadStatus(true);
         
-        const downloadPromise = downloadFileLocally(subitem.name, subitem.path)
+        const downloadPromise = downloadItem(subitem)
             .finally(() => setDownloadStatus(false));
 
         toaster.promise(downloadPromise, {
@@ -50,15 +56,11 @@ export default function SubItemsList({items}: {items: SubItem[]}) {
                 description: "Looks great",
             },
             error: {
-                title: "Dowdnload failed",
+                title: "Download failed",
                 description: "Something wrong with the download",
             },
             loading: { title: "Downloading...", description: "Please wait" },
         });
-    }
-
-    const handleShare = (subitem: SubItem) => {
-        return getResourceShareURL(hostId, subitem.path); 
     }
 
     return (
@@ -81,7 +83,6 @@ export default function SubItemsList({items}: {items: SubItem[]}) {
                         canDownload={!isDownloading}
                         handleDownload={handleDownload}
                         handleDelete={handleDelete}
-                        handleShare={handleShare}
                     />
                 )}
             </For>

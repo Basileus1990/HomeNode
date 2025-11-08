@@ -36,6 +36,7 @@ export function createDownloadWorker(
                 if (onEof) {
                     onEof();
                 }
+                console.log("resolving");
                 resolve(true);
                 break
             default:

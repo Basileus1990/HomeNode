@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Stack, Text, Button, Alert } from "@chakra-ui/react";
+import { Stack, Text, Button, Alert, Center } from "@chakra-ui/react";
 import type { FileWithPath } from "react-dropzone";
 
 import Dropzone from "./dropzone";
@@ -38,29 +38,31 @@ export default function Uploader({ root }: { root?: FileSystemDirectoryHandle })
     }
 
     return (
-        <Stack>
-            <Text 
-                textStyle="xl" 
-                fontWeight="bold" 
-                textAlign="center"
-            >
-                Share something with the world!
-            </Text>
-            
-            <Dropzone setSelectedFiles={setSelectedFiles} />
-            <SelectedFilesList selectedFiles={selectedFiles} setSelectedFiles={setSelectedFiles} />
+        <Center>
+            <Stack>
+                <Text 
+                    textStyle="xl" 
+                    fontWeight="bold" 
+                    textAlign="center"
+                >
+                    Share something with the world!
+                </Text>
+                
+                <Dropzone setSelectedFiles={setSelectedFiles} />
+                <SelectedFilesList selectedFiles={selectedFiles} setSelectedFiles={setSelectedFiles} />
 
-            {alertOnError()}
-            
-            <Button
-                size="xl"
-                disabled={selectedFiles.length === 0}
-                loading={isUploading}
-                loadingText="Uploading..."
-                onClick={handleUpload}
-            >
-                Upload
-            </Button>
-        </Stack>
+                {alertOnError()}
+                
+                <Button
+                    size="lg"
+                    disabled={selectedFiles.length === 0}
+                    loading={isUploading}
+                    loadingText="Uploading..."
+                    onClick={handleUpload}
+                >
+                    Upload
+                </Button>
+            </Stack>
+        </Center>
     );
 }
