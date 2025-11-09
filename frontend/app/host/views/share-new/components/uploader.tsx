@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { Stack, Text, Button, Alert, Center } from "@chakra-ui/react";
 import type { FileWithPath } from "react-dropzone";
 
 import Dropzone from "./dropzone";
@@ -20,18 +21,48 @@ export default function Uploader({ root }: { root?: FileSystemDirectoryHandle })
         uploadFiles(selectedFiles, root);
     }
 
+    const alertOnError = () => {
+        if (error) {
+            return (
+                <Alert.Root status="error">
+                    <Alert.Indicator />
+                    <Alert.Content>
+                        <Alert.Title>Upload failed</Alert.Title>
+                        <Alert.Description>
+                            {error}
+                        </Alert.Description>
+                    </Alert.Content>
+                </Alert.Root>
+            )
+        }
+    }
+
     return (
-        <div>
-            <Dropzone setSelectedFiles={setSelectedFiles} />
-            <SelectedFilesList selectedFiles={selectedFiles} setSelectedFiles={setSelectedFiles} />
-            {error && <p style={{ color: "red" }}>{error}</p>}
-            <button
-                onClick={handleUpload}
-                disabled={selectedFiles.length === 0 || isUploading}
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            >
-                {isUploading ? "Uploading..." : "Upload"}
-            </button>
-        </div>
+        <Center>
+            <Stack>
+                <Text 
+                    textStyle="xl" 
+                    fontWeight="bold" 
+                    textAlign="center"
+                >
+                    Share something with the world!
+                </Text>
+                
+                <Dropzone setSelectedFiles={setSelectedFiles} />
+                <SelectedFilesList selectedFiles={selectedFiles} setSelectedFiles={setSelectedFiles} />
+
+                {alertOnError()}
+                
+                <Button
+                    size="lg"
+                    disabled={selectedFiles.length === 0}
+                    loading={isUploading}
+                    loadingText="Uploading..."
+                    onClick={handleUpload}
+                >
+                    Upload
+                </Button>
+            </Stack>
+        </Center>
     );
 }

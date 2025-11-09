@@ -131,6 +131,10 @@ function finishDownload() {
     _socket.send(query);
     _socket.close();
 
+    self.postMessage({
+        type: "eof"
+    });
+
     log.debug("Client finished download and disconnected");
     close();
 }

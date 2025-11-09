@@ -27,14 +27,10 @@ export default function Share({loaderData}: Route.ComponentProps) {
     const { handle, error } = loaderData;
 
     if (error) {
-        return (
-            <p>Error: {error}!</p>
-        );
+        throw new Error("Resource not found");
     }
 
     return (
-        <article>
-            <Uploader root={handle as FileSystemDirectoryHandle} />
-        </article>
+        <Uploader root={handle as FileSystemDirectoryHandle} />
     );
 }

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useDropzone, type FileWithPath } from 'react-dropzone';
+import { Button, Box, VStack, HStack } from "@chakra-ui/react";
 
 export default function Dropzone({ setSelectedFiles }: { setSelectedFiles: React.Dispatch<React.SetStateAction<FileWithPath[]>> }) {
     const [mode, setMode] = useState<"files" | "folder">("files");
@@ -29,9 +30,9 @@ export default function Dropzone({ setSelectedFiles }: { setSelectedFiles: React
     }, [mode, open]);
 
     return (
-        <section className="container">
-            <div style={{ marginBottom: 8 }}>
-                <button
+        <VStack>
+            <HStack>
+                <Button
                     type="button"
                     onClick={() => {
                         if (mode === "files") {
@@ -44,8 +45,8 @@ export default function Dropzone({ setSelectedFiles }: { setSelectedFiles: React
                     style={{ marginRight: 8 }}
                 >
                     Select Files
-                </button>
-                <button
+                </Button>
+                <Button
                     type="button"
                     onClick={() => {
                         if (mode === "folder") {
@@ -57,24 +58,23 @@ export default function Dropzone({ setSelectedFiles }: { setSelectedFiles: React
                     }}
                 >
                     Select Folder
-                </button>
-            </div>
+                </Button>
+            </HStack>
+            <Box
+                borderColor="colorPalette.200"
+                borderWidth="2px"
+                rounded="sm"
+            >
             <div {...getRootProps({
                 style: {
-                    border: '2px dashed #0070f3',
-                    borderRadius: '5px',
                     padding: '20px',
                     textAlign: 'center',
-                    cursor: 'pointer',
-                    backgroundColor: '#f0f0f0',
-                    color: '#333',
-                    fontSize: '16px',
-                    transition: 'background-color 0.3s ease',
                 }
             })}>
                 <input {...inputProps} />
                 <p>Drag and drop files or folders here, or use the buttons above</p>
             </div>
-        </section>
+            </Box>
+        </VStack>
     );
 }

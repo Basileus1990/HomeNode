@@ -2,10 +2,6 @@ import log from "loglevel";
 
 import type { HomeNodeFrontendConfig } from "~/common/config";
 
-export function getResourceShareURL(hostId: string, resourceId: string) {
-    return `${window.location.origin}/client/${hostId}/${resourceId}`;
-}
-
 export function getHostAddItemURL(path: string) {
     return `${window.location.origin}/host/share/${path}`;
 }
@@ -17,11 +13,11 @@ export function getHostConnectionURL(config: HomeNodeFrontendConfig, hostId?: st
     }
     else {
         log.trace("Asking for new credentials");
-        return getHostCleanConntectionURL(config);
+        return getHostCleanConnectionURL(config);
     }
 }
 
-export function getHostCleanConntectionURL(config: HomeNodeFrontendConfig) {
+export function getHostCleanConnectionURL(config: HomeNodeFrontendConfig) {
     return config.host_connect_ws_url;
 }
 

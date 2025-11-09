@@ -266,7 +266,7 @@ export class HostController {
         log.info("Prompting receiver: ", streamId, entry);
 
         if (!entry) {
-            this.sendError(respondentId, 400, "unknown respondentId");
+            this.sendError(respondentId, 400);
             return;
         }
 
@@ -283,7 +283,7 @@ export class HostController {
         log.info("Transfering chunk to receiver: ", streamId, entry);
 
         if (!entry) {
-            this.sendError(respondentId, 400, "unknown respondentId");
+            this.sendError(respondentId, 400);
             return;
         }
 

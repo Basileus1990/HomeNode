@@ -138,7 +138,7 @@ export class HostWebSocketClient implements ClientToServerCommunication {
     {
         const config = await getConfig();
         const url = WebSocketServerEndpointService.getCreateFileEndpointURL(hostId, path, file.size,config);
-        console.log("Upload URL:", url);
+
         return new Promise(async (resolve, reject) => {
             try {
                 const reader = new HMClientReader();
@@ -186,7 +186,6 @@ export class HostWebSocketClient implements ClientToServerCommunication {
                                 if (onEof) {
                                     onEof();
                                 }
-                                console.log("closing socket");
                                 socket.close();
                                 log.debug("Host signals upload end");
                                 resolve(true);
@@ -195,13 +194,11 @@ export class HostWebSocketClient implements ClientToServerCommunication {
                                 if (onError) {
                                     onError();
                                 }
-                                console.log("closing socket");
                                 socket.close();
                                 reject(new Error(getErrorMessage((msg.payload.errorType))));
                                 break;
                             }
                             default: {
-                                console.log("closing socket");
                                 socket.close();
                                 reject(new Error("Unexpected server response"));
                                 break;
@@ -209,7 +206,6 @@ export class HostWebSocketClient implements ClientToServerCommunication {
                         }   
 
                     } catch (error) {
-                        console.log("closing socket");
                         socket.close();
                         reject(new Error(`Error reading message: ${error}`));
                     }
