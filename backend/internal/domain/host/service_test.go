@@ -8,7 +8,6 @@ import (
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/common/message_types"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/domain/host/saved_connections_repository"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/helpers"
-	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/app/config"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/client/clientconn"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostconn"
 	"github.com/Basileus1990/EasyFileTransfer.git/internal/infrastructure/host/hostmap"
@@ -514,7 +513,6 @@ func TestDownloadResource(t *testing.T) {
 		expectedDownloadInitQuery := [][]byte{
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
-			helpers.Uint32ToBinary(123),
 			[]byte("aaa\000"),
 		}
 		mockHostConn.On("Query", expectedDownloadInitQuery).Return(nil, errors.New("test error"))
@@ -545,7 +543,6 @@ func TestDownloadResource(t *testing.T) {
 		expectedDownloadInitQuery := [][]byte{
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
-			helpers.Uint32ToBinary(123),
 			[]byte("aaa\000"),
 		}
 		downloadInitResponse := []byte{1}
@@ -577,7 +574,6 @@ func TestDownloadResource(t *testing.T) {
 		expectedDownloadInitQuery := [][]byte{
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
-			helpers.Uint32ToBinary(123),
 			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.Error.Binary()
@@ -611,7 +607,6 @@ func TestDownloadResource(t *testing.T) {
 		expectedDownloadInitQuery := [][]byte{
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
-			helpers.Uint32ToBinary(123),
 			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
@@ -643,7 +638,6 @@ func TestDownloadResource(t *testing.T) {
 		expectedDownloadInitQuery := [][]byte{
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
-			helpers.Uint32ToBinary(123),
 			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
@@ -653,7 +647,7 @@ func TestDownloadResource(t *testing.T) {
 
 		mockClientConn.On("Send", [][]byte{
 			message_types.DownloadInitResponse.Binary(),
-			helpers.Uint32ToBinary(123),
+
 			helpers.Uint32ToBinary(1),
 		}).Return(errors.New("some error from send client"))
 
@@ -688,7 +682,6 @@ func TestDownloadResource(t *testing.T) {
 		expectedDownloadInitQuery := [][]byte{
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
-			helpers.Uint32ToBinary(123),
 			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
@@ -698,7 +691,7 @@ func TestDownloadResource(t *testing.T) {
 
 		mockClientConn.On("Send", [][]byte{
 			message_types.DownloadInitResponse.Binary(),
-			helpers.Uint32ToBinary(123),
+
 			helpers.Uint32ToBinary(1),
 		}).Return(nil)
 
@@ -735,7 +728,6 @@ func TestDownloadResource(t *testing.T) {
 		expectedDownloadInitQuery := [][]byte{
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
-			helpers.Uint32ToBinary(123),
 			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
@@ -745,7 +737,7 @@ func TestDownloadResource(t *testing.T) {
 
 		mockClientConn.On("Send", [][]byte{
 			message_types.DownloadInitResponse.Binary(),
-			helpers.Uint32ToBinary(123),
+
 			helpers.Uint32ToBinary(1),
 		}).Return(nil)
 
@@ -782,7 +774,6 @@ func TestDownloadResource(t *testing.T) {
 		expectedDownloadInitQuery := [][]byte{
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
-			helpers.Uint32ToBinary(123),
 			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
@@ -792,7 +783,7 @@ func TestDownloadResource(t *testing.T) {
 
 		mockClientConn.On("Send", [][]byte{
 			message_types.DownloadInitResponse.Binary(),
-			helpers.Uint32ToBinary(123),
+
 			helpers.Uint32ToBinary(1),
 		}).Return(nil)
 
@@ -829,7 +820,6 @@ func TestDownloadResource(t *testing.T) {
 		expectedDownloadInitQuery := [][]byte{
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
-			helpers.Uint32ToBinary(123),
 			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
@@ -839,7 +829,6 @@ func TestDownloadResource(t *testing.T) {
 
 		mockClientConn.On("Send", [][]byte{
 			message_types.DownloadInitResponse.Binary(),
-			helpers.Uint32ToBinary(123),
 			helpers.Uint32ToBinary(1),
 		}).Return(nil)
 
@@ -884,7 +873,7 @@ func TestDownloadResource(t *testing.T) {
 		expectedDownloadInitQuery := [][]byte{
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
-			helpers.Uint32ToBinary(123),
+
 			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
@@ -894,7 +883,7 @@ func TestDownloadResource(t *testing.T) {
 
 		mockClientConn.On("Send", [][]byte{
 			message_types.DownloadInitResponse.Binary(),
-			helpers.Uint32ToBinary(123),
+
 			helpers.Uint32ToBinary(1),
 		}).Return(nil)
 
@@ -943,7 +932,7 @@ func TestDownloadResource(t *testing.T) {
 		expectedDownloadInitQuery := [][]byte{
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
-			helpers.Uint32ToBinary(123),
+
 			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
@@ -953,7 +942,7 @@ func TestDownloadResource(t *testing.T) {
 
 		mockClientConn.On("Send", [][]byte{
 			message_types.DownloadInitResponse.Binary(),
-			helpers.Uint32ToBinary(123),
+
 			helpers.Uint32ToBinary(1),
 		}).Return(nil)
 
@@ -1004,7 +993,7 @@ func TestDownloadResource(t *testing.T) {
 		expectedDownloadInitQuery := [][]byte{
 			message_types.DownloadInitRequest.Binary(),
 			helpers.UUIDToBinary(resourceId),
-			helpers.Uint32ToBinary(123),
+
 			[]byte("aaa\000"),
 		}
 		downloadInitResponse := message_types.DownloadInitResponse.Binary()
@@ -1014,7 +1003,7 @@ func TestDownloadResource(t *testing.T) {
 
 		mockClientConn.On("Send", [][]byte{
 			message_types.DownloadInitResponse.Binary(),
-			helpers.Uint32ToBinary(123),
+
 			helpers.Uint32ToBinary(1),
 		}).Return(nil)
 
