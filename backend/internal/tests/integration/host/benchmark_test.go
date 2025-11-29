@@ -69,7 +69,7 @@ func BenchmarkGetResourceMetadata(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	//b.N = 10000
-	//b.SetParallelism(128)
+	b.SetParallelism(64)
 
 	b.Cleanup(func() {
 		elapsed := time.Since(start)
@@ -193,7 +193,7 @@ func BenchmarkDownloadResource(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	//b.N = 128
-	//b.SetParallelism(128)
+	b.SetParallelism(64)
 
 	b.Cleanup(func() {
 		elapsed := time.Since(start)
@@ -341,8 +341,8 @@ func BenchmarkLargeFileDownload(b *testing.B) {
 	start := time.Now()
 	b.ResetTimer()
 	b.ReportAllocs()
-	//b.N = 100
-	//b.SetParallelism(b.N)
+	b.N = 1567
+	b.SetParallelism(64)
 
 	b.Cleanup(func() {
 		elapsed := time.Since(start)
