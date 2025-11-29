@@ -2,3 +2,6 @@
 .env
 .storage
 data.sqlite
+
+cert.pem
+key.pem

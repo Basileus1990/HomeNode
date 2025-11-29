@@ -1,0 +1,52 @@
+services:
+  backend_app:
+    build: .
+    container_name: home_node_backend
+    expose:
+      - "3000"
+    environment:
+      # Server settings
+      - PORT=3000
+      - BATCH_SIZE=34768
+
+      - SAVED_CONNECTIONS_VALID_FOR_DAYS=180
+
+      - DATABASE_DRIVER=sqlite3
+      - DATABASE_DATASOURCE_PATH=./data/data.sqlite
+      - DATABASE_MIGRATIONS_PATH=./migrations
+
+      # Frontend settings
+      - FRONTEND_STREAMER_INACTIVITY_TIMEOUT=3000000
+      - FRONTEND_STREAMER_CLEANUP_INTERVAL=1000000
+      - FRONTEND_USE_LITTLE_ENDIAN=false
+
+      - FRONTEND_HOST_CONNECT_WS_URL=/api/v1/host/connect
+      - FRONTEND_HOST_RECONNECT_WS_URL_TEMPLATE=/api/v1/host/reconnect/@hostId?hostKey=@hostKey
+
+      # Client settings
+      - FRONTEND_CLIENT_CONNECT_WS_URL_TEMPLATE=/api/v1/host/metadata/@hostId/@path
+      - FRONTEND_CLIENT_DOWNLOAD_WS_URL_TEMPLATE=/api/v1/host/download/@hostId/@path
+      - FRONTEND_CLIENT_CREATE_DIR_WS_URL_TEMPLATE=/api/v1/host/directory/create/@hostId/@path
+      - FRONTEND_CLIENT_CREATE_FILE_WS_URL_TEMPLATE=/api/v1/host/file/create/@hostId/@path
+      - FRONTEND_CLIENT_DELETE_RESOURCE_WS_URL_TEMPLATE=/api/v1/host/resource/delete/@hostId/@path
+
+      - FRONTEND_PBKDF2_ITERATIONS=100000
+      - FRONTEND_AES_KEY_LENGTH=256
+      - FRONTEND_AES_IV_BYTES=12
+      - FRONTEND_SALT_BYTES=16
+    volumes:
+      - ./data:/app/backend/data
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: home_node_proxy
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./secure_deploy/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./secure_deploy/certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend_app
+    restart: unless-stopped
