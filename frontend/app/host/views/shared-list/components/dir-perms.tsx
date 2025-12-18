@@ -29,6 +29,7 @@ export default function DirPermissionsForm({ item }: {item: Item}) {
     const permissionForm = () => (
         <Box
             p="6"
+            onClick={e => e.stopPropagation()}
         >
             <Heading size="md" mb="4">
                 Update Permissions
