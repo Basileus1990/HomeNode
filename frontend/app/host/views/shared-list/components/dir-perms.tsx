@@ -41,6 +41,7 @@ export default function DirPermissionsForm({ item }: {item: Item}) {
                             <Checkbox
                                 name="allowAddDir"
                                 defaultChecked={item.perms?.AllowAddDir}
+                                onClick={e => e.stopPropagation()}
                             >
                                 Allow adding directories
                             </Checkbox>
@@ -48,6 +49,7 @@ export default function DirPermissionsForm({ item }: {item: Item}) {
                             <Checkbox
                                 name="allowAddFile"
                                 defaultChecked={item.perms?.AllowAddFile}
+                                onClick={e => e.stopPropagation()}
                             >
                                 Allow adding files
                             </Checkbox>
@@ -55,6 +57,7 @@ export default function DirPermissionsForm({ item }: {item: Item}) {
                             <Checkbox
                                 name="allowDeleteDir"
                                 defaultChecked={item.perms?.AllowDeleteDir}
+                                onClick={e => e.stopPropagation()}
                             >
                                 Allow deleting directories
                             </Checkbox>
@@ -62,6 +65,7 @@ export default function DirPermissionsForm({ item }: {item: Item}) {
                             <Checkbox
                                 name="allowDeleteFile"
                                 defaultChecked={item.perms?.AllowDeleteFile}
+                                onClick={e => e.stopPropagation()}
                             >
                                 Allow deleting files
                             </Checkbox>
@@ -73,6 +77,7 @@ export default function DirPermissionsForm({ item }: {item: Item}) {
                                 variant="solid"
                                 loading={fetcher.state !== "idle"}
                                 loadingText="Updating..."
+                                onClick={e => e.stopPropagation()}
                             >
                                 Update Permissions
                             </Button>
